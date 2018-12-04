@@ -441,9 +441,9 @@ exports.seed = async function(knex) {
 	if(!userId.rows.length) {
 		userId = await  knex('users').insert({
 			'email': 'root@plant.works',
-			'password': '$pbkdf2-sha512$i=25000$NDk0rCTjcPWj8fM7qnnAqw$x3mNwNveDsLfCYyZzGJ4vWDYa9b4yqaTaWx9U+7wPrumOTmKBlFPHKwJL1W/42P2zn5VoDTaoM+qK+OPdx+G1w',
+			'password': '$pbkdf2-sha512$i=25000$TcpuHsGqh+o3S+KNIXREjw$MjHMSkGA5WHnRWG0UbUP/CPxfADCN+o+8momCsXOzRSigcty3/R3CPftGy7l9EcLoF1BYpo8Q7/PlnfRC24PkA',
 			'first_name': 'Root',
-			'last_name': 'Plant.Works',
+			'last_name': 'PlantWorks',
 			'nickname': 'root',
 			'profile_image': 'f8a9da32-26c5-495a-be9a-42f2eb8e4ed1',
 			'profile_image_metadata': '{"zoom": "1", "points": ["2", "0", "336", "334"]}'
@@ -496,7 +496,7 @@ exports.seed = async function(knex) {
 			'tenant_id': tenantId,
 			'parent_group_id': superAdminGroupId,
 			'name': 'administrators',
-			'display_name': 'Plant.Works Root Administrators',
+			'display_name': 'Administrators',
 			'description': 'The Administrator Group for the root tenant',
 			'default_for_new_user': false
 		})
@@ -508,7 +508,7 @@ exports.seed = async function(knex) {
 		adminGroupId = adminGroupId.rows[0]['group_id'];
 		await knex('tenant_groups').where('group_id', '=', adminGroupId).update({
 			'name': 'administrators',
-			'display_name': 'Plant.Works Root Administrators',
+			'display_name': 'Administrators',
 			'description': 'The Administrator Group for the root tenant',
 			'default_for_new_user': false
 		});
@@ -520,7 +520,7 @@ exports.seed = async function(knex) {
 			'tenant_id': tenantId,
 			'parent_group_id': adminGroupId,
 			'name': 'registered-users',
-			'display_name': 'Plant.Works Registered Users',
+			'display_name': 'Registered Users',
 			'description': 'The Registered User Group for the root tenant',
 			'default_for_new_user': true
 		})
@@ -538,7 +538,7 @@ exports.seed = async function(knex) {
 			'tenant_id': tenantId,
 			'parent_group_id': registeredGroupId,
 			'name': 'public',
-			'display_name': 'Plant.Works Public Users',
+			'display_name': 'Public',
 			'description': 'The public, non-logged-in, Users'
 		})
 		.returning('group_id');

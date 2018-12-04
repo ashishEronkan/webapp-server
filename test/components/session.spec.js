@@ -52,7 +52,7 @@ describe('Session Component Test Cases', function() {
 			.type('form')
 			.send({
 				'username': 'root@something.com',
-				'password': 'twyr'
+				'password': 'plantworks'
 			})
 			.end((err, response) => {
 				expect(response).to.have.status(422);
@@ -66,7 +66,7 @@ describe('Session Component Test Cases', function() {
 			.type('form')
 			.send({
 				'username': 'root@plant.works',
-				'password': 'twyr2'
+				'password': 'plantworks2'
 			})
 			.end((err, response) => {
 				expect(response).to.have.status(422);
@@ -80,7 +80,7 @@ describe('Session Component Test Cases', function() {
 			.type('form')
 			.send({
 				'username': 'root@plant.works',
-				'password': 'twyr'
+				'password': 'plantworks'
 			})
 			.end((err, response) => {
 				expect(response).to.have.status(200);
@@ -96,7 +96,7 @@ describe('Session Component Test Cases', function() {
 			.type('form')
 			.send({
 				'username': 'root@plant.works',
-				'password': 'twyr'
+				'password': 'plantworks'
 			})
 			.end((err, response) => {
 				expect(response).to.have.status(422);
@@ -180,7 +180,7 @@ describe('Session Component Test Cases', function() {
 			.type('form')
 			.send({
 				'username': 'root@plant.works',
-				'password': 'twyr'
+				'password': 'plantworks'
 			})
 			.end((err, response) => {
 				expect(response).to.have.status(422);
