@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>server/services/webserver_service/service.js - Plant.Works Web Application Server</title>
+    
+    <meta name="description" content="Plant.Works Web Application Server" />
+    
+        <meta name="keywords" content="plantworks" />
+        <meta name="keyword" content="plantworks" />
+    
+    
+    
+    <meta property="og:title" content="Plant.Works Web Application Server"/>
+    <meta property="og:type" content="documentation"/>
+    <meta property="og:image" content="./tenant_assets/www/img/logo.png"/>
+    <meta property="og:site_name" content="Plant.Works Web Application Server"/>
+    <meta property="og:url" content="https://plantworks.github.io/webapp-server"/>
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiService.html">ApiService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ApiService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#add">add</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#execute">execute</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#remove">remove</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="ApiService.html#unload">unload</a></li></ul></li><li><a href="AuditService.html">AuditService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="AuditService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_cleanBeforePublish">_cleanBeforePublish</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#publish">publish</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="AuditService.html#unload">unload</a></li></ul></li><li><a href="AuthService.html">AuthService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="AuthService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="AuthService.html#unload">unload</a></li></ul></li><li><a href="AwsService.html">AwsService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="AwsService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="AwsService.html#unload">unload</a></li></ul></li><li><a href="BhairaviTemplate.html">BhairaviTemplate</a><ul class='methods'><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#load">load</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#start">start</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="BhairaviTemplate.html#unload">unload</a></li></ul></li><li><a href="CacheService.html">CacheService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CacheService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="CacheService.html#unload">unload</a></li></ul></li><li><a href="CassandraService.html">CassandraService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="CassandraService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="CassandraService.html#unload">unload</a></li></ul></li><li><a href="ConfigurationService.html">ConfigurationService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#getModuleId">getModuleId</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#getModuleState">getModuleState</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#loadConfiguration">loadConfiguration</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#saveConfiguration">saveConfiguration</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#setModuleState">setModuleState</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="ConfigurationService.html#unload">unload</a></li></ul></li><li><a href="ConfigurationServiceLoader.html">ConfigurationServiceLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="ConfigurationServiceLoader.html#unload">unload</a></li></ul></li><li><a href="Dashboard.html">Dashboard</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Dashboard.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="Dashboard.html#unload">unload</a></li></ul></li><li><a href="DatabaseConfigurationService.html">DatabaseConfigurationService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#getModuleId">getModuleId</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#getModuleState">getModuleState</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#loadConfiguration">loadConfiguration</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#saveConfiguration">saveConfiguration</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#setModuleState">setModuleState</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="DatabaseConfigurationService.html#unload">unload</a></li></ul></li><li><a href="DatabaseService.html">DatabaseService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="DatabaseService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="DatabaseService.html#unload">unload</a></li></ul></li><li><a href="FeatureApiService.html">FeatureApiService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#add">add</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#execute">execute</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#remove">remove</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="FeatureApiService.html#unload">unload</a></li></ul></li><li><a href="FeatureManager.html">FeatureManager</a><ul class='methods'><li data-type='method' style='display: none;'><a href="FeatureManager.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#load">load</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#start">start</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="FeatureManager.html#unload">unload</a></li></ul></li><li><a href="FileConfigurationService.html">FileConfigurationService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#getModuleId">getModuleId</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#getModuleState">getModuleState</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#loadConfiguration">loadConfiguration</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#saveConfiguration">saveConfiguration</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#setModuleState">setModuleState</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="FileConfigurationService.html#unload">unload</a></li></ul></li><li><a href="GroupManager.html">GroupManager</a><ul class='methods'><li data-type='method' style='display: none;'><a href="GroupManager.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#load">load</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#start">start</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="GroupManager.html#unload">unload</a></li></ul></li><li><a href="LocalizationService.html">LocalizationService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LocalizationService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="LocalizationService.html#unload">unload</a></li></ul></li><li><a href="LoggerService.html">LoggerService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="LoggerService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="LoggerService.html#unload">unload</a></li></ul></li><li><a href="MailerService.html">MailerService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="MailerService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="MailerService.html#unload">unload</a></li></ul></li><li><a href="Main.html">Main</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Main.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="Main.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="Main.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="Main.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="Main.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="Main.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="Main.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="Main.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="Main.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="Main.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="Main.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="Main.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="Main.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="Main.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="Main.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="Main.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Main.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Main.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="Main.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="Main.html#unload">unload</a></li></ul></li><li><a href="Masterdata.html">Masterdata</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Masterdata.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="Masterdata.html#unload">unload</a></li></ul></li><li><a href="PlantWorksApplication.html">PlantWorksApplication</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#bootupServer">bootupServer</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#shutdownServer">shutdownServer</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksApplication.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseClass.html">PlantWorksBaseClass</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseClass.html#_handleUncaughtException">_handleUncaughtException</a></li></ul></li><li><a href="PlantWorksBaseComponent.html">PlantWorksBaseComponent</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseComponent.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseError.html">PlantWorksBaseError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksBaseFeature.html">PlantWorksBaseFeature</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseFeature.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseMiddleware.html">PlantWorksBaseMiddleware</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseMiddleware.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseModule.html">PlantWorksBaseModule</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseModule.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseService.html">PlantWorksBaseService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseService.html#unload">unload</a></li></ul></li><li><a href="PlantWorksBaseTemplate.html">PlantWorksBaseTemplate</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksBaseTemplate.html#unload">unload</a></li></ul></li><li><a href="PlantWorksComponentError.html">PlantWorksComponentError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksComponentError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksComponentLoader.html">PlantWorksComponentLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksComponentLoader.html#unload">unload</a></li></ul></li><li><a href="PlantWorksFeatureError.html">PlantWorksFeatureError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksFeatureError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksFeatureLoader.html">PlantWorksFeatureLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksFeatureLoader.html#unload">unload</a></li></ul></li><li><a href="PlantWorksMiddlewareError.html">PlantWorksMiddlewareError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksMiddlewareLoader.html">PlantWorksMiddlewareLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksMiddlewareLoader.html#unload">unload</a></li></ul></li><li><a href="PlantWorksModuleLoader.html">PlantWorksModuleLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksModuleLoader.html#unload">unload</a></li></ul></li><li><a href="PlantWorksServiceError.html">PlantWorksServiceError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksServiceError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksServiceLoader.html">PlantWorksServiceLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksServiceLoader.html#unload">unload</a></li></ul></li><li><a href="PlantWorksTemplateError.html">PlantWorksTemplateError</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksTemplateError.html#toJSON">toJSON</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateError.html#toString">toString</a></li></ul></li><li><a href="PlantWorksTemplateLoader.html">PlantWorksTemplateLoader</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_doLifecycleAction">_doLifecycleAction</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_filterStatus">_filterStatus</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_findFiles">_findFiles</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_getDependencies">_getDependencies</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_initializeComponents">_initializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_initializeFeatures">_initializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_initializeMiddlewares">_initializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_initializeServices">_initializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_initializeTemplates">_initializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadComponents">_loadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadFeatures">_loadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadMiddlewares">_loadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadServices">_loadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadTemplates">_loadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_loadUtilities">_loadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_startComponents">_startComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_startFeatures">_startFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_startMiddlewares">_startMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_startServices">_startServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_startTemplates">_startTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_stopComponents">_stopComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_stopFeatures">_stopFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_stopMiddlewares">_stopMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_stopServices">_stopServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_stopTemplates">_stopTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_uninitializeComponents">_uninitializeComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_uninitializeFeatures">_uninitializeFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_uninitializeMiddlewares">_uninitializeMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_uninitializeServices">_uninitializeServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_uninitializeTemplates">_uninitializeTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadComponents">_unloadComponents</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadFeatures">_unloadFeatures</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadMiddlewares">_unloadMiddlewares</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadServices">_unloadServices</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadTemplates">_unloadTemplates</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#_unloadUtilities">_unloadUtilities</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PlantWorksTemplateLoader.html#unload">unload</a></li></ul></li><li><a href="Profile.html">Profile</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Profile.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="Profile.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="Profile.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="Profile.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="Profile.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="Profile.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Profile.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Profile.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="Profile.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="Profile.html#unload">unload</a></li></ul></li><li><a href="PubsubService.html">PubsubService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="PubsubService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#publish">publish</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#subscribe">subscribe</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#unload">unload</a></li><li data-type='method' style='display: none;'><a href="PubsubService.html#unsubscribe">unsubscribe</a></li></ul></li><li><a href="RingpopService.html">RingpopService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="RingpopService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="RingpopService.html#unload">unload</a></li></ul></li><li><a href="ServerAdministration.html">ServerAdministration</a><ul class='methods'><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#load">load</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#start">start</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="ServerAdministration.html#unload">unload</a></li></ul></li><li><a href="Session.html">Session</a><ul class='methods'><li data-type='method' style='display: none;'><a href="Session.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="Session.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="Session.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="Session.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="Session.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="Session.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="Session.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="Session.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="Session.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="Session.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="Session.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="Session.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="Session.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="Session.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="Session.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="Session.html#load">load</a></li><li data-type='method' style='display: none;'><a href="Session.html#start">start</a></li><li data-type='method' style='display: none;'><a href="Session.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="Session.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="Session.html#unload">unload</a></li></ul></li><li><a href="TenantAdministration.html">TenantAdministration</a><ul class='methods'><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#load">load</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#start">start</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="TenantAdministration.html#unload">unload</a></li></ul></li><li><a href="UserManager.html">UserManager</a><ul class='methods'><li data-type='method' style='display: none;'><a href="UserManager.html#_abac">_abac</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_addRoutes">_addRoutes</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_deleteRoutes">_deleteRoutes</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_rbac">_rbac</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#getClientsideAssets">getClientsideAssets</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#getDashboardDisplayDetails">getDashboardDisplayDetails</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#load">load</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#start">start</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="UserManager.html#unload">unload</a></li></ul></li><li><a href="WebserverService.html">WebserverService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="WebserverService.html#_auditLog">_auditLog</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_handleOrProxytoCluster">_handleOrProxytoCluster</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_processRequestFromAnotherNode">_processRequestFromAnotherNode</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_serveTenantFavicon">_serveTenantFavicon</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_serveTenantStaticAssets">_serveTenantStaticAssets</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_setTenant">_setTenant</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_setupTenantFeatureTree">_setupTenantFeatureTree</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="WebserverService.html#unload">unload</a></li></ul></li><li><a href="WebsocketService.html">WebsocketService</a><ul class='methods'><li data-type='method' style='display: none;'><a href="WebsocketService.html#_changeState">_changeState</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_dependencyReconfigure">_dependencyReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_dependencyStateChange">_dependencyStateChange</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_exists">_exists</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_handleUncaughtException">_handleUncaughtException</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_parentReconfigure">_parentReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_parentStateChange">_parentStateChange</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_reconfigure">_reconfigure</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_setup">_setup</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_subModuleReconfigure">_subModuleReconfigure</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_subModuleStateChange">_subModuleStateChange</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#_teardown">_teardown</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#initialize">initialize</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#load">load</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#start">start</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#stop">stop</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#uninitialize">uninitialize</a></li><li data-type='method' style='display: none;'><a href="WebsocketService.html#unload">unload</a></li></ul></li></ul><h3><a href="global.html">Global</a></h3>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">server/services/webserver_service/service.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+/* eslint-disable security/detect-object-injection */
+/* eslint-disable security/detect-non-literal-require */
+
+/**
+ * Module dependencies, required for ALL Plant.Works' modules
+ * @ignore
+ */
+
+/**
+ * Module dependencies, required for this module
+ * @ignore
+ */
+const PlantWorksBaseService = require('plantworks-base-service').PlantWorksBaseService;
+
+const PlantWorksBaseError = require('plantworks-base-error').PlantWorksBaseError;
+const PlantWorksSrvcError = require('plantworks-service-error').PlantWorksServiceError;
+
+/**
+ * @class   WebserverService
+ * @extends {PlantWorksBaseService}
+ * @classdesc The Plant.Works Web Application Server Webserver Service - based on Koa.
+ *
+ * @description
+ * Allows the rest of the Plant.Works Modules to expose REST API.
+ *
+ */
+class WebserverService extends PlantWorksBaseService {
+	// #region Constructor
+	constructor(parent, loader) {
+		super(parent, loader);
+	}
+	// #endregion
+
+	// #region startup/teardown code
+	/**
+	 * @async
+	 * @function
+	 * @override
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _setup
+	 *
+	 * @returns  {null} Nothing.
+	 *
+	 * @summary  Sets up the Web Server using Koa.
+	 */
+	async _setup() {
+		try {
+			if(this.$server) return null;
+			await super._setup();
+
+			this.$proxies = {};
+			this.$serveFavicons = {};
+			this.$serveStatics = {};
+
+			/**
+			 * Step 1: Setup Koa Application
+			 * @ignore
+			 */
+
+			// Step 1.1: Instantiate Koa &amp; do basic setup
+			const Koa = require('koa');
+			const path = require('path');
+			const promises = require('bluebird');
+
+			this.$koa = new Koa();
+			this.$koa.keys = this.$config.session.keys;
+			this.$koa.proxy = ((plantworksEnv !== 'development') &amp;&amp; (plantworksEnv !== 'test'));
+			this.$koa.subdomainOffset = this.$config.domain.split('.').length;
+
+			// Step 1.2: Generate or Use a unique id for this request
+			const requestId = require('koa-requestid');
+			this.$koa.use(requestId({
+				'expose': 'X-Request-Id',
+				'header': 'X-Request-Id',
+				'query': 'requestId'
+			}));
+
+			this.$koa.use(async (ctxt, next) => {
+				ctxt.request.headers['x-request-id'] = ctxt.state.id;
+				ctxt.set('x-powered-by', this.$config.poweredBy);
+
+				await next();
+			});
+
+			// Step 1.3: Handle the bloody errors...
+			this.$koa.use(async (ctxt, next) => {
+				try {
+					await next();
+				}
+				catch(err) {
+					let error = err;
+					if(error &amp;&amp; !(error instanceof PlantWorksBaseError)) { // eslint-disable-line curly
+						error = new PlantWorksBaseError(`Web Request Error: `, err);
+					}
+
+					ctxt.type = 'application/json; charset=utf-8';
+					ctxt.status = 422;
+					ctxt.body = error.toJSON();
+
+					// ctxt.app.emit('error', error, ctxt);
+				}
+				finally {
+					if(this.$config.protocol === 'http2')
+						delete ctxt.status;
+				}
+			});
+
+			// Step 1.4: Before proceeding further, check if this node will process this...
+			this.$koa.use(this._setTenant.bind(this));
+			this.$koa.use(this._handleOrProxytoCluster.bind(this));
+
+			// Step 1.5: Security middlewares, Rate Limiters, etc. - first
+			// But only in production - its a pain having to deal with these in development
+			if((plantworksEnv !== 'development') &amp;&amp; (plantworksEnv !== 'test')) {
+				// Blacklisted IP? No chance...
+				// const honeypot = require('nodejs-projecthoneypot');
+				// honeypot.setApiKey(this.$config.honeyPot.apiKey);
+
+				// this.$koa.use(async (ctxt, next) => {
+				// 	try {
+				// 		const honeyPayload = await honeypot.checkIP(ctxt.ip);
+				// 		if(!honeyPayload.found) {
+				// 			await next();
+				// 			return;
+				// 		}
+
+				// 		throw new URIError(`Blacklisted Request IP Address: ${ctxt.ip}`);
+				// 	}
+				// 	catch(err) {
+				// 		let error = err;
+
+				// 		// eslint-disable-next-line curly
+				// 		if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+				// 			error = new PlantWorksSrvcError(`${this.name}::_checkHoneypot`, error);
+				// 		}
+
+				// 		throw error;
+				// 	}
+				// });
+
+				// Not blacklisted but not whitelisted here? Forget it
+				const koaCors = require('@koa/cors');
+				this.$koa.use(koaCors({
+					'credentials': true,
+					'keepHeadersOnError': true,
+
+					'origin': (ctx) => {
+						return (ctx.hostname.indexOf(this.$config.domain) >= 0);
+					}
+				}));
+
+				// Ok... whitelisted, but exceeding request quotas? Stop right now!
+				const ratelimiter = require('koa-ratelimit');
+				this.$koa.use(ratelimiter({
+					'db': this.$dependencies.CacheService
+				}));
+
+				// All fine, but the server is overloaded? You gotta wait, dude!
+				const overloadProtection = require('overload-protection')('koa');
+				this.$koa.use(overloadProtection);
+
+				// TODO: Enable proper Content-Security-Policy once we're done with figuring out where we get stuff from
+				// And add a CSP report uri, as well
+				const koaHelmet = require('koa-helmet');
+				this.$koa.use(koaHelmet({
+					'hidePoweredBy': false,
+					'hpkp': false,
+					'hsts': false
+				}));
+			}
+
+			// Step 1.6: Add in the request modifying middlewares
+			const acceptOverride = require('koa-accept-override');
+			this.$koa.use(acceptOverride());
+
+			const methodOverride = require('koa-methodoverride');
+			this.$koa.use(methodOverride());
+
+			const device = require('device');
+			this.$koa.use(async (ctxt, next) => {
+				ctxt.state.device = device(ctxt.req.headers['user-agent'] || '');
+				await next();
+			});
+
+			// Step 1.7: Session
+			const koaSession = require('koa-session');
+			const KoaSessionStore = require('koa-redis');
+
+			this.$config.session.config.store = new KoaSessionStore({
+				'client': this.$dependencies.CacheService
+			});
+
+			this.$config.session.config.genid = function() {
+				const uuid = require('uuid/v4');
+				return `plantworks!webapp!server!${uuid()}`;
+			};
+
+			this.$koa.use(koaSession(this.$config.session.config, this.$koa));
+
+			// Step 1.8: The body parsers...
+			const koaFormidable = require('koa2-formidable');
+			this.$koa.use(koaFormidable());
+
+			const koaBodyParser = require('koa-bodyparser');
+			this.$koa.use(koaBodyParser({
+				'formLimit': '10mb',
+				'jsonLimit': '10mb',
+				'textLimit': '10mb',
+				'extendTypes': {
+					'json': ['application/x-javascript'],
+					'form': ['multipart/form-data']
+				}
+			}));
+
+			// Step 1.9: Passport based authentication
+			this.$koa.use(this.$dependencies.AuthService.initialize());
+			this.$koa.use(this.$dependencies.AuthService.session());
+
+			// Step 1.10: Compressor for large response payloads
+			const compressor = require('koa-compress');
+			this.$koa.use(compressor({
+				'threshold': 4096
+			}));
+
+			// Step 1.11: Plant.Works Auditing &amp; Logger for auditing...
+			this.$koa.use(this._auditLog.bind(this));
+
+			// Step 1.12: Static Assets / Favicon / etc.
+			const koaFavicon = require('koa-favicon');
+			const koaStatic = require('koa-static');
+
+			this.$koa.use(this._serveTenantFavicon.bind(this));
+			this.$koa.use(koaFavicon(path.join(path.dirname(path.dirname(require.main.filename)), 'static_assets/favicon.ico')));
+
+			this.$koa.use(this._serveTenantStaticAssets.bind(this));
+			this.$koa.use(koaStatic(path.join(path.dirname(path.dirname(require.main.filename)), 'static_assets')));
+
+			// Step 1.13: Add in the router
+			const Router = require('koa-router');
+			this.$router = new Router();
+
+			this.$koa.use(this.$router.routes());
+			this.$koa.use(this.$router.allowedMethods());
+
+			/**
+			 * Step 2: Setup node.js Web Server
+			 * @ignore
+			 */
+
+			// Step 2.1: Create the Server
+			this.$config.protocol = this.$config.protocol || 'http';
+			const protocol = require(this.$config.protocol || 'http');
+
+			if(this.$config.protocol === 'http') { // eslint-disable-line curly
+				this.$server = protocol.createServer(this.$koa.callback());
+			}
+
+			const filesystem = promises.promisifyAll(require('fs'));
+			if((this.$config.protocol === 'https') || this.$config.protocol === 'spdy') {
+				const secureKey = await filesystem.readFileAsync(path.isAbsolute(this.$config.secureProtocols[this.$config.protocol].key) ? this.$config.secureProtocols[this.$config.protocol].key : path.join(__dirname, this.$config.secureProtocols[this.$config.protocol].key));
+				const secureCert = await filesystem.readFileAsync(path.isAbsolute(this.$config.secureProtocols[this.$config.protocol].cert) ? this.$config.secureProtocols[this.$config.protocol].cert : path.join(__dirname, this.$config.secureProtocols[this.$config.protocol].cert));
+
+				this.$config.secureProtocols[this.$config.protocol].key = secureKey;
+				this.$config.secureProtocols[this.$config.protocol].cert = secureCert;
+
+				this.$server = protocol.createServer(this.$config.secureProtocols[this.$config.protocol], this.$koa.callback());
+			}
+
+			if(this.$config.protocol === 'http2') {
+				const secureKey = await filesystem.readFileAsync(path.isAbsolute(this.$config.secureProtocols[this.$config.protocol].key) ? this.$config.secureProtocols[this.$config.protocol].key : path.join(__dirname, this.$config.secureProtocols[this.$config.protocol].key));
+				const secureCert = await filesystem.readFileAsync(path.isAbsolute(this.$config.secureProtocols[this.$config.protocol].cert) ? this.$config.secureProtocols[this.$config.protocol].cert : path.join(__dirname, this.$config.secureProtocols[this.$config.protocol].cert));
+
+				this.$config.secureProtocols[this.$config.protocol].key = secureKey;
+				this.$config.secureProtocols[this.$config.protocol].cert = secureCert;
+
+				this.$server = protocol.createSecureServer(this.$config.secureProtocols[this.$config.protocol], this.$koa.callback());
+			}
+
+			// Step 2.2: Add utility to force-stop server
+			const serverDestroy = require('server-destroy');
+			serverDestroy(this.$server);
+
+			// Step 2.3: Start listening to events
+			this.$server.on('connection', this._serverConnection.bind(this));
+
+			this.$koa.on('error', this._handleKoaError.bind(this));
+			this.$server.on('error', this._serverError.bind(this));
+
+			// Step 2.4: Setup the server to listen to requests forwarded via Ringpop, just in case
+			this.$dependencies.RingpopService.on('request', this._processRequestFromAnotherNode.bind(this));
+
+			// Finally, Start listening...
+			this.$server = promises.promisifyAll(this.$server);
+			this.$parent.once('server-online', this._listenAndPrintNetworkInterfaces.bind(this));
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksSrvcError(`${this.name}::_setup error`, err);
+		}
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @override
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _teardown
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Destroys the Koa Web Server.
+	 */
+	async _teardown() {
+		try {
+			this.$dependencies.RingpopService.off('request', this._processRequestFromAnotherNode.bind(this));
+
+			if(!this.$server) return null;
+			if(this.$server.listening) { // eslint-disable-line curly
+				await this.$server.destroyAsync();
+			}
+
+			this.$server.off('connection', this._serverConnection.bind(this));
+
+			this.$server.off('error', this._serverError.bind(this));
+			this.$koa.off('error', this._handleKoaError.bind(this));
+
+			this.$router.stack.length = 0;
+
+			delete this.$router;
+			delete this.$koa;
+			delete this.$server;
+
+			await super._teardown();
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksSrvcError(`${this.name}::_teardown error`, err);
+		}
+	}
+	// #endregion
+
+	// #region Configuration Change Handlers
+	/**
+	 * @async
+	 * @function
+	 * @override
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _reconfigure
+	 *
+	 * @param    {Object} newConfig - The changed configuration.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Changes the configuration of this module, and informs everyone interested.
+	 */
+	async _reconfigure(newConfig) {
+		this.$parent.emit('server-offline');
+		await super._reconfigure(newConfig);
+		this.$parent.emit('server-online');
+
+		return null;
+	}
+	// #endregion
+
+	// #region Koa Middlewares
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _setTenant
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 * @param    {callback} next - Callback to pass the request on to the next route in the chain.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Sets up the tenant context on each request so Ringpop knows which node in the cluster to route it to.
+	 */
+	async _setTenant(ctxt, next) {
+		try {
+			const cacheSrvc = this.$dependencies.CacheService,
+				dbSrvc = this.$dependencies.DatabaseService.knex;
+
+			let tenantSubDomain = (ctxt.subdomains.length === 1) ? ctxt.subdomains[0] : 'www';
+
+			if(ctxt.subdomains.length > 1) {
+				ctxt.subdomains.reverse();
+				tenantSubDomain = ctxt.subdomains.join('.');
+				ctxt.subdomains.reverse();
+			}
+
+			if(this.$config.subdomainMappings &amp;&amp; this.$config.subdomainMappings[tenantSubDomain])
+				tenantSubDomain = this.$config.subdomainMappings[tenantSubDomain];
+
+			let tenant = null;
+			if(ctxt.get['tenant']) { // eslint-disable-line curly
+				tenant = JSON.parse(ctxt.get['tenant']);
+			}
+
+			if(!tenant) {
+				tenant = await cacheSrvc.getAsync(`plantworks!webapp!tenant!${tenantSubDomain}`);
+				if(tenant) tenant = JSON.parse(tenant);
+			}
+
+			if(!tenant) {
+				let parentModule = this.$parent;
+				while(parentModule.$parent) parentModule = parentModule.$parent;
+
+				const parentModuleId = await this.$dependencies.ConfigurationService.getModuleID(parentModule);
+
+				tenant = await dbSrvc.raw('SELECT tenant_id, name, sub_domain FROM tenants WHERE sub_domain = ?', [tenantSubDomain]);
+				if(!tenant.rows.length) {
+					let redirectDomain = `${this.$config.protocol}://www.${this.$config.domain}`;
+					if(this.$config.externalPort) redirectDomain = `${redirectDomain}:${this.$config.externalPort}`;
+
+					ctxt.redirect(redirectDomain);
+					return;
+				}
+
+				tenant = tenant.rows.shift();
+
+				let template = await dbSrvc.raw(`SELECT * FROM fn_get_tenant_server_template(?, ?)`, [tenant.tenant_id, parentModuleId]);
+				template = template.rows.shift();
+
+				tenant['template'] = template;
+
+				const tenantFeatures = await dbSrvc.raw(`SELECT * FROM fn_get_module_descendants(?) WHERE type = 'feature' AND module_id IN (SELECT module_id FROM tenants_features WHERE tenant_id = ?)`, [parentModuleId, tenant.tenant_id]);
+				tenant['features'] = this._setupTenantFeatureTree(tenantFeatures.rows, parentModuleId);
+
+				const cacheMulti = cacheSrvc.multi();
+				cacheMulti.setAsync(`plantworks!webapp!tenant!${tenantSubDomain}`, JSON.stringify(tenant));
+				cacheMulti.expireAsync(`plantworks!webapp!tenant!${tenantSubDomain}`, ((plantworksEnv === 'development') ? 300 : 86400));
+
+				await cacheMulti.execAsync();
+			}
+
+			ctxt.state.tenant = tenant;
+			ctxt.request.headers['tenant'] = JSON.stringify(tenant);
+
+			await next();
+		}
+		catch(err) {
+			let error = err;
+
+			// eslint-disable-next-line curly
+			if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+				error = new PlantWorksSrvcError(`${this.name}::_setTenant`, error);
+			}
+
+			throw error;
+		}
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _auditLog
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 * @param    {callback} next - Callback to pass the request on to the next route in the chain.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Pushes the data from the request/response cycle to the Audit Service for publication.
+	 */
+	async _auditLog(ctxt, next) {
+		try {
+			const convertHRTime = require('convert-hrtime');
+			const moment = require('moment');
+			const statusCodes = require('http').STATUS_CODES;
+
+			const reqHeaders = {};
+			Object.keys(ctxt.request.headers).forEach((reqHeader) => {
+				try {
+					reqHeaders[reqHeader] = JSON.parse(JSON.stringify(ctxt.request.headers[reqHeader]));
+				}
+				catch(err) {
+					// Do Nothing
+				}
+			});
+
+			const logMsgMeta = {
+				'id': ctxt.state.id,
+				'start-time': moment().valueOf(),
+				'duration': 0,
+
+				'user': {
+					'user_id': ctxt.state.user ? ctxt.state.user.user_id : 'ffffffff-ffff-4fff-ffff-ffffffffffff',
+					'name': ctxt.state.user ? `${ctxt.state.user.first_name} ${ctxt.state.user.last_name}` : 'Public'
+				},
+
+				'tenant': {
+					'tenant_id': ctxt.state.tenant ? ctxt.state.tenant.tenant_id : '00000000-0000-4000-0000-000000000000',
+					'sub-domain': ctxt.state.tenant ? ctxt.state.tenant.sub_domain : '???',
+					'name': ctxt.state.tenant ? ctxt.state.tenant.name : 'Unknown'
+				},
+
+				'request-meta': {
+					'headers': reqHeaders || {},
+					'method': ctxt.request.method,
+					'url': ctxt.request.url,
+					'ip': ctxt.request.ip,
+					'ips': JSON.parse(JSON.stringify(ctxt.request.ips || []))
+				},
+
+				'response-meta': {
+				},
+
+				'query': JSON.parse(JSON.stringify(ctxt.query || {})),
+				'params': JSON.parse(JSON.stringify(ctxt.params || {})),
+				'body': JSON.parse(JSON.stringify(ctxt.request.body || {})),
+				'payload': null,
+				'error': null
+			};
+
+			const startTime = process.hrtime();
+			if(next) await next();
+			const duration = process.hrtime(startTime);
+
+			logMsgMeta.duration = convertHRTime(duration).milliseconds;
+
+			logMsgMeta['response-meta']['headers'] = JSON.parse(JSON.stringify(ctxt.response.headers));
+			logMsgMeta['response-meta']['status'] = {
+				'code': ctxt.status,
+				'message': statusCodes[ctxt.status]
+			};
+
+			logMsgMeta['payload'] = (Buffer.isBuffer(ctxt.body)) ? 'BUFFER' : JSON.parse(JSON.stringify(ctxt.body || {}));
+			logMsgMeta['error'] = ctxt.state.error || (ctxt.status >= 400);
+
+			logMsgMeta['request-meta']['headers']['tenant'] = undefined;
+
+			if(ctxt.request.url.indexOf('websockets') >= 0) {
+				ctxt.status = 200;
+				ctxt.type = 'application/json; charset=utf-8';
+				ctxt.body = logMsgMeta;
+
+				return;
+			}
+
+			await this.$dependencies.AuditService.publish(logMsgMeta);
+		}
+		catch(err) {
+			let error = err;
+
+			// eslint-disable-next-line curly
+			if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+				error = new PlantWorksSrvcError(`${this.name}::_auditLog`, error);
+			}
+
+			throw error;
+		}
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _handleOrProxytoCluster
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 * @param    {callback} next - Callback to pass the request on to the next route in the chain.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Call Ringpop to decide whether to handle the request, or to forward it someplace else.
+	 */
+	async _handleOrProxytoCluster(ctxt, next) {
+		try {
+			const ringpop = this.$dependencies.RingpopService;
+
+			const hostPort = [];
+			hostPort.push(ringpop.lookup(ctxt.state.tenant.tenant_id).split(':').shift());
+			hostPort.push(this.$config.internalPort || 9100);
+			// hostPort.push(this.$config.internalPort === 9100 ? 9101 : 9100);
+
+			const dest = `${this.$config.protocol}://${hostPort.join(':')}${ctxt.path}`;
+
+			if(ringpop.lookup(ctxt.state.tenant.tenant_id) === ringpop.whoami()) {
+				delete this.$proxies[dest];
+
+				await next();
+				return;
+			}
+
+			delete this.$serveFavicons[ctxt.state.tenant.sub_domain];
+			delete this.$serveStatics[ctxt.state.tenant.sub_domain];
+
+			if(!this.$proxies[dest]) {
+				const proxy = require('koa-better-http-proxy');
+				this.$proxies[dest] = proxy(dest, {
+					'preserveReqSession': true,
+					'preserveHostHdr': true
+				});
+			}
+
+			await this.$proxies[dest](ctxt, next);
+		}
+		catch(err) {
+			let error = err;
+
+			// eslint-disable-next-line curly
+			if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+				error = new PlantWorksSrvcError(`${this.name}::_handleOrProxytoCluster`, error);
+			}
+
+			throw error;
+		}
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _serveTenantFavicon
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 * @param    {callback} next - Callback to pass the request on to the next route in the chain.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Return the favicon set by the tenant.
+	 */
+	async _serveTenantFavicon(ctxt, next) {
+		const path = require('path');
+		const serveFavicon = require('koa-favicon');
+
+		try {
+			const tenantFaviconPath = path.join(path.dirname(path.dirname(require.main.filename)), 'static_assets', ctxt.state.tenant['sub_domain'], 'favicon.ico');
+			if(!this.$serveFavicons[ctxt.state.tenant.sub_domain]) { // eslint-disable-line curly
+				this.$serveFavicons[ctxt.state.tenant.sub_domain] = serveFavicon(tenantFaviconPath);
+			}
+		}
+		catch(err) {
+			await next();
+			return;
+		}
+
+		await this.$serveFavicons[ctxt.state.tenant.sub_domain](ctxt, next);
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _serveTenantStaticAssets
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 * @param    {callback} next - Callback to pass the request on to the next route in the chain.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Serve up the static assets from the current tenants folder.
+	 */
+	async _serveTenantStaticAssets(ctxt, next) {
+		const path = require('path');
+		const serveStatic = require('koa-static');
+
+		try {
+			const tenantStaticAssetPath = path.join(path.dirname(path.dirname(require.main.filename)), 'static_assets', ctxt.state.tenant['sub_domain']);
+			if(!this.$serveStatics[ctxt.state.tenant.sub_domain]) { // eslint-disable-line curly
+				this.$serveStatics[ctxt.state.tenant.sub_domain] = serveStatic(tenantStaticAssetPath);
+			}
+		}
+		catch(err) {
+			await next();
+			return;
+		}
+
+		await this.$serveStatics[ctxt.state.tenant.sub_domain](ctxt, next);
+	}
+
+	// #endregion
+
+	// #region Miscellaneous
+	/**
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _processRequestFromAnotherNode
+	 *
+	 * @param    {Object} request - Request coming in from the outside world.
+	 * @param    {Object} response - Response going out to the outside world.
+	 *
+	 * @returns  {undefined} Nothing.
+	 *
+	 * @summary  Returns a function that can handle the request coming in from another Ringpop node.
+	 */
+	_processRequestFromAnotherNode(request, response) {
+		response.end();
+	}
+
+	/**
+	 * @function
+	 * @instance
+	 * @memberof WebserverService
+	 * @name     _setupTenantFeatureTree
+	 *
+	 * @param    {Array} tenantFeatures - List of features this tenant has access to in the database.
+	 * @param    {string} parentModuleId - Parent Feature to be considered.
+	 *
+	 * @returns  {Object} Tree structure.
+	 *
+	 * @summary  Returns a sree structure of the features / sub-features that the tenant has access to.
+	 */
+	_setupTenantFeatureTree(tenantFeatures, parentModuleId) {
+		const thisParentFeatures = {};
+		tenantFeatures.forEach((tenantFeature) => {
+			if(tenantFeature['parent_module_id'] !== parentModuleId)
+				return;
+
+			thisParentFeatures[tenantFeature.name] = this._setupTenantFeatureTree(tenantFeatures, tenantFeature['module_id']);
+		});
+
+		return thisParentFeatures;
+	}
+	// #endregion
+
+	// #region Private Methods
+	_serverConnection(socket) {
+		socket.setTimeout(this.$config.connectionTimeout * 1000);
+	}
+
+	_serverError(err) {
+		let error = err;
+
+		// eslint-disable-next-line curly
+		if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+			error = new PlantWorksSrvcError(`${this.name}::_serverError`, error);
+		}
+
+		this.$dependencies.LoggerService.error(`${this.name}::_serverError\n\n${error.toString()}`);
+	}
+
+	_handleKoaError(err, ctxt) {
+		let error = err;
+
+		// eslint-disable-next-line curly
+		if(error &amp;&amp; !(error instanceof PlantWorksSrvcError)) {
+			error = new PlantWorksSrvcError(`${this.name}::_handleKoaError`, error);
+		}
+
+		ctxt.state.error = error;
+		this._auditLog(ctxt);
+	}
+
+	async _listenAndPrintNetworkInterfaces() {
+		await snooze(1000);
+		await this.$server.listenAsync(this.$config.internalPort || 9090);
+
+		if(plantworksEnv !== 'development' &amp;&amp; plantworksEnv !== 'test')
+			return;
+
+		const forPrint = [],
+			networkInterfaces = require('os').networkInterfaces();
+
+		Object.keys(networkInterfaces).forEach((networkInterfaceName) => {
+			const networkInterfaceAddresses = networkInterfaces[networkInterfaceName];
+
+			for(const address of networkInterfaceAddresses)
+				forPrint.push({
+					'Interface': networkInterfaceName,
+					'Protocol': address.family,
+					'Address': address.address,
+					'Port': this.$config.internalPort || 9100
+				});
+		});
+
+		console.table(forPrint);
+	}
+	// #endregion
+
+	// #region Properties
+	/**
+	 * @override
+	 */
+	get Interface() {
+		return {
+			'App': this.$koa,
+			'Router': this.$router,
+			'Server': this.$server
+		};
+	}
+
+	/**
+	 * @override
+	 */
+	get dependencies() {
+		return [
+			'AuditService',
+			'AuthService',
+			'CacheService',
+			'ConfigurationService',
+			'DatabaseService',
+			'LocalizationService',
+			'LoggerService',
+			'RingpopService'
+		].concat(super.dependencies);
+	}
+
+	/**
+	 * @override
+	 */
+	get basePath() {
+		return __dirname;
+	}
+	// #endregion
+}
+
+exports.service = WebserverService;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/jquery-3.1.1.min.js"></script>
+
+<script src="scripts/search.js"></script>
+
+
+<script src="scripts/collapse.js"></script>
+
+
+
+</body>
+</html>
