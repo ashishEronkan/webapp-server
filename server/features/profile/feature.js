@@ -41,23 +41,25 @@ class Profile extends PlantWorksBaseFeature {
 	 *
 	 * @summary  Everyone logged-in gets access.
 	 */
-	async getDashboardDisplayDetails(ctxt) {
-		try {
-			const rbacChecker = this._rbac('registered');
-			await rbacChecker(ctxt);
+	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
 
-			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
+		// try {
+		// 	const rbacChecker = this._rbac('registered');
+		// 	await rbacChecker(ctxt);
 
-			defaultDisplay['attributes']['name'] = `${ctxt.state.user.first_name} ${ctxt.state.user.last_name}`;
-			defaultDisplay['attributes']['description'] = `Edit ${ctxt.state.user.first_name}'s Profile Information`;
-			defaultDisplay['attributes']['icon_type'] = 'img';
-			defaultDisplay['attributes']['icon_path'] = '/profile/get-image';
+		// 	const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-			return defaultDisplay;
-		}
-		catch(err) {
-			return null;
-		}
+		// 	defaultDisplay['attributes']['name'] = `${ctxt.state.user.first_name} ${ctxt.state.user.last_name}`;
+		// 	defaultDisplay['attributes']['description'] = `Edit ${ctxt.state.user.first_name}'s Profile Information`;
+		// 	defaultDisplay['attributes']['icon_type'] = 'img';
+		// 	defaultDisplay['attributes']['icon_path'] = '/profile/get-image';
+
+		// 	return defaultDisplay;
+		// }
+		// catch(err) {
+		// 	return null;
+		// }
 	}
 	// #endregion
 
