@@ -48,6 +48,7 @@ class ServerAdministration extends PlantWorksBaseFeature {
 		defaultDisplay['attributes']['icon_type'] = 'mdi';
 		defaultDisplay['attributes']['icon_path'] = 'server';
 
+		// TODO: Return the correct stuff once implemented
 		return null;
 	}
 	// #endregion

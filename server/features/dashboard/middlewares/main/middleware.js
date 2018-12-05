@@ -83,22 +83,22 @@ class Main extends PlantWorksBaseMiddleware {
 				return 0;
 			});
 
-			if(ctxt.state.user.tenantAttributes['default_route'] !== 'dashboard') { // eslint-disable-line curly
-				validFeatures.unshift({
-					'id': 'home',
-					'type': 'dashboard/feature',
+			// if(ctxt.state.user.tenantAttributes['default_route'] !== 'dashboard') { // eslint-disable-line curly
+			// 	validFeatures.unshift({
+			// 		'id': 'home',
+			// 		'type': 'dashboard/feature',
 
-					'attributes': {
-						'name': 'home',
-						'type': 'feature',
-						'route': (ctxt.state.user.tenantAttributes['default_route'] && ctxt.state.user.tenantAttributes['default_route'].trim() !== '') ? ctxt.state.user.tenantAttributes['default_route'] : 'application',
-						'description': 'Home',
+			// 		'attributes': {
+			// 			'name': 'home',
+			// 			'type': 'feature',
+			// 			'route': (ctxt.state.user.tenantAttributes['default_route'] && ctxt.state.user.tenantAttributes['default_route'].trim() !== '') ? ctxt.state.user.tenantAttributes['default_route'] : 'application',
+			// 			'description': 'Home',
 
-						'icon_type': 'fa', // eslint-disable-line Other choices are md, mdi, img, custom
-						'icon_path': 'home'
-					}
-				});
-			}
+			// 			'icon_type': 'fa', // eslint-disable-line Other choices are md, mdi, img, custom
+			// 			'icon_path': 'home'
+			// 		}
+			// 	});
+			// }
 
 			return { 'data': validFeatures };
 		}
