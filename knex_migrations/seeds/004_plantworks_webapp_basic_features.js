@@ -93,7 +93,7 @@ exports.seed = async function(knex) {
 			'module_id': componentId,
 			'name': 'tenant-administration-read',
 			'display_name': 'Tenant Administration Read',
-			'description': 'The Read-only Permission for the Tenant Adminstration Module'
+			'description': 'The Read-only Permission for the Tenant Administration Module'
 		});
 
 		await knex('feature_permissions').insert({
@@ -101,7 +101,7 @@ exports.seed = async function(knex) {
 			'name': 'tenant-administration-update',
 			'implies_permissions': '["tenant-administration-read"]',
 			'display_name': 'Tenant Administration Update',
-			'description': 'Update Permission for the Tenant Adminstration Module'
+			'description': 'Update Permission for the Tenant Administration Module'
 		});
 
 		await knex('feature_permissions').insert({
@@ -109,7 +109,7 @@ exports.seed = async function(knex) {
 			'name': 'tenant-administration-all',
 			'implies_permissions': '["tenant-administration-update"]',
 			'display_name': 'Tenant Administration All',
-			'description': 'All Permissions for the Tenant Adminstration Module'
+			'description': 'All Permissions for the Tenant Administration Module'
 		});
 	}
 	else {
