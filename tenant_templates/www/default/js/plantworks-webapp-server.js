@@ -4839,6 +4839,25 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', ['sku-manager-read']);
+    }
+
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/components/summernote-lite", ["exports", "ember-summernote-lite/components/summernote-lite"], function (_exports, _summernoteLite) {
   "use strict";
 
@@ -6979,6 +6998,25 @@
       this._super(...arguments);
 
       this.set('permissions', ['registered']);
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', ['sku-manager-read']);
     }
 
   });
@@ -11064,6 +11102,23 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/models/sku-manager/product", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'code': _emberData.default.attr('string'),
+    'name': _emberData.default.attr('string'),
+    'vendor': _emberData.default.attr('string'),
+    'vendorCode': _emberData.default.attr('string')
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/models/tenant-administration/feature-manager/tenant-feature", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
   "use strict";
 
@@ -11435,7 +11490,7 @@
     redirect(model, transition) {
       if (transition.targetName !== this.get('fullRouteName')) return;
       const features = this.get('store').peekAll('dashboard/feature').filterBy('type', 'feature');
-      if (features.get('length') > 1) return;
+      if (features.get('length') !== 1) return;
       const onlyRoute = features.objectAt(0).get('route');
       this.transitionTo(onlyRoute);
     },
@@ -11445,7 +11500,7 @@
         this.get('store').unloadAll('dashboard/feature');
       }
 
-      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      const isActive = this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
       if (!isActive) return;
 
       if (!window.plantworksUserId) {
@@ -11573,6 +11628,62 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/routes/sku-manager", ["exports", "plantworks-webapp-server/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('sku-manager/product');
+      }
+
+      const productData = this.get('store').peekAll('sku-manager/product');
+      if (productData.get('length')) return productData;
+      return this.get('store').findAll('sku-manager/product');
+    },
+
+    onUserDataUpdated() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('sku-manager/product');
+      }
+
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksUserId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('refreshProductList').perform();
+    },
+
+    'refreshProductList': (0, _emberConcurrency.task)(function* () {
+      let productData = this.get('store').peekAll('sku-manager/product');
+      if (!productData.get('length')) productData = yield this.get('store').findAll('sku-manager/product');
+      this.get('controller').set('model', productData);
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/routes/tenant-administration", ["exports", "plantworks-webapp-server/framework/base-route", "ember-lifeline", "ember-concurrency"], function (_exports, _baseRoute, _emberLifeline, _emberConcurrency) {
   "use strict";
 
@@ -11609,7 +11720,7 @@
     },
 
     redirect(model, transition) {
-      if (this.get('router').get('currentRouteName').includes(`${this.get('fullRouteName')}.`)) transition.abort();
+      if (this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(`${this.get('fullRouteName')}.`)) transition.abort();
       if (transition.targetName === `${this.get('fullRouteName')}.index` || transition.targetName === this.get('fullRouteName')) (0, _emberLifeline.runTask)(this, this._redirectToSubRoute, 500);
     },
 
@@ -12914,6 +13025,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/templates/components/sku-manager/main-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "57t7N6xW",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[22,1,[\"header\"]]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[22,2,[\"text\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,3,[\"title\"]]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/sku-manager/main-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/templates/components/tenant-administration/basics-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -13287,6 +13416,24 @@
     "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"page-title\",[\"Profile\"],null],false],[0,\"\\n\\t\"],[1,[27,\"component\",[\"profile/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/profile.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "Dog5eX4D",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"page-title\",[\"SKU Management\"],null],false],[0,\"\\n\\t\"],[1,[27,\"component\",[\"sku-manager/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager.hbs"
     }
   });
 
@@ -13725,7 +13872,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+fb8b7778"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+6907d53d"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
