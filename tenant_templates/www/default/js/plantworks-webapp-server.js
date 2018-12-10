@@ -1363,6 +1363,19 @@
     }
   });
 });
+;define("plantworks-webapp-server/components/g-map-addons/pin", ["exports", "in-repo-pin-addon/components/g-map-addons/pin"], function (_exports, _pin) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _pin.default;
+    }
+  });
+});
 ;define("plantworks-webapp-server/components/g-map", ["exports", "ember-google-maps/components/g-map"], function (_exports, _gMap) {
   "use strict";
 
@@ -10342,6 +10355,12 @@
     }
   });
 });
+;define("plantworks-webapp-server/in-repo-pin-addon/tests/addon.lint-test", [], function () {
+  "use strict";
+});
+;define("plantworks-webapp-server/in-repo-pin-addon/tests/app.lint-test", [], function () {
+  "use strict";
+});
 ;define("plantworks-webapp-server/index", ["exports", "ember-cli-uuid"], function (_exports, _emberCliUuid) {
   "use strict";
 
@@ -11414,18 +11433,15 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/options", ["exports", "ember-google-maps/options"], function (_exports, _options) {
+;define("plantworks-webapp-server/resolver", ["exports", "ember-resolver"], function (_exports, _emberResolver) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
     value: true
   });
-  Object.defineProperty(_exports, "default", {
-    enumerable: true,
-    get: function () {
-      return _options.default;
-    }
-  });
+  _exports.default = void 0;
+  var _default = _emberResolver.default;
+  _exports.default = _default;
 });
 ;define("plantworks-webapp-server/resolver", ["exports", "ember-resolver"], function (_exports, _emberResolver) {
   "use strict";
@@ -13872,7 +13888,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+6b2afece"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+b04a82b2"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
