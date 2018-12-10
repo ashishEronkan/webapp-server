@@ -33433,9 +33433,11 @@ div.md-dialog-container {
   top: 60px;
   height: calc(100% - 75px); }
 
+/*
 .mdi-icon {
-  color: var(--foreground-2); }
-
+	color: var(--foreground-2);
+}
+*/
 b,
 strong {
   font-weight: 600; }
