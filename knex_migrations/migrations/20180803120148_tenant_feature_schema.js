@@ -21,7 +21,7 @@ exports.up = async function(knex) {
 	if(!exists) {
 		await knex.schema.withSchema('public').createTable('tenant_group_permissions', function(groupPermissionTbl) {
 			groupPermissionTbl.uuid('tenant_id').notNullable();
-			groupPermissionTbl.uuid('group_id').notNullable();
+			groupPermissionTbl.uuid('tenant_group_id').notNullable();
 
 			groupPermissionTbl.uuid('module_id').notNullable();
 			groupPermissionTbl.uuid('feature_permission_id').notNullable();
@@ -30,11 +30,11 @@ exports.up = async function(knex) {
 			groupPermissionTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			groupPermissionTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			groupPermissionTbl.primary(['tenant_id', 'group_id', 'module_id', 'feature_permission_id']);
+			groupPermissionTbl.primary(['tenant_id', 'tenant_group_id', 'module_id', 'feature_permission_id']);
 			groupPermissionTbl.unique(['tenant_group_permission_id']);
 
 			groupPermissionTbl.foreign(['module_id', 'feature_permission_id']).references(['module_id', 'feature_permission_id']).inTable('feature_permissions').onDelete('CASCADE').onUpdate('CASCADE');
-			groupPermissionTbl.foreign(['tenant_id', 'group_id']).references(['tenant_id', 'group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
+			groupPermissionTbl.foreign(['tenant_id', 'tenant_group_id']).references(['tenant_id', 'tenant_group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
 
 			groupPermissionTbl.foreign(['tenant_id', 'module_id']).references(['tenant_id', 'module_id']).inTable('tenants_features').onDelete('CASCADE').onUpdate('CASCADE');
 		});
@@ -91,14 +91,14 @@ exports.up = async function(knex) {
 			positionFrontEndComponentTbl.uuid('tenant_server_template_position_id').notNullable();
 			positionFrontEndComponentTbl.uuid('feature_frontend_component_id').notNullable();
 
-			positionFrontEndComponentTbl.uuid('tenant_server_template_positions_feature_frontend_component_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
+			positionFrontEndComponentTbl.uuid('tenant_server_template_position_feature_frontend_component_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			positionFrontEndComponentTbl.jsonb('configuration').notNullable().defaultTo('{}');
 			positionFrontEndComponentTbl.jsonb('visibility').notNullable().defaultTo(`{ "users": ["*"], "groups": ["*"], "paths": ["*"] }`);
 
 			positionFrontEndComponentTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			positionFrontEndComponentTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			positionFrontEndComponentTbl.primary(['tenant_id', 'module_id', 'tenant_server_template_id', 'tenant_server_template_position_id', 'feature_frontend_component_id', 'tenant_server_template_positions_feature_frontend_component_id']);
+			positionFrontEndComponentTbl.primary(['tenant_id', 'module_id', 'tenant_server_template_id', 'tenant_server_template_position_id', 'feature_frontend_component_id', 'tenant_server_template_position_feature_frontend_component_id']);
 
 			positionFrontEndComponentTbl.foreign(['module_id', 'feature_frontend_component_id']).references(['module_id', 'feature_frontend_component_id']).inTable('feature_frontend_components').onDelete('CASCADE').onUpdate('CASCADE');
 			positionFrontEndComponentTbl.foreign(['tenant_id', 'module_id', 'tenant_server_template_id', 'tenant_server_template_position_id']).references(['tenant_id', 'module_id', 'tenant_server_template_id', 'tenant_server_template_position_id']).inTable('tenant_server_template_positions').onDelete('CASCADE').onUpdate('CASCADE');
@@ -467,19 +467,19 @@ BEGIN
 	INSERT INTO
 		tenant_group_permissions (
 			tenant_id,
-			group_id,
+			tenant_group_id,
 			module_id,
 			feature_permission_id
 		)
 	SELECT
 		tenant_id,
-		group_id,
+		tenant_group_id,
 		NEW.module_id,
 		NEW.feature_permission_id
 	FROM
 		tenant_groups
 	WHERE
-		parent_group_id IS NULL;
+		parent_tenant_group_id IS NULL;
 
 	RETURN NEW;
 END;
@@ -500,19 +500,19 @@ DECLARE
 BEGIN
 	admin_group_id := NULL;
 	SELECT
-		group_id
+		tenant_group_id
 	FROM
 		tenant_groups
 	WHERE
 		tenant_id = NEW.tenant_id AND
-		parent_group_id IS NULL
+		parent_tenant_group_id IS NULL
 	INTO
 		admin_group_id;
 
 	INSERT INTO
 		tenant_group_permissions (
 			tenant_id,
-			group_id,
+			tenant_group_id,
 			module_id,
 			feature_permission_id
 		)
@@ -601,7 +601,7 @@ BEGIN
 	DELETE FROM
 		tenant_group_permissions
 	WHERE
-		group_id IN (SELECT group_id FROM fn_get_group_descendants(OLD.group_id) WHERE level = 2) AND
+		tenant_group_id IN (SELECT tenant_group_id FROM fn_get_group_descendants(OLD.tenant_group_id) WHERE level = 2) AND
 		feature_permission_id = OLD.feature_permission_id;
 
 	RETURN OLD;
@@ -624,12 +624,12 @@ DECLARE
 BEGIN
 	parent_id := NULL;
 	SELECT
-		parent_group_id
+		parent_tenant_group_id
 	FROM
 		tenant_groups
 	WHERE
 		tenant_id = NEW.tenant_id AND
-		group_id = NEW.group_id
+		tenant_group_id = NEW.tenant_group_id
 	INTO
 		parent_id;
 
@@ -640,11 +640,11 @@ BEGIN
 
 	does_parent_group_have_permission := 0;
 	SELECT
-		count(group_id)
+		count(tenant_group_id)
 	FROM
 		tenant_group_permissions
 	WHERE
-		group_id = parent_id AND
+	tenant_group_id = parent_id AND
 		feature_permission_id = NEW.feature_permission_id
 	INTO
 		does_parent_group_have_permission;

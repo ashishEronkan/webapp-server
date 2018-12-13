@@ -7,15 +7,15 @@ exports.up = async function(knex) {
 		await knex.schema.withSchema('public').createTable('tenant_skus', function(tenantSkuTbl) {
 			tenantSkuTbl.uuid('tenant_id').notNullable().references('tenant_id').inTable('tenants').onDelete('CASCADE').onUpdate('CASCADE');
 			tenantSkuTbl.uuid('tenant_sku_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
+
 			tenantSkuTbl.text('code').notNullable();
 			tenantSkuTbl.text('name').notNullable();
-			tenantSkuTbl.text('vendor');
-			tenantSkuTbl.text('vendor_code');
+
 			tenantSkuTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			tenantSkuTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-
 			tenantSkuTbl.primary(['tenant_id', 'tenant_sku_id']);
+			tenantSkuTbl.unique(['tenant_id', 'code']);
 		});
 	}
 };

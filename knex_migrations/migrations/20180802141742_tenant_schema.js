@@ -51,8 +51,8 @@ exports.up = async function(knex) {
 	if(!exists) {
 		await knex.schema.withSchema('public').createTable('tenant_groups', function(groupTbl) {
 			groupTbl.uuid('tenant_id').notNullable().references('tenant_id').inTable('tenants').onDelete('CASCADE').onUpdate('CASCADE');
-			groupTbl.uuid('group_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
-			groupTbl.uuid('parent_group_id');
+			groupTbl.uuid('tenant_group_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
+			groupTbl.uuid('parent_tenant_group_id');
 			groupTbl.text('name').notNullable();
 			groupTbl.text('display_name').notNullable();
 			groupTbl.text('description');
@@ -60,10 +60,10 @@ exports.up = async function(knex) {
 			groupTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			groupTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			groupTbl.primary(['tenant_id', 'group_id']);
-			groupTbl.foreign(['tenant_id', 'parent_group_id']).references(['tenant_id', 'group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
+			groupTbl.primary(['tenant_id', 'tenant_group_id']);
+			groupTbl.foreign(['tenant_id', 'parent_tenant_group_id']).references(['tenant_id', 'tenant_group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
 
-			groupTbl.unique(['parent_group_id', 'name']);
+			groupTbl.unique(['parent_tenant_group_id', 'name']);
 		});
 	}
 
@@ -90,7 +90,7 @@ exports.up = async function(knex) {
 	// Step 5: Setup user-defined functions on the groups table for traversing the tree, etc.
 	await knex.schema.withSchema('public').raw(
 `CREATE OR REPLACE FUNCTION public.fn_get_group_ancestors (IN groupid uuid)
-	RETURNS TABLE (level integer, tenant_id uuid,  group_id uuid,  parent_group_id uuid,  name text)
+	RETURNS TABLE (level integer, tenant_id uuid,  tenant_group_id uuid,  parent_tenant_group_id uuid,  name text)
 	LANGUAGE plpgsql
 	VOLATILE
 	CALLED ON NULL INPUT
@@ -103,31 +103,31 @@ BEGIN
 		SELECT
 			1 AS level,
 			A.tenant_id,
-			A.group_id,
-			A.parent_group_id,
+			A.tenant_group_id,
+			A.parent_tenant_group_id,
 			A.name
 		FROM
 			tenant_groups A
 		WHERE
-			A.group_id = groupid
+			A.tenant_group_id = groupid
 		UNION ALL
 		SELECT
 			q.level + 1,
 			B.tenant_id,
-			B.group_id,
-			B.parent_group_id,
+			B.tenant_group_id,
+			B.parent_tenant_group_id,
 			B.name
 		FROM
 			q,
 			tenant_groups B
 		WHERE
-			B.group_id = q.parent_group_id
+			B.tenant_group_id = q.parent_tenant_group_id
 	)
 	SELECT DISTINCT
 		q.level,
 		q.tenant_id,
-		q.group_id,
-		q.parent_group_id,
+		q.tenant_group_id,
+		q.parent_tenant_group_id,
 		q.name
 	FROM
 		q
@@ -139,7 +139,7 @@ $$;`
 
 	await knex.schema.withSchema('public').raw(
 `CREATE OR REPLACE FUNCTION public.fn_get_group_descendants (IN groupid uuid)
-	RETURNS TABLE (level integer,  tenant_id uuid, group_id uuid,  parent_group_id uuid,  name text)
+	RETURNS TABLE (level integer,  tenant_id uuid, tenant_group_id uuid,  parent_tenant_group_id uuid,  name text)
 	LANGUAGE plpgsql
 	VOLATILE
 	CALLED ON NULL INPUT
@@ -152,31 +152,31 @@ BEGIN
 		SELECT
 			1 AS level,
 			A.tenant_id,
-			A.group_id,
-			A.parent_group_id,
+			A.tenant_group_id,
+			A.parent_tenant_group_id,
 			A.name
 		FROM
 			tenant_groups A
 		WHERE
-			A.group_id = groupid
+			A.tenant_group_id = groupid
 		UNION ALL
 		SELECT
 			q.level + 1,
 			B.tenant_id,
-			B.group_id,
-			B.parent_group_id,
+			B.tenant_group_id,
+			B.parent_tenant_group_id,
 			B.name
 		FROM
 			q,
 			tenant_groups B
 		WHERE
-			B.parent_group_id = q.group_id
+			B.parent_tenant_group_id = q.tenant_group_id
 	)
 	SELECT DISTINCT
 		q.level,
 		q.tenant_id,
-		q.group_id,
-		q.parent_group_id,
+		q.tenant_group_id,
+		q.parent_tenant_group_id,
 		q.name
 	FROM
 		q
@@ -201,7 +201,7 @@ DECLARE
 	user_group_id		UUID;
 BEGIN
 	INSERT INTO tenant_groups (
-		parent_group_id,
+		parent_tenant_group_id,
 		tenant_id,
 		name,
 		display_name,
@@ -215,12 +215,12 @@ BEGIN
 		'The Administrator Group for ' || NEW.name
 	)
 	RETURNING
-		group_id
+		tenant_group_id
 	INTO
 		admin_group_id;
 
 	INSERT INTO tenant_groups (
-		parent_group_id,
+		parent_tenant_group_id,
 		tenant_id,
 		name,
 		display_name,
@@ -236,7 +236,7 @@ BEGIN
 		true
 	)
 	RETURNING
-		group_id
+		tenant_group_id
 	INTO
 		user_group_id;
 
@@ -256,7 +256,7 @@ $$;`
 	AS $$
 
 BEGIN
-	IF OLD.parent_group_id <> NEW.parent_group_id
+	IF OLD.parent_tenant_group_id <> NEW.parent_tenant_group_id
 	THEN
 		RAISE SQLSTATE '2F003' USING MESSAGE = 'Group cannot change parent';
 		RETURN NULL;
@@ -270,7 +270,7 @@ BEGIN
 			default_for_new_user = false
 		WHERE
 			tenant_id = NEW.tenant_id AND
-			group_id <> NEW.group_id AND
+			tenant_group_id <> NEW.tenant_group_id AND
 			default_for_new_user = true;
 	END IF;
 
