@@ -4852,7 +4852,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+;define("plantworks-webapp-server/components/sku-manager/create-new-sku", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -4860,13 +4860,146 @@
   });
   _exports.default = void 0;
 
+  var _default = _baseComponent.default.extend({});
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
   var _default = _baseComponent.default.extend({
     init() {
       this._super(...arguments);
 
       this.set('permissions', ['sku-manager-read']);
-    }
+    },
 
+    onHasPermissionChange: Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('sku-manager-update');
+      this.set('editable', updatePerm);
+    }),
+    'createSku': (0, _emberConcurrency.task)(function* () {
+      try {
+        const self = this;
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'location'
+        });
+        const sku = this.get('store').createRecord('sku-manager/sku', {
+          'tenant': tenant,
+          'name': 'New SKU Name',
+          'code': `NEW-SKU`
+        });
+        const modalData = {
+          'title': 'Create SKU',
+          'componentName': 'sku-manager/create-new-sku',
+          'componentState': {
+            'model': sku
+          },
+          'confirmButton': {
+            'text': 'Save',
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('doCreateSku').perform(sku);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              sku.deleteRecord();
+            }
+          }
+        };
+        yield this.send('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'doCreateSku': (0, _emberConcurrency.task)(function* (sku) {
+      sku.set('operationIsRunning', true);
+      yield sku.save();
+    }).drop().evented().retryable(backoffPolicy),
+    'doCreateSkuSucceeded': Ember.on('doCreateSku:succeeded', function (taskInstance) {
+      const sku = taskInstance.args[0];
+      sku.set('operationIsRunning', false);
+      this.get('notification').display({
+        'type': 'success',
+        'message': `${sku.get('name')} succesfully created`
+      });
+    }),
+    'doCreateSkuErrored': Ember.on('doCreateSku:errored', function (taskInstance, err) {
+      const sku = taskInstance.args[0];
+      sku.set('operationIsRunning', false);
+      sku.destroyRecord();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteSku': (0, _emberConcurrency.task)(function* (sku) {
+      const modalData = {
+        'title': 'Delete Group',
+        'content': `Are you sure you want to delete the <strong>${sku.get('name')}</strong> SKU?`,
+        'confirmButton': {
+          'text': 'Delete',
+          'icon': 'delete',
+          'warn': true,
+          'raised': true,
+          'callback': () => {
+            this.get('_confirmedDeleteSku').perform(sku);
+          }
+        },
+        'cancelButton': {
+          'text': 'Cancel',
+          'icon': 'close',
+          'primary': true,
+          'raised': true
+        }
+      };
+      yield this.invokeAction('controller-action', 'displayModal', modalData);
+    }).drop(),
+    '_confirmedDeleteSku': (0, _emberConcurrency.task)(function* (sku) {
+      if (sku.get('isNew')) sku.deleteRecord();else {
+        sku.set('operationIsRunning', true);
+        yield sku.destroyRecord();
+      }
+    }).drop().evented().retryable(backoffPolicy),
+    '_confirmedDeleteSkuSucceeded': Ember.on('_confirmedDeleteSku:succeeded', function (taskInstance) {
+      const sku = taskInstance.args[0];
+      sku.set('operationIsRunning', false);
+      this.get('notification').display({
+        'type': 'success',
+        'message': `${taskInstance.args[0].get('name')} deleted successfully`
+      });
+    }),
+    '_confirmedDeleteSkuErrored': Ember.on('_confirmedDeleteSku:errored', function (taskInstance, err) {
+      const sku = taskInstance.args[0];
+      sku.rollback();
+      sku.set('operationIsRunning', false);
+      sku.reload();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
   });
 
   _exports.default = _default;
@@ -5248,7 +5381,7 @@
       }
 
       const newGroupPermission = this.get('store').createRecord('tenant-administration/group-manager/tenant-group-permission', {
-        'group': this.get('selectedGroup'),
+        'tenantGroup': this.get('selectedGroup'),
         'featurePermission': parentGroupPermission.get('featurePermission')
       });
       yield newGroupPermission.save();
@@ -10694,6 +10827,32 @@
   };
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/initializers/sku-manager/add-skus-rel-tenant-model", ["exports", "ember-data", "plantworks-webapp-server/models/tenant-administration/tenant"], function (_exports, _emberData, _tenant) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize()
+  /* application */
+  {
+    // application.inject('route', 'foo', 'service:foo');
+    _tenant.default.reopen({
+      'skus': _emberData.default.hasMany('sku-manager/sku', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/initializers/tenant-administration/feature-manager/add-features-rel-models", ["exports", "ember-data", "plantworks-webapp-server/models/tenant-administration/tenant", "plantworks-webapp-server/models/server-administration/feature", "ember-concurrency"], function (_exports, _emberData, _tenant, _feature, _emberConcurrency) {
   "use strict";
 
@@ -11121,7 +11280,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/models/sku-manager/product", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+;define("plantworks-webapp-server/models/sku-manager/sku", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -11130,10 +11289,12 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'skus'
+    }),
     'code': _emberData.default.attr('string'),
-    'name': _emberData.default.attr('string'),
-    'vendor': _emberData.default.attr('string'),
-    'vendorCode': _emberData.default.attr('string')
+    'name': _emberData.default.attr('string')
   });
 
   _exports.default = _default;
@@ -11168,7 +11329,7 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'group': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
+    'tenantGroup': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
       'async': true,
       'inverse': 'permissions'
     }),
@@ -11213,9 +11374,9 @@
     }),
     'permissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
       'async': true,
-      'inverse': 'group'
+      'inverse': 'tenantGroup'
     }),
-    'path': Ember.computed('parent', 'parent.path', {
+    'path': Ember.computed('parent.path', {
       get() {
         return this.get('computePath').perform();
       }
@@ -11443,7 +11604,6 @@
   var _default = _emberResolver.default;
   _exports.default = _default;
 });
-;
 ;define("plantworks-webapp-server/routes/application", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
   "use strict";
 
@@ -11658,17 +11818,20 @@
 
     model() {
       if (!window.plantworksTenantId) {
-        this.get('store').unloadAll('sku-manager/product');
+        this.get('store').unloadAll('sku-manager/sku');
+        return;
       }
 
-      const productData = this.get('store').peekAll('sku-manager/product');
-      if (productData.get('length')) return productData;
-      return this.get('store').findAll('sku-manager/product');
+      const skuData = this.get('store').peekAll('sku-manager/sku');
+      if (skuData.get('length')) return skuData;
+      return this.get('store').findAll('sku-manager/sku', {
+        'include': 'tenant'
+      });
     },
 
     onUserDataUpdated() {
       if (!window.plantworksTenantId) {
-        this.get('store').unloadAll('sku-manager/product');
+        this.get('store').unloadAll('sku-manager/sku');
       }
 
       const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
@@ -11683,9 +11846,11 @@
     },
 
     'refreshProductList': (0, _emberConcurrency.task)(function* () {
-      let productData = this.get('store').peekAll('sku-manager/product');
-      if (!productData.get('length')) productData = yield this.get('store').findAll('sku-manager/product');
-      this.get('controller').set('model', productData);
+      let skuData = this.get('store').peekAll('sku-manager/sku');
+      if (!skuData.get('length')) skuData = yield this.get('store').findAll('sku-manager/sku', {
+        'include': 'tenant'
+      });
+      this.get('controller').set('model', skuData);
     }).keepLatest()
   });
 
@@ -13032,6 +13197,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/templates/components/sku-manager/create-new-sku", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "dTklMuBf",
+    "block": "{\"symbols\":[\"card\",\"form\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[22,1,[\"content\"]]],[[\"class\"],[\"mt-4 pb-0\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex\"],[9],[0,\"\\n\"],[4,\"paper-form\",null,[[\"class\"],[\"w-100\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[27,\"component\",[[22,2,[\"input\"]]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",\"Code\",[23,[\"state\",\"model\",\"code\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"state\",\"model\",\"code\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[27,\"component\",[[22,2,[\"input\"]]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",\"Name\",[23,[\"state\",\"model\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"state\",\"model\",\"name\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[2]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/sku-manager/create-new-sku.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/templates/components/sku-manager/main-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -13041,8 +13224,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "57t7N6xW",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[22,1,[\"header\"]]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[22,2,[\"text\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,3,[\"title\"]]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "/JyztYEo",
+    "block": "{\"symbols\":[\"card\",\"table\",\"body\",\"sku\",\"row\",\"head\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[22,1,[\"header\"]]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[22,7,[\"text\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,8,[\"title\"]]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[8]},null]],\"parameters\":[7]},null],[0,\"\\n\"],[4,\"component\",[[22,1,[\"content\"]]],[[\"class\"],[\"layout-row layout-align-start-center\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"class\",\"sortProp\",\"sortDir\"],[\"flex\",\"code\",\"asc\"]],{\"statements\":[[4,\"component\",[[22,2,[\"head\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,6,[\"column\"]]],[[\"sortProp\"],[\"code\"]],{\"statements\":[[0,\"SKU ID\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,6,[\"column\"]]],[[\"sortProp\"],[\"name\"]],{\"statements\":[[0,\"Name\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[22,6,[\"column\"]]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"fab\",\"title\",\"onClick\",\"bubbles\"],[true,true,true,\"Create New SKU\",[27,\"perform\",[[23,[\"createSku\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null],[4,\"component\",[[22,2,[\"body\"]]],null,{\"statements\":[[4,\"each\",[[27,\"sort-by\",[[22,2,[\"sortDesc\"]],[23,[\"model\"]]],null]],null,{\"statements\":[[4,\"component\",[[22,3,[\"row\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,5,[\"cell\"]]],null,{\"statements\":[[1,[22,4,[\"code\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[22,5,[\"cell\"]]],null,{\"statements\":[[1,[22,4,[\"name\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[22,5,[\"cell\"]]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[22,4,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,\"Delete SKU\",[27,\"perform\",[[23,[\"deleteSku\"]],[22,4,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/sku-manager/main-component.hbs"
     }
@@ -13879,7 +14062,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+39cd7c47"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+d705552a"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
