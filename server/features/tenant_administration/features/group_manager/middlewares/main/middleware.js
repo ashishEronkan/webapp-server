@@ -73,7 +73,7 @@ class Main extends PlantWorksBaseMiddleware {
 
 				'value': dbSrvc.Model.extend({
 					'tableName': 'tenant_groups',
-					'idAttribute': 'group_id',
+					'idAttribute': 'tenant_group_id',
 					'hasTimestamps': true,
 
 					'tenant': function() {
@@ -81,19 +81,19 @@ class Main extends PlantWorksBaseMiddleware {
 					},
 
 					'parent': function() {
-						return this.belongsTo(self.$TenantGroupModel, 'parent_group_id');
+						return this.belongsTo(self.$TenantGroupModel, 'parent_tenant_group_id');
 					},
 
 					'groups': function() {
-						return this.hasMany(self.$TenantGroupModel, 'parent_group_id');
+						return this.hasMany(self.$TenantGroupModel, 'parent_tenant_group_id');
 					},
 
 					'permissions': function() {
-						return this.hasMany(self.$TenantGroupPermissionModel, 'group_id', 'group_id');
+						return this.hasMany(self.$TenantGroupPermissionModel, 'tenant_group_id', 'tenant_group_id');
 					},
 
 					'tenantUserGroups': function() {
-						return this.hasMany(self.$TenantUserGroupModel, 'group_id');
+						return this.hasMany(self.$TenantUserGroupModel, 'tenant_group_id');
 					}
 				})
 			});
@@ -112,7 +112,7 @@ class Main extends PlantWorksBaseMiddleware {
 					},
 
 					'group': function() {
-						return this.belongsTo(self.$TenantGroupModel, 'group_id', 'group_id');
+						return this.belongsTo(self.$TenantGroupModel, 'tenant_group_id', 'tenant_group_id');
 					},
 
 					'featurePermission': function() {
@@ -127,7 +127,7 @@ class Main extends PlantWorksBaseMiddleware {
 
 				'value': dbSrvc.Model.extend({
 					'tableName': 'tenants_users_groups',
-					'idAttribute': 'tenants_users_groups_id',
+					'idAttribute': 'tenant_user_group_id',
 					'hasTimestamps': true,
 
 					'tenant': function() {
@@ -139,7 +139,7 @@ class Main extends PlantWorksBaseMiddleware {
 					},
 
 					'tenantGroup': function() {
-						return this.belongsTo(self.$TenantGroupModel, 'group_id');
+						return this.belongsTo(self.$TenantGroupModel, 'tenant_group_id');
 					}
 				})
 			});
@@ -295,9 +295,9 @@ class Main extends PlantWorksBaseMiddleware {
 
 			let tenantGroups = null;
 			if(ctxt.query.id === '#')
-				tenantGroups = await dbSrvc.knex.raw(`SELECT group_id AS id, COALESCE(CAST(parent_group_id AS text), '#') AS parent, display_name AS text FROM tenant_groups WHERE tenant_id = ?`, [ctxt.state.tenant.tenant_id]);
+				tenantGroups = await dbSrvc.knex.raw(`SELECT tenant_group_id AS id, COALESCE(CAST(parent_tenant_group_id AS text), '#') AS parent, display_name AS text FROM tenant_groups WHERE tenant_id = ?`, [ctxt.state.tenant.tenant_id]);
 			else
-				tenantGroups = await dbSrvc.knex.raw(`SELECT group_id AS id, COALESCE(CAST(parent_group_id AS text), '#') AS parent, display_name AS text FROM tenant_groups WHERE tenant_id = ? AND group_id IN (SELECT group_id FROM fn_get_group_descendants(?) WHERE level >= 2)`, [ctxt.state.tenant.tenant_id, ctxt.query.id]);
+				tenantGroups = await dbSrvc.knex.raw(`SELECT tenant_group_id AS id, COALESCE(CAST(parent_tenant_group_id AS text), '#') AS parent, display_name AS text FROM tenant_groups WHERE tenant_id = ? AND tenant_group_id IN (SELECT tenant_group_id FROM fn_get_group_descendants(?) WHERE level >= 2)`, [ctxt.state.tenant.tenant_id, ctxt.query.id]);
 
 			return tenantGroups.rows;
 		}
@@ -310,7 +310,7 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const dbSrvc = this.$dependencies.DatabaseService;
 
-			const possibleTenantUsers = await dbSrvc.knex.raw(`SELECT A.tenant_user_id AS id, B.first_name AS "firstName", B.middle_names AS "middleNames", B.last_name AS "lastName", B.email FROM tenants_users A INNER JOIN users B ON (A.user_id = B.user_id) WHERE A.tenant_id = ? AND A.access_status = 'authorized' AND A.user_id NOT IN (SELECT user_id FROM tenants_users_groups WHERE group_id IN (SELECT group_id FROM fn_get_group_ancestors(?)))`, [ctxt.state.tenant.tenant_id, ctxt.query.group]);
+			const possibleTenantUsers = await dbSrvc.knex.raw(`SELECT A.tenant_user_id AS id, B.first_name AS "firstName", B.middle_names AS "middleNames", B.last_name AS "lastName", B.email FROM tenants_users A INNER JOIN users B ON (A.user_id = B.user_id) WHERE A.tenant_id = ? AND A.access_status = 'authorized' AND A.user_id NOT IN (SELECT user_id FROM tenants_users_groups WHERE tenant_group_id IN (SELECT tenant_group_id FROM fn_get_group_ancestors(?)))`, [ctxt.state.tenant.tenant_id, ctxt.query.group]);
 			return possibleTenantUsers.rows;
 		}
 		catch(err) {
@@ -322,7 +322,7 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const TenantGroupRecord = new this.$TenantGroupModel({
 				'tenant_id': ctxt.state.tenant['tenant_id'],
-				'group_id': ctxt.params['tenant_group_id']
+				'tenant_group_id': ctxt.params['tenant_group_id']
 			});
 
 			let tenantGroupData = await TenantGroupRecord.fetch({
@@ -358,7 +358,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const tenantGroup = ctxt.request.body;
 
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(tenantGroup);
-			jsonDeserializedData['group_id'] = jsonDeserializedData.id;
+			jsonDeserializedData['tenant_group_id'] = jsonDeserializedData.id;
 
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
@@ -378,7 +378,7 @@ class Main extends PlantWorksBaseMiddleware {
 				jsonDeserializedData[`${relationshipName}_id`] = tenantGroup.data.relationships[relationshipName].data.id;
 			});
 
-			jsonDeserializedData['parent_group_id'] = jsonDeserializedData['parent_id'];
+			jsonDeserializedData['parent_tenant_group_id'] = jsonDeserializedData['parent_id'];
 			delete jsonDeserializedData['parent_id'];
 
 			const savedRecord = await this.$TenantGroupModel
@@ -391,7 +391,7 @@ class Main extends PlantWorksBaseMiddleware {
 			return {
 				'data': {
 					'type': tenantGroup.data.type,
-					'id': savedRecord.get('group_id')
+					'id': savedRecord.get('tenant_group_id')
 				}
 			};
 		}
@@ -405,7 +405,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const tenantGroup = ctxt.request.body;
 
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(tenantGroup);
-			jsonDeserializedData['group_id'] = jsonDeserializedData.id;
+			jsonDeserializedData['tenant_group_id'] = jsonDeserializedData.id;
 
 			Object.keys(tenantGroup.data.relationships || {}).forEach((relationshipName) => {
 				if(!tenantGroup.data.relationships[relationshipName].data) {
@@ -435,7 +435,7 @@ class Main extends PlantWorksBaseMiddleware {
 			return {
 				'data': {
 					'type': tenantGroup.data.type,
-					'id': savedRecord.get('group_id')
+					'id': savedRecord.get('tenant_group_id')
 				}
 			};
 		}
@@ -448,7 +448,7 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const tenantGroup = await new this.$TenantGroupModel({
 				'tenant_id': ctxt.state.tenant['tenant_id'],
-				'group_id': ctxt.params['tenant_group_id']
+				'tenant_group_id': ctxt.params['tenant_group_id']
 			})
 			.fetch();
 
@@ -467,7 +467,7 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const TenantUserGroupRecord = new this.$TenantUserGroupModel({
 				'tenant_id': ctxt.state.tenant['tenant_id'],
-				'tenants_users_groups_id': ctxt.params['tenant_user_group_id']
+				'tenant_user_group_id': ctxt.params['tenant_user_group_id']
 			});
 
 			// const self = this; // eslint-disable-line consistent-this
@@ -508,7 +508,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const tenantUserGroup = ctxt.request.body;
 
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(tenantUserGroup);
-			jsonDeserializedData['tenants_users_groups_id'] = jsonDeserializedData.id;
+			jsonDeserializedData['tenant_user_group_id'] = jsonDeserializedData.id;
 
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
@@ -535,10 +535,8 @@ class Main extends PlantWorksBaseMiddleware {
 			if(!tenantUser) throw new Error(`Invalid Tenant User`);
 
 			jsonDeserializedData['tenant_id'] = ctxt.state.tenant.tenant_id;
-			jsonDeserializedData['group_id'] = jsonDeserializedData['tenant_group_id'];
 			jsonDeserializedData['user_id'] = tenantUser.get('user_id');
 
-			delete jsonDeserializedData['tenant_group_id'];
 			delete jsonDeserializedData['tenant_user_id'];
 
 			const savedRecord = await this.$TenantUserGroupModel
@@ -551,7 +549,7 @@ class Main extends PlantWorksBaseMiddleware {
 			return {
 				'data': {
 					'type': tenantUserGroup.data.type,
-					'id': savedRecord.get('tenants_users_groups_id')
+					'id': savedRecord.get('tenant_user_group_id')
 				}
 			};
 		}
@@ -564,7 +562,7 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const tenantUserGroup = await new this.$TenantUserGroupModel({
 				'tenant_id': ctxt.state.tenant['tenant_id'],
-				'tenants_users_groups_id': ctxt.params['tenant_user_group_id']
+				'tenant_user_group_id': ctxt.params['tenant_user_group_id']
 			})
 			.fetch();
 

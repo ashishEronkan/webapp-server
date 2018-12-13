@@ -107,7 +107,7 @@ const getTenantUserPermissions = async function(tenantId, userId) {
 
 		const publicPermission = (await databaseSrvc.knex.raw(`SELECT feature_permission_id AS permission, name, implies_permissions FROM feature_permissions WHERE name = ?`, ['public'])).rows;
 		const userPermissions = (await databaseSrvc.knex.raw('SELECT * FROM fn_get_user_permissions(?, ?)', [tenantId, userId])).rows;
-		const defaultPermissions = (userId === 'ffffffff-ffff-4fff-ffff-ffffffffffff') ? [] : (await databaseSrvc.knex.raw('SELECT Z.feature_permission_id AS permission, Z.name, Z.implies_permissions FROM feature_permissions Z WHERE Z.feature_permission_id IN (SELECT DISTINCT feature_permission_id FROM tenant_group_permissions WHERE group_id = (SELECT group_id FROM tenant_groups WHERE tenant_id = ? AND default_for_new_user = true))', [tenantId])).rows;
+		const defaultPermissions = (userId === 'ffffffff-ffff-4fff-ffff-ffffffffffff') ? [] : (await databaseSrvc.knex.raw('SELECT Z.feature_permission_id AS permission, Z.name, Z.implies_permissions FROM feature_permissions Z WHERE Z.feature_permission_id IN (SELECT DISTINCT feature_permission_id FROM tenant_group_permissions WHERE tenant_group_id = (SELECT tenant_group_id FROM tenant_groups WHERE tenant_id = ? AND default_for_new_user = true))', [tenantId])).rows;
 
 		const combinedPermissions = {
 			[publicPermission[0].name]: publicPermission[0]
