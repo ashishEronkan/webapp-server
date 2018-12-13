@@ -41,7 +41,11 @@ class Main extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
-			this.$router.get('/products', this.$parent._rbac('sku-manager-read'), this._getAllProducts.bind(this));
+			this.$router.get('/skus', this.$parent._rbac('sku-manager-read'), this._getAllSkus.bind(this));
+
+			this.$router.get('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-read'), this._getSku.bind(this));
+			this.$router.post('/skus', this.$parent._rbac('sku-manager-update'), this._addSku.bind(this));
+			this.$router.del('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-update'), this._deleteSku.bind(this));
 
 			await super._addRoutes();
 			return null;
@@ -53,18 +57,61 @@ class Main extends PlantWorksBaseComponent {
 	// #endregion
 
 	// #region Route Handlers
-	async _getAllProducts(ctxt) {
+	async _getAllSkus(ctxt) {
 		try {
 			const apiSrvc = this.$dependencies.ApiService;
-			const productData = await apiSrvc.execute('Main::getAllProducts', ctxt);
+			const skuData = await apiSrvc.execute('Main::getAllSkus', ctxt);
 
 			ctxt.status = 200;
-			ctxt.body = productData.shift();
+			ctxt.body = skuData.shift();
 
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error retrieving sku data`, err);
+			throw new PlantWorksComponentError(`Error retrieving SKU data`, err);
+		}
+	}
+
+	async _getSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			const skuData = await apiSrvc.execute('Main::getSku', ctxt);
+
+			ctxt.status = 200;
+			ctxt.body = skuData.shift();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error retrieving SKU data`, err);
+		}
+	}
+
+	async _addSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			const skuData = await apiSrvc.execute('Main::addSku', [ctxt, true]);
+
+			ctxt.status = 200;
+			ctxt.body = skuData.shift();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error adding SKU`, err);
+		}
+	}
+
+	async _deleteSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			await apiSrvc.execute('Main::deleteSku', ctxt);
+
+			ctxt.status = 204;
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error deleting SKU`, err);
 		}
 	}
 	// #endregion
