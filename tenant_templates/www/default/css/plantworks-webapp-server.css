@@ -33442,4 +33442,11 @@ b,
 strong {
   font-weight: 600; }
 
+table.md-table th.md-column md-icon {
+  height: unset !important;
+  width: unset !important;
+  margin: 0px !important;
+  line-height: unset !important;
+  font-size: 1.5rem !important; }
+
 /*# sourceMappingURL=plantworks-webapp-server.css.map */

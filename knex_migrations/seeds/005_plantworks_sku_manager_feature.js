@@ -7,7 +7,7 @@ exports.seed = async function(knex) {
 
 	parentId = parentId.rows[0]['module_id'];
 
-	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'SKUManager']);
+	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'SkuManager']);
 	if(componentId.rows.length) return null;
 
 	componentId = await knex('modules').insert({

@@ -46,16 +46,35 @@ class Main extends PlantWorksBaseMiddleware {
 			await super._setup();
 
 			const dbSrvc = this.$dependencies.DatabaseService;
-			// const self = this; // eslint-disable-line consistent-this
+			const self = this; // eslint-disable-line consistent-this
 
-			Object.defineProperty(this, '$SkuModel', {
+			Object.defineProperty(this, '$TenantModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'tenants',
+					'idAttribute': 'tenant_id',
+					'hasTimestamps': true,
+
+					'skus': function() {
+						return this.hasMany(self.$TenantSkuModel, 'tenant_id', 'tenant_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$TenantSkuModel', {
 				'__proto__': null,
 				'configurable': true,
 
 				'value': dbSrvc.Model.extend({
 					'tableName': 'tenant_skus',
 					'idAttribute': 'tenant_sku_id',
-					'hasTimestamps': true
+					'hasTimestamps': true,
+
+					'tenant': function() {
+						return this.belongsTo(self.$TenantModel, 'tenant_id', 'tenant_id');
+					}
 				})
 			});
 
@@ -80,7 +99,8 @@ class Main extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
-			delete this.$SkuModel;
+			delete this.$TenantModel;
+			delete this.$TenantSkuModel;
 
 			await super._teardown();
 			return null;
@@ -96,9 +116,12 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const ApiService = this.$dependencies.ApiService;
 
-			await ApiService.add(`${this.name}::getAllProducts`, this._getAllProducts.bind(this));
-			await super._registerApis();
+			await ApiService.add(`${this.name}::getAllSkus`, this._getAllSkus.bind(this));
+			await ApiService.add(`${this.name}::getSku`, this._getSku.bind(this));
+			await ApiService.add(`${this.name}::addSku`, this._addSku.bind(this));
+			await ApiService.add(`${this.name}::deleteSku`, this._deleteSku.bind(this));
 
+			await super._registerApis();
 			return null;
 		}
 		catch(err) {
@@ -110,9 +133,12 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const ApiService = this.$dependencies.ApiService;
 
-			await ApiService.remove(`${this.name}::getAllProducts`, this._getAllProducts.bind(this));
-			await super._deregisterApis();
+			await ApiService.remove(`${this.name}::deleteSku`, this._deleteSku.bind(this));
+			await ApiService.remove(`${this.name}::addSku`, this._addSku.bind(this));
+			await ApiService.remove(`${this.name}::getSku`, this._getSku.bind(this));
+			await ApiService.remove(`${this.name}::getAllSkus`, this._getAllSkus.bind(this));
 
+			await super._deregisterApis();
 			return null;
 		}
 		catch(err) {
@@ -122,21 +148,113 @@ class Main extends PlantWorksBaseMiddleware {
 	// #endregion
 
 	// #region API
-	async _getAllProducts(ctxt) {
+	async _getAllSkus(ctxt) {
 		try {
-			const SkuRecord = new this.$SkuModel({
+			const SkuRecord = new this.$TenantSkuModel({
 				'tenant_id': ctxt.state.tenant.tenant_id
 			});
 
-			let productData = await SkuRecord.fetchAll();
-			productData = this.$jsonApiMapper.map(productData, 'sku-manager/products', {
+			let skuData = await SkuRecord.fetchAll({
+				'withRelated': ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : ['tenant']
+			});
+
+			skuData = this.$jsonApiMapper.map(skuData, 'sku-manager/sku', {
+				'typeForModel': {
+					'tenant': 'tenant-administration/tenant'
+				},
+
 				'enableLinks': false
 			});
 
-			return productData;
+			return skuData;
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_getAllProducts`, err);
+			throw new PlantWorksMiddlewareError(`${this.name}::_getAllSkus`, err);
+		}
+	}
+
+	async _getSku(ctxt) {
+		try {
+			const SkuRecord = new this.$TenantSkuModel({
+				'tenant_id': ctxt.state.tenant.tenant_id,
+				'tenant_sku_id': ctxt.params['tenant_sku_id']
+			});
+
+			let skuData = await SkuRecord.fetch({
+				'withRelated': ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : ['tenant']
+			});
+
+			skuData = this.$jsonApiMapper.map(skuData, 'sku-manager/sku', {
+				'typeForModel': {
+					'tenant': 'tenant-administration/tenant'
+				},
+
+				'enableLinks': false
+			});
+
+			return skuData;
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_getSku`, err);
+		}
+	}
+
+	async _addSku(ctxt, insert) {
+		try {
+			const tenantSku = ctxt.request.body;
+
+			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(tenantSku);
+			jsonDeserializedData['tenant_sku_id'] = jsonDeserializedData.id;
+
+			delete jsonDeserializedData.id;
+			delete jsonDeserializedData.created_at;
+			delete jsonDeserializedData.updated_at;
+
+			Object.keys(tenantSku.data.relationships || {}).forEach((relationshipName) => {
+				if(!tenantSku.data.relationships[relationshipName].data) {
+					delete jsonDeserializedData[relationshipName];
+					return;
+				}
+
+				if(!tenantSku.data.relationships[relationshipName].data.id) {
+					delete jsonDeserializedData[relationshipName];
+					return;
+				}
+
+				jsonDeserializedData[`${relationshipName}_id`] = tenantSku.data.relationships[relationshipName].data.id;
+			});
+
+			const savedRecord = await this.$TenantSkuModel
+				.forge()
+				.save(jsonDeserializedData, {
+					'method': insert ? 'insert' : 'update',
+					'patch': !insert
+				});
+
+			return {
+				'data': {
+					'type': tenantSku.data.type,
+					'id': savedRecord.get('tenant_sku_id')
+				}
+			};
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_addSku`, err);
+		}
+	}
+
+	async _deleteSku(ctxt) {
+		try {
+			await new this.$TenantSkuModel({
+				'tenant_id': ctxt.state.tenant.tenant_id,
+				'tenant_sku_id': ctxt.params['tenant_sku_id']
+			})
+			.destroy();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_deleteSku`, err);
 		}
 	}
 	// #endregion

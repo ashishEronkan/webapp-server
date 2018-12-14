@@ -27,16 +27,16 @@ exports.up = async function(knex) {
 		await knex.schema.withSchema('public').createTable('tenants_users_groups', function(tenantUserGroupTbl) {
 			tenantUserGroupTbl.uuid('tenant_id').notNullable();
 			tenantUserGroupTbl.uuid('user_id').notNullable();
-			tenantUserGroupTbl.uuid('group_id').notNullable();
-			tenantUserGroupTbl.uuid('tenants_users_groups_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
+			tenantUserGroupTbl.uuid('tenant_group_id').notNullable();
+			tenantUserGroupTbl.uuid('tenant_user_group_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			tenantUserGroupTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			tenantUserGroupTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			tenantUserGroupTbl.primary(['tenant_id', 'user_id', 'group_id']);
+			tenantUserGroupTbl.primary(['tenant_id', 'user_id', 'tenant_group_id']);
 			tenantUserGroupTbl.foreign(['tenant_id', 'user_id']).references(['tenant_id', 'user_id']).inTable('tenants_users').onDelete('CASCADE').onUpdate('CASCADE');
-			tenantUserGroupTbl.foreign(['tenant_id', 'group_id']).references(['tenant_id', 'group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
+			tenantUserGroupTbl.foreign(['tenant_id', 'tenant_group_id']).references(['tenant_id', 'tenant_group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
 
-			tenantUserGroupTbl.unique(['tenants_users_groups_id']);
+			tenantUserGroupTbl.unique(['tenant_user_group_id']);
 		});
 	}
 
@@ -111,7 +111,7 @@ BEGIN
 	default_tenant_group := NULL;
 
 	SELECT
-		group_id
+		tenant_group_id
 	FROM
 		tenant_groups
 	WHERE
@@ -128,7 +128,7 @@ BEGIN
 	INSERT INTO tenants_users_groups (
 		tenant_id,
 		user_id,
-		group_id
+		tenant_group_id
 	)
 	VALUES (
 		NEW.tenant_id,
@@ -155,13 +155,13 @@ DECLARE
 BEGIN
 	is_member_of_ancestor_group := 0;
 	SELECT
-		count(group_id)
+		count(tenant_group_id)
 	FROM
 		tenants_users_groups
 	WHERE
 		tenant_id = NEW.tenant_id AND
 		user_id = NEW.user_id AND
-		group_id IN (SELECT group_id FROM fn_get_group_ancestors(NEW.group_id) WHERE level > 1)
+		tenant_group_id IN (SELECT tenant_group_id FROM fn_get_group_ancestors(NEW.tenant_group_id) WHERE level > 1)
 	INTO
 		is_member_of_ancestor_group;
 
@@ -191,7 +191,7 @@ BEGIN
 	WHERE
 		tenant_id = NEW.tenant_id AND
 		user_id = NEW.user_id AND
-		group_id IN (SELECT group_id FROM fn_get_group_descendants(NEW.group_id) WHERE level >= 2);
+		tenant_group_id IN (SELECT tenant_group_id FROM fn_get_group_descendants(NEW.tenant_group_id) WHERE level >= 2);
 
 	RETURN NEW;
 END;

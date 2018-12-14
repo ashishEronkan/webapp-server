@@ -23,9 +23,9 @@ BEGIN
 			FROM
 				tenant_group_permissions
 			WHERE
-				group_id IN (
+				tenant_group_id IN (
 					SELECT
-						group_id
+						tenant_group_id
 					FROM
 						tenants_users_groups
 					WHERE

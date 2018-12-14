@@ -242,7 +242,7 @@ class Main extends PlantWorksBaseMiddleware {
 				return permission.name === 'super-administrator';
 			})[0]['permission_id'];
 
-			const otherSupers = await this.$dependencies.DatabaseService.knex.raw(`SELECT user_id FROM tenants_users_groups WHERE tenant_id = ? AND group_id IN (SELECT group_id FROM tenant_group_permissions WHERE feature_permission_id = ?) AND user_id <> ?`, [
+			const otherSupers = await this.$dependencies.DatabaseService.knex.raw(`SELECT user_id FROM tenants_users_groups WHERE tenant_id = ? AND tenant_group_id IN (SELECT tenant_group_id FROM tenant_group_permissions WHERE feature_permission_id = ?) AND user_id <> ?`, [
 				ctxt.state.tenant.tenant_id,
 				superPermId,
 				ctxt.state.user.user_id

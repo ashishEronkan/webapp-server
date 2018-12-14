@@ -467,7 +467,7 @@ exports.seed = async function(knex) {
 	}
 
 	// Step 6: Insert the data for the tenant's pre-defined groups - Super Admin, Admin, Registered, and Public
-	let superAdminGroupId = await knex.raw(`SELECT group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_group_id IS NULL;`);
+	let superAdminGroupId = await knex.raw(`SELECT tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_tenant_group_id IS NULL;`);
 	if(!superAdminGroupId.rows.length) {
 		superAdminGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
@@ -476,13 +476,13 @@ exports.seed = async function(knex) {
 			'description': 'The Super Administrator Group for the root tenant',
 			'default_for_new_user': false
 		})
-		.returning('group_id');
+		.returning('tenant_group_id');
 
 		superAdminGroupId = superAdminGroupId[0];
 	}
 	else {
-		superAdminGroupId = superAdminGroupId.rows[0]['group_id'];
-		await knex('tenant_groups').where('group_id', '=', superAdminGroupId).update({
+		superAdminGroupId = superAdminGroupId.rows[0]['tenant_group_id'];
+		await knex('tenant_groups').where('tenant_group_id', '=', superAdminGroupId).update({
 			'name': 'super-administators',
 			'display_name': 'Super Administrators',
 			'description': 'The Super Administrator Group for the root tenant',
@@ -490,23 +490,23 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	let adminGroupId = await knex.raw(`SELECT group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_group_id = '${superAdminGroupId}'`);
+	let adminGroupId = await knex.raw(`SELECT tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_tenant_group_id = '${superAdminGroupId}'`);
 	if(!adminGroupId.rows.length) {
 		adminGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
-			'parent_group_id': superAdminGroupId,
+			'parent_tenant_group_id': superAdminGroupId,
 			'name': 'administrators',
 			'display_name': 'Administrators',
 			'description': 'The Administrator Group for the root tenant',
 			'default_for_new_user': false
 		})
-		.returning('group_id');
+		.returning('tenant_group_id');
 
 		adminGroupId = adminGroupId[0];
 	}
 	else {
-		adminGroupId = adminGroupId.rows[0]['group_id'];
-		await knex('tenant_groups').where('group_id', '=', adminGroupId).update({
+		adminGroupId = adminGroupId.rows[0]['tenant_group_id'];
+		await knex('tenant_groups').where('tenant_group_id', '=', adminGroupId).update({
 			'name': 'administrators',
 			'display_name': 'Administrators',
 			'description': 'The Administrator Group for the root tenant',
@@ -514,49 +514,49 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	let registeredGroupId = await knex.raw(`SELECT group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_group_id = '${adminGroupId}';`);
+	let registeredGroupId = await knex.raw(`SELECT tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_tenant_group_id = '${adminGroupId}';`);
 	if(!registeredGroupId.rows.length) {
 		registeredGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
-			'parent_group_id': adminGroupId,
+			'parent_tenant_group_id': adminGroupId,
 			'name': 'registered-users',
 			'display_name': 'Registered Users',
 			'description': 'The Registered User Group for the root tenant',
 			'default_for_new_user': true
 		})
-		.returning('group_id');
+		.returning('tenant_group_id');
 
 		registeredGroupId = registeredGroupId[0];
 	}
 	else {
-		registeredGroupId = registeredGroupId.rows[0]['group_id'];
+		registeredGroupId = registeredGroupId.rows[0]['tenant_group_id'];
 	}
 
-	let publicGroupId = await knex.raw(`SELECT group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_group_id = '${registeredGroupId}';`);
+	let publicGroupId = await knex.raw(`SELECT tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_tenant_group_id = '${registeredGroupId}';`);
 	if(!publicGroupId.rows.length) {
 		publicGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
-			'parent_group_id': registeredGroupId,
+			'parent_tenant_group_id': registeredGroupId,
 			'name': 'public',
 			'display_name': 'Public',
 			'description': 'The public, non-logged-in, Users'
 		})
-		.returning('group_id');
+		.returning('tenant_group_id');
 
 		publicGroupId = publicGroupId[0];
 	}
 	else {
-		publicGroupId = publicGroupId.rows[0]['group_id'];
+		publicGroupId = publicGroupId.rows[0]['tenant_group_id'];
 	}
 
 	// Step 7: Assign appropriate permissions for the standard groups
-	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${adminGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('administrator', 'registered', 'public') ON CONFLICT DO NOTHING;`);
-	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${registeredGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('registered', 'public') ON CONFLICT DO NOTHING;`);
-	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${publicGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('public') ON CONFLICT DO NOTHING;`);
+	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, tenant_group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${adminGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('administrator', 'registered', 'public') ON CONFLICT DO NOTHING;`);
+	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, tenant_group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${registeredGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('registered', 'public') ON CONFLICT DO NOTHING;`);
+	await knex.raw(`INSERT INTO tenant_group_permissions (tenant_id, tenant_group_id, module_id, feature_permission_id) SELECT '${tenantId}', '${publicGroupId}', module_id, feature_permission_id FROM feature_permissions WHERE name IN ('public') ON CONFLICT DO NOTHING;`);
 
 	// Step 8: Add the root user to the tenant's super-admin group
 	await knex.raw(`INSERT INTO tenants_users (tenant_id, user_id, access_status, designation) VALUES('${tenantId}', '${userId}', 'authorized', 'Super Administrator') ON CONFLICT DO NOTHING;`);
-	await knex.raw(`INSERT INTO tenants_users_groups (tenant_id, user_id, group_id) SELECT '${tenantId}', '${userId}', group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_group_id IS NULL ON CONFLICT DO NOTHING;`);
+	await knex.raw(`INSERT INTO tenants_users_groups (tenant_id, user_id, tenant_group_id) SELECT '${tenantId}', '${userId}', tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND parent_tenant_group_id IS NULL ON CONFLICT DO NOTHING;`);
 
 	// Step 9: Create a User representing all the non-logged-in visitors to the portal, assign the user to the default tenant,
 	// add the public user to the public group
@@ -581,7 +581,7 @@ exports.seed = async function(knex) {
 	await knex.raw(`INSERT INTO tenants_users (tenant_id, user_id, access_status, designation) VALUES('${tenantId}', '${publicUserId}', 'authorized', 'Visitor') ON CONFLICT DO NOTHING;`);
 
 	await knex.raw(`DELETE FROM tenants_users_groups WHERE tenant_id = '${tenantId}' AND user_id = '${publicUserId}';`);
-	await knex.raw(`INSERT INTO tenants_users_groups (tenant_id, user_id, group_id) SELECT '${tenantId}', '${publicUserId}', group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND name = 'public' ON CONFLICT DO NOTHING;`);
+	await knex.raw(`INSERT INTO tenants_users_groups (tenant_id, user_id, tenant_group_id) SELECT '${tenantId}', '${publicUserId}', tenant_group_id FROM tenant_groups WHERE tenant_id = '${tenantId}' AND name = 'public' ON CONFLICT DO NOTHING;`);
 
 	return null;
 };
