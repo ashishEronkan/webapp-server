@@ -57,7 +57,7 @@ class Main extends PlantWorksBaseMiddleware {
 					'idAttribute': 'tenant_id',
 					'hasTimestamps': true,
 
-					'location': function() {
+					'tenantLocation': function() {
 						return this.hasOne(self.$TenantLocationModel, 'tenant_id');
 					}
 				})
@@ -160,17 +160,33 @@ class Main extends PlantWorksBaseMiddleware {
 				'tenant_id': ctxt.state.tenant.tenant_id
 			});
 
-			let tenantData = await TenantRecord.fetch({
-				'withRelated': [{
-					[ctxt.query.include]: function(qb) {
+			const related = ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : [{
+				'tenantLocation': function(qb) {
+					qb.where('is_primary', true);
+				}
+			}];
+
+			const tlIdx = related.indexOf('tenantLocation');
+			if(tlIdx >= 0)
+				related[tlIdx] = {
+					'tenantLocation': function(qb) {
 						qb.where('is_primary', true);
 					}
-				}]
+				};
+			else
+				related.push({
+					'tenantLocation': function(qb) {
+						qb.where('is_primary', true);
+					}
+				});
+
+			let tenantData = await TenantRecord.fetch({
+				'withRelated': related
 			});
 
 			tenantData = this.$jsonApiMapper.map(tenantData, 'tenant-administration/tenants', {
 				'typeForModel': {
-					'location': 'tenant-administration/tenant_locations'
+					'tenantLocation': 'tenant-administration/tenant_locations'
 				},
 
 				'enableLinks': false
@@ -187,15 +203,30 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const tenant = ctxt.request.body;
 
-			delete tenant.data.relationships;
-			delete tenant.included;
-
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(tenant);
 			jsonDeserializedData['tenant_id'] = jsonDeserializedData['id'];
 
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
 			delete jsonDeserializedData.updated_at;
+
+			Object.keys(tenant.data.relationships || {}).forEach((relationshipName) => {
+				if(!tenant.data.relationships[relationshipName].data) {
+					delete jsonDeserializedData[relationshipName];
+					jsonDeserializedData[`${relationshipName}_id`] = null;
+
+					return;
+				}
+
+				if(!tenant.data.relationships[relationshipName].data.id) {
+					delete jsonDeserializedData[relationshipName];
+					jsonDeserializedData[`${relationshipName}_id`] = null;
+
+					return;
+				}
+
+				jsonDeserializedData[`${relationshipName}_id`] = tenant.data.relationships[relationshipName].data.id;
+			});
 
 			const savedRecord = await this.$TenantModel
 				.forge()
