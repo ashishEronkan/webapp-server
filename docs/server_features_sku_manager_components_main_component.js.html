@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>server/services/localization_service/service.js - Plant.Works Web Application Server</title>
+    <title>server/features/sku_manager/components/main/component.js - Plant.Works Web Application Server</title>
     
     <meta name="description" content="Plant.Works Web Application Server" />
     
@@ -44,7 +44,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">server/services/localization_service/service.js</h1>
+    <h1 class="page-title">server/features/sku_manager/components/main/component.js</h1>
     
 
     
@@ -65,85 +65,109 @@
  * Module dependencies, required for this module
  * @ignore
  */
-const PlantWorksBaseService = require('plantworks-base-service').PlantWorksBaseService;
-const PlantWorksSrvcError = require('plantworks-service-error').PlantWorksServiceError;
+const PlantWorksBaseComponent = require('plantworks-base-component').PlantWorksBaseComponent;
+const PlantWorksComponentError = require('plantworks-component-error').PlantWorksComponentError;
 
 /**
- * @class   LocalizationService
- * @extends {PlantWorksBaseService}
- * @classdesc The Plant.Works Web Application Server Localization Service.
+ * @class   Main
+ * @extends {PlantWorksBaseComponent}
+ * @classdesc The Main component of the SKU Manager Feature - manages CRUD for the skus.
  *
- * @description
- * Allows the rest of the Plant.Works Modules to use localized strings.
  *
  */
-class LocalizationService extends PlantWorksBaseService {
+class Main extends PlantWorksBaseComponent {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
 	}
 	// #endregion
 
-	// #region startup/teardown code
+	// #region Protected methods - need to be overriden by derived classes
 	/**
 	 * @async
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof LocalizationService
-	 * @name     _setup
-	 *
-	 * @returns  {null} Nothing.
-	 *
-	 * @summary  Sets up the internationalization / localization module.
-	 */
-	async _setup() {
-		try {
-			await super._setup();
-
-			const i18n = require('i18n'),
-				path = require('path');
-
-			const loggerSrvc = this.$dependencies.LoggerService;
-			this.$config.directory = path.isAbsolute(this.$config.directory) ? this.$config.directory : path.join(path.dirname(path.dirname(require.main.filename)), this.$config.directory);
-			this.$config.logDebugFn = (message) => { loggerSrvc.debug(message); };
-			this.$config.logWarnFn = (message) => { loggerSrvc.warn(message); };
-			this.$config.logErrorFn = (message) => { loggerSrvc.error(message); };
-
-			// Hard-coded because of a memory leak in i18n module
-			this.$config.autoReload = false;
-
-			i18n.configure(this.$config);
-			this.$i18n = i18n;
-
-			return null;
-		}
-		catch(err) {
-			throw new PlantWorksSrvcError(`${this.name}::_setup error`, err);
-		}
-	}
-
-	/**
-	 * @async
-	 * @function
-	 * @override
-	 * @instance
-	 * @memberof LocalizationService
-	 * @name     _teardown
+	 * @memberof Main
+	 * @name     _addRoutes
 	 *
 	 * @returns  {undefined} Nothing.
 	 *
-	 * @summary  Deletes the internationalization / localization module.
+	 * @summary  Adds routes to the Koa Router.
 	 */
-	async _teardown() {
+	async _addRoutes() {
 		try {
-			if(this.$i18n) delete this.$i18n;
+			this.$router.get('/skus', this.$parent._rbac('sku-manager-read'), this._getAllSkus.bind(this));
 
-			await super._teardown();
+			this.$router.get('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-read'), this._getSku.bind(this));
+			this.$router.post('/skus', this.$parent._rbac('sku-manager-update'), this._addSku.bind(this));
+			this.$router.del('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-update'), this._deleteSku.bind(this));
+
+			await super._addRoutes();
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksSrvcError(`${this.name}::_teardown error`, err);
+			throw new PlantWorksComponentError(`${this.name}::_addRoutes error`, err);
+		}
+	}
+	// #endregion
+
+	// #region Route Handlers
+	async _getAllSkus(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			const skuData = await apiSrvc.execute('Main::getAllSkus', ctxt);
+
+			ctxt.status = 200;
+			ctxt.body = skuData.shift();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error retrieving SKU data`, err);
+		}
+	}
+
+	async _getSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			const skuData = await apiSrvc.execute('Main::getSku', ctxt);
+
+			ctxt.status = 200;
+			ctxt.body = skuData.shift();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error retrieving SKU data`, err);
+		}
+	}
+
+	async _addSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			const skuData = await apiSrvc.execute('Main::addSku', [ctxt, true]);
+
+			ctxt.status = 200;
+			ctxt.body = skuData.shift();
+
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error adding SKU`, err);
+		}
+	}
+
+	async _deleteSku(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			await apiSrvc.execute('Main::deleteSku', ctxt);
+
+			ctxt.status = 204;
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error deleting SKU`, err);
 		}
 	}
 	// #endregion
@@ -152,15 +176,8 @@ class LocalizationService extends PlantWorksBaseService {
 	/**
 	 * @override
 	 */
-	get Interface() {
-		return this.$i18n;
-	}
-
-	/**
-	 * @override
-	 */
 	get dependencies() {
-		return ['ConfigurationService', 'LoggerService'].concat(super.dependencies);
+		return ['ApiService'].concat(super.dependencies);
 	}
 
 	/**
@@ -172,7 +189,7 @@ class LocalizationService extends PlantWorksBaseService {
 	// #endregion
 }
 
-exports.service = LocalizationService;
+exports.component = Main;
 </code></pre>
         </article>
     </section>

@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>server/services/localization_service/service.js - Plant.Works Web Application Server</title>
+    <title>server/features/warehouse_manager/feature.js - Plant.Works Web Application Server</title>
     
     <meta name="description" content="Plant.Works Web Application Server" />
     
@@ -44,7 +44,7 @@
 
 <div id="main">
     
-    <h1 class="page-title">server/services/localization_service/service.js</h1>
+    <h1 class="page-title">server/features/warehouse_manager/feature.js</h1>
     
 
     
@@ -65,104 +65,58 @@
  * Module dependencies, required for this module
  * @ignore
  */
-const PlantWorksBaseService = require('plantworks-base-service').PlantWorksBaseService;
-const PlantWorksSrvcError = require('plantworks-service-error').PlantWorksServiceError;
+const PlantWorksBaseFeature = require('plantworks-base-feature').PlantWorksBaseFeature;
+// const PlantWorksFeatureError = require('plantworks-feature-error').PlantWorksFeatureError;
 
 /**
- * @class   LocalizationService
- * @extends {PlantWorksBaseService}
- * @classdesc The Plant.Works Web Application Server Localization Service.
+ * @class   WarehouseManager
+ * @extends {PlantWorksBaseFeature}
+ * @classdesc The Plant.Works Web Application Server WarehouseManager feature - manages tenant warehouses.
  *
- * @description
- * Allows the rest of the Plant.Works Modules to use localized strings.
  *
  */
-class LocalizationService extends PlantWorksBaseService {
+class WarehouseManager extends PlantWorksBaseFeature {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
 	}
 	// #endregion
 
-	// #region startup/teardown code
+	// #region Protected methods - need to be overriden by derived classes
 	/**
 	 * @async
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof LocalizationService
-	 * @name     _setup
+	 * @memberof WarehouseManager
+	 * @name     getDashboardDisplayDetails
 	 *
-	 * @returns  {null} Nothing.
+	 * @param    {Object} ctxt - Koa context.
 	 *
-	 * @summary  Sets up the internationalization / localization module.
+	 * @returns  {Object} Dashboard display stuff for this Feature.
+	 *
+	 * @summary  Everyone logged-in gets access.
 	 */
-	async _setup() {
+	async getDashboardDisplayDetails(ctxt) {
 		try {
-			await super._setup();
+			const rbacChecker = this._rbac('warehouse-manager-read');
+			await rbacChecker(ctxt);
 
-			const i18n = require('i18n'),
-				path = require('path');
+			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-			const loggerSrvc = this.$dependencies.LoggerService;
-			this.$config.directory = path.isAbsolute(this.$config.directory) ? this.$config.directory : path.join(path.dirname(path.dirname(require.main.filename)), this.$config.directory);
-			this.$config.logDebugFn = (message) => { loggerSrvc.debug(message); };
-			this.$config.logWarnFn = (message) => { loggerSrvc.warn(message); };
-			this.$config.logErrorFn = (message) => { loggerSrvc.error(message); };
+			defaultDisplay['attributes']['description'] = `Edit Warehouse Information`;
+			defaultDisplay['attributes']['icon_type'] = 'fa';
+			defaultDisplay['attributes']['icon_path'] = 'warehouse';
 
-			// Hard-coded because of a memory leak in i18n module
-			this.$config.autoReload = false;
-
-			i18n.configure(this.$config);
-			this.$i18n = i18n;
-
-			return null;
+			return defaultDisplay;
 		}
 		catch(err) {
-			throw new PlantWorksSrvcError(`${this.name}::_setup error`, err);
-		}
-	}
-
-	/**
-	 * @async
-	 * @function
-	 * @override
-	 * @instance
-	 * @memberof LocalizationService
-	 * @name     _teardown
-	 *
-	 * @returns  {undefined} Nothing.
-	 *
-	 * @summary  Deletes the internationalization / localization module.
-	 */
-	async _teardown() {
-		try {
-			if(this.$i18n) delete this.$i18n;
-
-			await super._teardown();
 			return null;
-		}
-		catch(err) {
-			throw new PlantWorksSrvcError(`${this.name}::_teardown error`, err);
 		}
 	}
 	// #endregion
 
 	// #region Properties
-	/**
-	 * @override
-	 */
-	get Interface() {
-		return this.$i18n;
-	}
-
-	/**
-	 * @override
-	 */
-	get dependencies() {
-		return ['ConfigurationService', 'LoggerService'].concat(super.dependencies);
-	}
-
 	/**
 	 * @override
 	 */
@@ -172,7 +126,7 @@ class LocalizationService extends PlantWorksBaseService {
 	// #endregion
 }
 
-exports.service = LocalizationService;
+exports.feature = WarehouseManager;
 </code></pre>
         </article>
     </section>
