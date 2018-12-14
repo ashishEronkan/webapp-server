@@ -111,7 +111,7 @@ describe('Session Component Test Cases', function() {
 				expect(response).to.have.status(200);
 				response.body.should.have.property('name').eql('Root PlantWorks');
 				response.body.should.have.property('loggedIn').eql(true);
-				response.body.should.have.property('permissions').with.lengthOf(16);
+				response.body.should.have.property('permissions').with.lengthOf(22);
 
 				done(err);
 			});
