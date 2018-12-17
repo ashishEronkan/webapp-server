@@ -3,7 +3,7 @@ exports.config = {
 	"protocol": "http",
 	"internalPort": 9100,
 	"externalPort": 9100,
-	"version": "3.0.1",
+	"version": "2.4.3",
 	"poweredBy": "Plant.Works Portal",
 	"connectionTimeout": 120,
 	"logLevel": "debug",

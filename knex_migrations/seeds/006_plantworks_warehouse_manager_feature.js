@@ -15,11 +15,11 @@ exports.seed = async function(knex) {
 		'type': 'feature',
 		'deploy': 'custom',
 		'name': 'WarehouseManager',
-		'display_name': 'SKU Manager',
+		'display_name': 'Warehouse Manager',
 		'description': 'The Plant.Works Web Application Warehouse Manager - manages the tenant\'s warehouses',
 		'metadata': {
 			'author': 'Plant.Works',
-			'version': '3.0.1',
+			'version': '2.4.3',
 			'website': 'https://plant.works',
 			'demo': 'https://plant.works',
 			'documentation': 'https://plant.works'

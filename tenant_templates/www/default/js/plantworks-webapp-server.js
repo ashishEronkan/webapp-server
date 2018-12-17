@@ -11020,6 +11020,26 @@
   };
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/initializers/model-fragments", ["exports", "ember-data-model-fragments"], function (_exports, _emberDataModelFragments) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  // Import the full module to ensure monkey-patches are applied before any store
+  // instances are created. Sad face for side-effects :(
+  var _default = {
+    name: 'fragmentTransform',
+    before: 'ember-data',
+
+    initialize(application) {
+      application.inject('transform', 'store', 'service:store');
+    }
+
+  };
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/initializers/resize", ["exports", "ember-resize/services/resize", "plantworks-webapp-server/config/environment"], function (_exports, _resize, _environment) {
   "use strict";
 
@@ -14135,6 +14155,36 @@
     }
   });
 });
+;define("plantworks-webapp-server/transforms/array", ["exports", "ember-data-model-fragments/transforms/array"], function (_exports, _array) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  var _default = _array.default;
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/transforms/fragment-array", ["exports", "ember-data-model-fragments/transforms/fragment-array"], function (_exports, _fragmentArray) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  var _default = _fragmentArray.default;
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/transforms/fragment", ["exports", "ember-data-model-fragments/transforms/fragment"], function (_exports, _fragment) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  var _default = _fragment.default;
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/transforms/json", ["exports", "ember-data-change-tracker/transforms/json"], function (_exports, _json) {
   "use strict";
 
@@ -14444,7 +14494,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"3.0.1+007070e5"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"2.4.3+007070e5"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;

@@ -1,6 +1,6 @@
 {
 	"name": "webapp-server",
-	"version": "3.0.1",
+	"version": "2.4.3",
 	"description": "Plant.Works Web Application Server",
 	"homepage": "https://plantworks.github.io/webapp-server",
 	"main": "server/index.js",

@@ -20,7 +20,7 @@ exports.seed = async function(knex) {
 		'description': 'The Plant.Works Web Application Session Middleware - executes reset password and similar operations',
 		'metadata': {
 			'author': 'Plant.Works',
-			'version': '3.0.1',
+			'version': '2.4.3',
 			'website': 'https://plant.works',
 			'demo': 'https://plant.works',
 			'documentation': 'https://plant.works'
