@@ -43,7 +43,7 @@ class WarehouseManager extends PlantWorksBaseFeature {
 	 */
 	async getDashboardDisplayDetails(ctxt) {
 		try {
-			const rbacChecker = this._rbac('warehouse-manager-read');
+			const rbacChecker = this._rbac('warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
 			await rbacChecker(ctxt);
 
 			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);

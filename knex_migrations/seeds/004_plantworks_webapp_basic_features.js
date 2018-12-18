@@ -18,7 +18,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Profile - manages the user\'s personal information',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -37,7 +37,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Dashbaord - single-point access to all the features the User can access',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -60,7 +60,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Server Administration - allows administrators to configure the server',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -79,7 +79,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Tenant Administration - allows administrators to configure the account',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -129,7 +129,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Feature Manager - manages the tenants\' feature selections',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -175,7 +175,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Groups Permissions Manager - manages the tenants\' groups, and permissions for those groups, etc.',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -221,7 +221,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application User Manager - manages the tenants\' users',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'

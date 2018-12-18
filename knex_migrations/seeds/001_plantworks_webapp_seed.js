@@ -29,7 +29,7 @@ exports.seed = async function(knex) {
 			},
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -49,7 +49,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application API Service - allows modules to expose interfaces for use by other modules without direct references to each other',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -65,7 +65,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Audit Service - automatically publishes an audit log of all incoming REST calls',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -81,7 +81,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Authentication Service - based on Passport and its infinite strategies',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -97,7 +97,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application base AWS Service - AWS feature-specific services (S3, for eg.) use this as a dependency for managing connections',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -113,7 +113,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Cache Service - based on Redis',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -129,7 +129,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Cassandra Service - allows other modules to use a Cassandra cluster as a nosql storage',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -145,7 +145,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Configuration Service',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -164,7 +164,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application PostgreSQL Configuration Service',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -180,7 +180,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Filesystem-based Configuration Service',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -196,7 +196,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Database Service - built on top of Knex / Bookshelf',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -212,7 +212,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Localization Service',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -228,7 +228,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Logger Service',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -244,7 +244,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Mailer Service - based on nodemailer and node-smtp-transport',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -260,7 +260,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Publish/Subscribe Service - based on Ascoltatori',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -276,7 +276,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Cluster Service - based on Ringpop by Uber',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -292,7 +292,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Storage Service - depending on configuration, a wrapper around sandboxed-fs or s3fs',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -308,7 +308,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Webserver Service - based on Koa',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -324,7 +324,7 @@ exports.seed = async function(knex) {
 			'description': 'The Plant.Works Web Application Websocket Service - based on Primus using WS Transformer',
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works'
@@ -351,7 +351,7 @@ exports.seed = async function(knex) {
 			},
 			'metadata': {
 				'author': 'Plant.Works',
-				'version': '3.0.1',
+				'version': '2.4.3',
 				'website': 'https://plant.works',
 				'demo': 'https://plant.works',
 				'documentation': 'https://plant.works',

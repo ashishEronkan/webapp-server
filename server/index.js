@@ -1,7 +1,7 @@
 /**
  * @file      index.js
  * @author    Vish Desai <vish@eronkan.com>
- * @version   3.0.1
+ * @version   2.4.3
  * @copyright Copyright&copy; 2014 - 2018 {@link https://plantworks.github.io/webapp-server|Plant.Works Web Application Server}
  * @license   {@link https://spdx.org/licenses/Unlicense.html|Unlicense}
  * @summary   The entry-point, and application class, for the web application server

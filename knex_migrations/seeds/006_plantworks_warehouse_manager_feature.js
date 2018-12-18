@@ -15,11 +15,11 @@ exports.seed = async function(knex) {
 		'type': 'feature',
 		'deploy': 'custom',
 		'name': 'WarehouseManager',
-		'display_name': 'SKU Manager',
+		'display_name': 'Warehouse Manager',
 		'description': 'The Plant.Works Web Application Warehouse Manager - manages the tenant\'s warehouses',
 		'metadata': {
 			'author': 'Plant.Works',
-			'version': '3.0.1',
+			'version': '2.4.3',
 			'website': 'https://plant.works',
 			'demo': 'https://plant.works',
 			'documentation': 'https://plant.works'
@@ -31,23 +31,60 @@ exports.seed = async function(knex) {
 
 	await knex('feature_permissions').insert({
 		'module_id': componentId,
-		'name': 'warehouse-manager-read',
-		'display_name': 'Warehouse Manager Read',
-		'description': 'The Read-only Permission for the Warehouse Manager Module'
+		'name': 'warehouse-manager-configuration-read',
+		'display_name': 'Warehouse Manager Configuration Read',
+		'description': 'The Read-only Permission for the Warehouse Manager Configuration Module'
 	});
 
 	await knex('feature_permissions').insert({
 		'module_id': componentId,
-		'name': 'warehouse-manager-update',
-		'implies_permissions': '["warehouse-manager-read"]',
+		'name': 'warehouse-manager-configuration-update',
+		'implies_permissions': '["warehouse-manager-configuration-read"]',
 		'display_name': 'Warehouse Manager Update',
-		'description': 'Update Permission for the Warehouse Manager Module'
+		'description': 'Update Permission for the Warehouse Manager Configuration Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-generate-advice',
+		'display_name': 'Warehouse Manager Generate Advice',
+		'description': 'The Permission to generate Advices for the Warehouse Manager Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-receiving-read',
+		'display_name': 'Warehouse Manager Receiving Read',
+		'description': 'The Read-only Permission for the Warehouse Manager Receiving Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-receiving-update',
+		'implies_permissions': '["warehouse-manager-receiving-read"]',
+		'display_name': 'Warehouse Manager Receiving Update',
+		'description': 'Update Permission for the Warehouse Manager Receiving Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-shipping-read',
+		'display_name': 'Warehouse Manager Shipping Read',
+		'description': 'The Read-only Permission for the Warehouse Manager Shipping Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-shipping-update',
+		'implies_permissions': '["warehouse-manager-shipping-read"]',
+		'display_name': 'Warehouse Manager Receiving Update',
+		'description': 'Update Permission for the Warehouse Manager Shipping Module'
 	});
 
 	await knex('feature_permissions').insert({
 		'module_id': componentId,
 		'name': 'warehouse-manager-all',
-		'implies_permissions': '["warehouse-manager-update"]',
+		'implies_permissions': '["warehouse-manager-configuration-update", "warehouse-manager-generate-advice", "warehouse-manager-receiving-update", "warehouse-manager-shipping-update"]',
 		'display_name': 'Warehouse Manager All',
 		'description': 'All Permissions for the Warehouse Manager Module'
 	});

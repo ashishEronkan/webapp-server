@@ -235,22 +235,60 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 	 * @summary  Derived classes should call next, or throw a {PlantWorksFeatureError} - depending on whether the user has the required permission(s).
 	 */
 	_rbac(permission) {
+		const permParser = require('boolean-parser');
+
+		let parsedPermissions = permParser.parseBooleanQuery(permission);
+		if((parsedPermissions.length === 1) && (parsedPermissions[0].length === 1))
+			parsedPermissions = permission;
+
 		return async function(ctxt, next) {
-			// console.log(`Requested Permission: ${permission},\nUser Permissions: ${JSON.stringify(ctxt.state.user.permissions, null, '\t')}`);
 			if(ctxt.state.user && ctxt.state.user.permissions) {
-				if(permission === 'registered') {
+				if(parsedPermissions === 'registered') {
 					if(next) await next();
 					return;
 				}
 
-				const doesUserHavePermission = ctxt.state.user.permissions.filter((userPerm) => {
-					return (userPerm.name === permission);
-				}).length;
+				const userPermissionNames = ctxt.state.user.permissions.map((userPermission) => {
+					return userPermission.name;
+				});
+
+				if(!Array.isArray(parsedPermissions)) {
+					const doesUserHavePermission = userPermissionNames.includes(permission);
+					if(doesUserHavePermission) {
+						if(next) await next();
+						return;
+					}
+
+					throw new PlantWorksFeatureError('User doesn\'t have the required permissions');
+				}
+
+				let doesUserHavePermission = false;
+				for(let permIdx = 0; permIdx < parsedPermissions.length; permIdx++) {
+					if(doesUserHavePermission) break;
+
+					const permissionSet = parsedPermissions[permIdx];
+
+					if(permissionSet.length === 1) {
+						doesUserHavePermission = doesUserHavePermission || userPermissionNames.includes(permissionSet[0]);
+						continue;
+					}
+
+					let isPermissionSetActive = true;
+					for(let permSetIdx = 0; permSetIdx < permissionSet.length; permSetIdx++) {
+						if(!isPermissionSetActive) break;
+
+						isPermissionSetActive = isPermissionSetActive && userPermissionNames.includes(permissionSet[permSetIdx]);
+					}
+
+					doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
+				}
 
 				if(doesUserHavePermission) {
 					if(next) await next();
 					return;
 				}
+
+				throw new PlantWorksFeatureError('User doesn\'t have the required permissions');
 			}
 
 			throw new PlantWorksFeatureError('User doesn\'t have the required permissions');
