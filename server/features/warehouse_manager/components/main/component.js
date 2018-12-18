@@ -41,7 +41,7 @@ class Main extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
-			this.$router.get('/warehouses', this.$parent._rbac('warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read'), this._getAllWarehouses.bind(this));
+			this.$router.get('/warehouses', this.$parent._rbac('warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read'), this._getAllWarehouses.bind(this));
 
 			this.$router.get('/warehouses/:tenant_warehouse_id', this.$parent._rbac('warehouse-manager-configuration-read'), this._getWarehouse.bind(this));
 			this.$router.post('/warehouses', this.$parent._rbac('warehouse-manager-configuration-update'), this._addWarehouse.bind(this));
