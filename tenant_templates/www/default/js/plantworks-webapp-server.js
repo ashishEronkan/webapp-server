@@ -1001,7 +1001,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     }
 
   });
@@ -1026,7 +1026,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
       this.set('userFeatures', this.get('store').peekAll('dashboard/feature'));
     },
 
@@ -4234,7 +4234,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     },
 
     'onInit': (0, _emberConcurrency.task)(function* () {
@@ -4385,7 +4385,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     },
 
     'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
@@ -4597,7 +4597,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
       this.get('currentUser').on('userDataUpdated', this, 'onProfileUpdated');
     },
 
@@ -4671,7 +4671,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     },
 
     'doLogin': (0, _emberConcurrency.task)(function* () {
@@ -4813,7 +4813,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     },
 
     'doLogout': (0, _emberConcurrency.task)(function* () {
@@ -4881,7 +4881,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['sku-manager-read']);
+      this.set('permissions', 'sku-manager-read');
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -5037,7 +5037,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['tenant-administration-read']);
+      this.set('permissions', 'tenant-administration-read');
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -5085,7 +5085,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['feature-manager-read']);
+      this.set('permissions', 'feature-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -5139,7 +5139,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['feature-manager-read']);
+      this.set('permissions', 'feature-manager-read');
     },
 
     didInsertElement() {
@@ -5240,7 +5240,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -5357,7 +5357,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -5430,7 +5430,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -5592,7 +5592,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     didInsertElement() {
@@ -5789,7 +5789,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -5942,7 +5942,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['tenant-administration-read']);
+      this.set('permissions', 'tenant-administration-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -6530,7 +6530,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     },
 
     'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
@@ -6662,7 +6662,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['user-manager-read']);
+      this.set('permissions', 'user-manager-read');
     },
 
     'onHasPermissionChange': Ember.observer('hasPermission', function () {
@@ -6823,7 +6823,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['user-manager-update']);
+      this.set('permissions', 'user-manager-update');
     },
 
     'onGeneratePasswordChange': Ember.observer('state.generateRandomPassword', function () {
@@ -6858,7 +6858,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
       this.get('currentUser').on('userDataUpdated', this, 'onAllowedTenantsUpdated');
     },
 
@@ -6983,7 +6983,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read']);
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -7240,7 +7240,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     }
 
   });
@@ -7325,7 +7325,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['registered']);
+      this.set('permissions', 'registered');
     }
 
   });
@@ -7344,7 +7344,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['sku-manager-read']);
+      this.set('permissions', 'sku-manager-read');
     }
 
   });
@@ -7368,7 +7368,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['tenant-administration-read']);
+      this.set('permissions', 'tenant-administration-read');
       this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
     },
 
@@ -7408,7 +7408,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['feature-manager-read']);
+      this.set('permissions', 'feature-manager-read');
     },
 
     setSelectedFeature(featureModel) {
@@ -7456,7 +7456,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['group-manager-read']);
+      this.set('permissions', 'group-manager-read');
     },
 
     setSelectedGroup(groupModel) {
@@ -7515,7 +7515,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['user-manager-read']);
+      this.set('permissions', 'user-manager-read');
       this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
     },
 
@@ -7688,7 +7688,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read']);
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
     }
 
   });
@@ -7714,7 +7714,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['*']);
+      this.set('permissions', '*');
       this.get('currentUser').on('userDataUpdated', this, 'updatePermissions');
     },
 
@@ -7745,8 +7745,6 @@
       }
 
       let permission = this.get('permissions');
-      if (!Array.isArray(permission)) permission = [permission];
-      if (permission.length === 1) permission = permission[0];
 
       if (permission === '*') {
         this.set('hasPermission', true);
@@ -7782,7 +7780,6 @@
         doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
       }
 
-      if (doesUserHavePermission === this.get('hasPermission')) return;
       this.set('hasPermission', doesUserHavePermission);
     },
 
@@ -7819,7 +7816,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['*']);
+      this.set('permissions', '*');
       this.get('currentUser').on('userDataUpdated', this, 'updatePermissions');
     },
 
@@ -7849,8 +7846,6 @@
       }
 
       let permission = this.get('permissions');
-      if (!Array.isArray(permission)) permission = [permission];
-      if (permission.length === 1) permission = permission[0];
 
       if (permission === '*') {
         this.set('hasPermission', true);
@@ -7886,7 +7881,6 @@
         doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
       }
 
-      if (doesUserHavePermission === this.get('hasPermission')) return;
       this.set('hasPermission', doesUserHavePermission);
     },
 
@@ -14570,7 +14564,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"2.4.3+4af58070"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"2.4.3+4e13d044"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
