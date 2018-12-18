@@ -6983,7 +6983,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['warehouse-manager-read']);
+      this.set('permissions', ['warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read']);
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -7688,14 +7688,14 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', ['warehouse-manager-read']);
+      this.set('permissions', ['warehouse-manager-configuration-read OR warehouse-manager-generate-advice OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read']);
     }
 
   });
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/framework/base-component", ["exports", "ember-invoke-action", "ember-lifeline"], function (_exports, _emberInvokeAction, _emberLifeline) {
+;define("plantworks-webapp-server/framework/base-component", ["exports", "ember-lifeline", "ember-invoke-action", "boolean-parser"], function (_exports, _emberLifeline, _emberInvokeAction, _booleanParser) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -7730,22 +7730,60 @@
     })),
 
     updatePermissions() {
-      let hasPerm = false;
+      const currentUser = this.get('currentUser').getUser();
 
-      if (this.get('permissions').includes('*')) {
-        hasPerm = true;
-      } else {
-        const requiredPermissions = this.get('permissions');
-
-        for (let permIdx = 0; permIdx < requiredPermissions.length; permIdx++) {
-          const hasCurrentPermission = this.get('currentUser').hasPermission(requiredPermissions[permIdx]);
-          hasPerm = hasPerm || hasCurrentPermission;
-          if (hasPerm) break;
-        }
+      if (!currentUser) {
+        this.set('hasPermission', false);
+        return;
       }
 
-      if (hasPerm === this.get('hasPermission')) return;
-      this.set('hasPermission', hasPerm);
+      const userPermissionNames = currentUser['permissions'];
+
+      if (!userPermissionNames || !userPermissionNames.length) {
+        this.set('hasPermission', false);
+        return;
+      }
+
+      let permission = this.get('permissions');
+      if (!Array.isArray(permission)) permission = [permission];
+      if (permission.length === 1) permission = permission[0];
+
+      if (permission === '*') {
+        this.set('hasPermission', true);
+        return;
+      }
+
+      let parsedPermissions = (0, _booleanParser.parseBooleanQuery)(permission);
+      if (parsedPermissions.length === 1 && parsedPermissions[0].length === 1) parsedPermissions = permission;
+
+      if (!Array.isArray(parsedPermissions)) {
+        this.set('hasPermission', userPermissionNames.includes(permission));
+        return;
+      }
+
+      let doesUserHavePermission = false;
+
+      for (let permIdx = 0; permIdx < parsedPermissions.length; permIdx++) {
+        if (doesUserHavePermission) break;
+        const permissionSet = parsedPermissions[permIdx];
+
+        if (permissionSet.length === 1) {
+          doesUserHavePermission = doesUserHavePermission || userPermissionNames.includes(permissionSet[0]);
+          continue;
+        }
+
+        let isPermissionSetActive = true;
+
+        for (let permSetIdx = 0; permSetIdx < permissionSet.length; permSetIdx++) {
+          if (!isPermissionSetActive) break;
+          isPermissionSetActive = isPermissionSetActive && userPermissionNames.includes(permissionSet[permSetIdx]);
+        }
+
+        doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
+      }
+
+      if (doesUserHavePermission === this.get('hasPermission')) return;
+      this.set('hasPermission', doesUserHavePermission);
     },
 
     actions: {
@@ -7762,7 +7800,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/framework/base-controller", ["exports", "ember-invoke-action"], function (_exports, _emberInvokeAction) {
+;define("plantworks-webapp-server/framework/base-controller", ["exports", "ember-invoke-action", "boolean-parser"], function (_exports, _emberInvokeAction, _booleanParser) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -7796,22 +7834,60 @@
     })),
 
     updatePermissions() {
-      let hasPerm = false;
+      const currentUser = this.get('currentUser').getUser();
 
-      if (this.get('permissions').includes('*')) {
-        hasPerm = true;
-      } else {
-        const requiredPermissions = this.get('permissions');
-
-        for (let permIdx = 0; permIdx < requiredPermissions.length; permIdx++) {
-          let hasCurrentPermission = this.get('currentUser').hasPermission(requiredPermissions[permIdx]);
-          hasPerm = hasPerm || hasCurrentPermission;
-          if (hasPerm) break;
-        }
+      if (!currentUser) {
+        this.set('hasPermission', false);
+        return;
       }
 
-      if (hasPerm === this.get('hasPermission')) return;
-      this.set('hasPermission', hasPerm);
+      const userPermissionNames = currentUser['permissions'];
+
+      if (!userPermissionNames || !userPermissionNames.length) {
+        this.set('hasPermission', false);
+        return;
+      }
+
+      let permission = this.get('permissions');
+      if (!Array.isArray(permission)) permission = [permission];
+      if (permission.length === 1) permission = permission[0];
+
+      if (permission === '*') {
+        this.set('hasPermission', true);
+        return;
+      }
+
+      let parsedPermissions = (0, _booleanParser.parseBooleanQuery)(permission);
+      if (parsedPermissions.length === 1 && parsedPermissions[0].length === 1) parsedPermissions = permission;
+
+      if (!Array.isArray(parsedPermissions)) {
+        this.set('hasPermission', userPermissionNames.includes(permission));
+        return;
+      }
+
+      let doesUserHavePermission = false;
+
+      for (let permIdx = 0; permIdx < parsedPermissions.length; permIdx++) {
+        if (doesUserHavePermission) break;
+        const permissionSet = parsedPermissions[permIdx];
+
+        if (permissionSet.length === 1) {
+          doesUserHavePermission = doesUserHavePermission || userPermissionNames.includes(permissionSet[0]);
+          continue;
+        }
+
+        let isPermissionSetActive = true;
+
+        for (let permSetIdx = 0; permSetIdx < permissionSet.length; permSetIdx++) {
+          if (!isPermissionSetActive) break;
+          isPermissionSetActive = isPermissionSetActive && userPermissionNames.includes(permissionSet[permSetIdx]);
+        }
+
+        doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
+      }
+
+      if (doesUserHavePermission === this.get('hasPermission')) return;
+      this.set('hasPermission', doesUserHavePermission);
     },
 
     actions: {
@@ -12454,8 +12530,8 @@
         return;
       }
 
-      const skuData = this.get('store').peekAll('warehouse-manager/warehouse');
-      if (skuData.get('length')) return skuData;
+      const warehouseData = this.get('store').peekAll('warehouse-manager/warehouse');
+      if (warehouseData.get('length')) return warehouseData;
       return this.get('store').findAll('warehouse-manager/warehouse');
     },
 
@@ -12476,9 +12552,9 @@
     },
 
     'refreshWarehouseList': (0, _emberConcurrency.task)(function* () {
-      let skuData = this.get('store').peekAll('warehouse-manager/warehouse');
-      if (!skuData.get('length')) skuData = yield this.get('store').findAll('warehouse-manager/warehouse');
-      this.get('controller').set('model', skuData);
+      let warehouseData = this.get('store').peekAll('warehouse-manager/warehouse');
+      if (!warehouseData.get('length')) warehouseData = yield this.get('store').findAll('warehouse-manager/warehouse');
+      this.get('controller').set('model', warehouseData);
     }).keepLatest()
   });
 
