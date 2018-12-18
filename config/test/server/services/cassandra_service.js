@@ -6,5 +6,6 @@ exports.config = {
 		}
 	},
 	"contactPoints": ['127.0.0.1', 'localhost'],
+	"localDataCenter": "DC1",
 	"keyspace": "plantworks"
 };
