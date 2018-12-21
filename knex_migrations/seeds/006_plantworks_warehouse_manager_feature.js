@@ -85,15 +85,30 @@ exports.seed = async function(knex) {
 		'module_id': componentId,
 		'name': 'warehouse-manager-shipping-update',
 		'implies_permissions': '["warehouse-manager-shipping-read"]',
-		'display_name': 'Warehouse Manager Receiving Update',
+		'display_name': 'Warehouse Manager Shipping Update',
 		'description': 'Update Permission for the Warehouse Manager Shipping Module'
 	});
 
 	await knex('feature_permissions').insert({
 		'module_id': componentId,
-		'name': 'warehouse-manager-all',
-		'implies_permissions': '["warehouse-manager-configuration-update", "warehouse-manager-generate-advice-update", "warehouse-manager-receiving-update", "warehouse-manager-shipping-update"]',
-		'display_name': 'Warehouse Manager All',
-		'description': 'All Permissions for the Warehouse Manager Module'
+		'name': 'warehouse-manager-report-execute',
+		'display_name': 'Warehouse Manager Reports',
+		'description': 'Reports Permission for the Warehouse Manager Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-administrator',
+		'implies_permissions': '["warehouse-manager-configuration-update", "warehouse-manager-generate-advice-update", "warehouse-manager-receiving-update", "warehouse-manager-shipping-update", "warehouse-manager-report-execute"]',
+		'display_name': 'Warehouse Manager Administrator',
+		'description': 'Administrator for one or more Warehouses in the Warehouse Manager Module'
+	});
+
+	await knex('feature_permissions').insert({
+		'module_id': componentId,
+		'name': 'warehouse-manager-super-administrator',
+		'implies_permissions': '["warehouse-manager-administrator"]',
+		'display_name': 'Warehouse Manager Super Administrator',
+		'description': 'All Permissions for all Warehouses in the Warehouse Manager Module'
 	});
 };
