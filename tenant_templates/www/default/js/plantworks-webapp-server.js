@@ -134,16 +134,6 @@
     }
   });
 });
-;define("plantworks-webapp-server/components/ag-grid", ["exports", "ember-ag-grid/components/ag-grid"], function (_exports, _agGrid) {
-  "use strict";
-
-  Object.defineProperty(_exports, "__esModule", {
-    value: true
-  });
-  _exports.default = void 0;
-  var _default = _agGrid.default;
-  _exports.default = _default;
-});
 ;define("plantworks-webapp-server/components/basic-dropdown", ["exports", "ember-basic-dropdown/components/basic-dropdown"], function (_exports, _basicDropdown) {
   "use strict";
 
@@ -3772,6 +3762,19 @@
   var _default = _paperVirtualRepeat.default;
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/components/pell-editor", ["exports", "ember-pell/components/pell-editor"], function (_exports, _pellEditor) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _pellEditor.default;
+    }
+  });
+});
 ;define("plantworks-webapp-server/components/plantworks-model-table-actions", ["exports", "plantworks-webapp-server/framework/base-component", "ember-invoke-action"], function (_exports, _baseComponent, _emberInvokeAction) {
   "use strict";
 
@@ -5016,19 +5019,6 @@
   });
 
   _exports.default = _default;
-});
-;define("plantworks-webapp-server/components/summernote-lite", ["exports", "ember-summernote-lite/components/summernote-lite"], function (_exports, _summernoteLite) {
-  "use strict";
-
-  Object.defineProperty(_exports, "__esModule", {
-    value: true
-  });
-  Object.defineProperty(_exports, "default", {
-    enumerable: true,
-    get: function () {
-      return _summernoteLite.default;
-    }
-  });
 });
 ;define("plantworks-webapp-server/components/tenant-administration/basics-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
   "use strict";
@@ -13130,24 +13120,6 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/templates/components/ag-grid", ["exports"], function (_exports) {
-  "use strict";
-
-  Object.defineProperty(_exports, "__esModule", {
-    value: true
-  });
-  _exports.default = void 0;
-
-  var _default = Ember.HTMLBars.template({
-    "id": "WcYxmbbR",
-    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[12,\"class\",[28,[\"agGrid \",[21,\"theme\"]]]],[12,\"style\",[21,\"containerStyle\"]],[9],[14,1],[10]],\"hasEval\":false}",
-    "meta": {
-      "moduleName": "plantworks-webapp-server/templates/components/ag-grid.hbs"
-    }
-  });
-
-  _exports.default = _default;
-});
 ;define("plantworks-webapp-server/templates/components/dashboard/main-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -14503,7 +14475,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"webapp-server","version":"2.4.3+fe38df03"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+52408338"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
