@@ -19063,8 +19063,7 @@ body {
   padding: 10px; }
 
 a.md-no-style,
-button.md-no-style,
-md-list-item > .paper-link {
+button.md-no-style {
   font-weight: normal;
   background-color: inherit;
   text-align: left;
@@ -34164,7 +34163,7 @@ a.md-button.paper-link:not(.md-raised).active {
   background-color: rgba(0, 0, 0, 0.16); }
 
 a.md-button.paper-link.md-raised.active[disabled] {
-  color: rgba(0, 0, 0, 0.87) !important; }
+  color: rgba(0, 0, 0, 0.87); }
 
 /* Bug-fixes :-( */
 .classic-tabs .nav {
