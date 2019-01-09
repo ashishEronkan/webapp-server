@@ -69,7 +69,7 @@
 		"device": "*",
 		"dotenv": "*",
 		"ejs": "*",
-		"ember-source": "*",
+		"ember-source": "^3.7.0",
 		"fs-extra": "*",
 		"i18n": "*",
 		"inflection": "*",
