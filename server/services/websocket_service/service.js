@@ -243,7 +243,6 @@ class WebsocketService extends PlantWorksBaseService {
 	get dependencies() {
 		return [
 			'LoggerService',
-			'RingpopService',
 			'WebserverService'
 		].concat(super.dependencies);
 	}

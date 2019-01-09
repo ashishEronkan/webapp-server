@@ -289,9 +289,6 @@ class WebserverService extends PlantWorksBaseService {
 			this.$koa.on('error', this._handleKoaError.bind(this));
 			this.$server.on('error', this._serverError.bind(this));
 
-			// Step 2.4: Setup the server to listen to requests forwarded via Ringpop, just in case
-			this.$dependencies.RingpopService.on('request', this._processRequestFromAnotherNode.bind(this));
-
 			// Finally, Start listening...
 			this.$server = promises.promisifyAll(this.$server);
 			this.$parent.once('server-online', this._listenAndPrintNetworkInterfaces.bind(this));
@@ -317,8 +314,6 @@ class WebserverService extends PlantWorksBaseService {
 	 */
 	async _teardown() {
 		try {
-			this.$dependencies.RingpopService.off('request', this._processRequestFromAnotherNode.bind(this));
-
 			if(!this.$server) return null;
 			if(this.$server.listening) { // eslint-disable-line curly
 				await this.$server.destroyAsync();
@@ -381,7 +376,7 @@ class WebserverService extends PlantWorksBaseService {
 	 *
 	 * @returns  {undefined} Nothing.
 	 *
-	 * @summary  Sets up the tenant context on each request so Ringpop knows which node in the cluster to route it to.
+	 * @summary  Sets up the tenant context on each request so we know which node in the cluster to route it to.
 	 */
 	async _setTenant(ctxt, next) {
 		try {
@@ -573,22 +568,17 @@ class WebserverService extends PlantWorksBaseService {
 	 *
 	 * @returns  {undefined} Nothing.
 	 *
-	 * @summary  Call Ringpop to decide whether to handle the request, or to forward it someplace else.
+	 * @summary  Call the Sharding Service to decide whether to handle the request, or to forward it someplace else.
 	 */
 	async _handleOrProxytoCluster(ctxt, next) {
 		try {
-			const ringpop = this.$dependencies.RingpopService;
+			const hashring = this.$dependencies.ShardingService;
+			if(!hashring || !hashring.lookup) {
+				await next();
+				return;
+			}
 
-			const hostPort = [];
-			hostPort.push(ringpop.lookup(ctxt.state.tenant.tenant_id).split(':').shift());
-			hostPort.push(this.$config.internalPort || 9100);
-			// hostPort.push(this.$config.internalPort === 9100 ? 9101 : 9100);
-
-			const dest = `${this.$config.protocol}://${hostPort.join(':')}${ctxt.path}`;
-
-			if(ringpop.lookup(ctxt.state.tenant.tenant_id) === ringpop.whoami()) {
-				delete this.$proxies[dest];
-
+			if(hashring.allocatedToMe(ctxt.state.tenant.tenant_id)) {
 				await next();
 				return;
 			}
@@ -596,6 +586,13 @@ class WebserverService extends PlantWorksBaseService {
 			delete this.$serveFavicons[ctxt.state.tenant.sub_domain];
 			delete this.$serveStatics[ctxt.state.tenant.sub_domain];
 
+			const hostPort = [];
+			hostPort.push(hashring.lookup(ctxt.state.tenant.tenant_id)['id']);
+			hostPort.push(this.$config.internalPort || 9100);
+			// hostPort.push(this.$config.internalPort === 9100 ? 9101 : 9100);
+
+			// TODO: Delete the proxy when the node goes off the hashring...
+			const dest = `${this.$config.protocol}://${hostPort.join(':')}${ctxt.path}`;
 			if(!this.$proxies[dest]) {
 				const proxy = require('koa-better-http-proxy');
 				this.$proxies[dest] = proxy(dest, {
@@ -685,23 +682,6 @@ class WebserverService extends PlantWorksBaseService {
 	// #endregion
 
 	// #region Miscellaneous
-	/**
-	 * @function
-	 * @instance
-	 * @memberof WebserverService
-	 * @name     _processRequestFromAnotherNode
-	 *
-	 * @param    {Object} request - Request coming in from the outside world.
-	 * @param    {Object} response - Response going out to the outside world.
-	 *
-	 * @returns  {undefined} Nothing.
-	 *
-	 * @summary  Returns a function that can handle the request coming in from another Ringpop node.
-	 */
-	_processRequestFromAnotherNode(request, response) {
-		response.end();
-	}
-
 	/**
 	 * @function
 	 * @instance
@@ -806,7 +786,7 @@ class WebserverService extends PlantWorksBaseService {
 			'DatabaseService',
 			'LocalizationService',
 			'LoggerService',
-			'RingpopService'
+			'ShardingService'
 		].concat(super.dependencies);
 	}
 

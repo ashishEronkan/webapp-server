@@ -117,15 +117,17 @@ class FileConfigurationService extends PlantWorksBaseService {
 			const plantworksModulePath = this.$parent._getPathForModule(plantworksModule);
 			if(this.$cacheMap[plantworksModulePath]) return this.$cacheMap[plantworksModulePath];
 
-			const fs = require('fs-extra'),
+			const fs = require('fs'),
+				mkdirp = require('mkdirp'),
 				path = require('path'),
 				promises = require('bluebird');
 
 			const filesystem = promises.promisifyAll(fs);
+			const mkdirAsync = promises.promisifyAll(mkdirp);
 			const rootPath = path.dirname(path.dirname(require.main.filename));
 			const configPath = path.join(rootPath, `config${path.sep}${plantworksEnv}`, `${plantworksModulePath}.js`);
 
-			await filesystem.ensureDirAsync(path.dirname(configPath));
+			await mkdirAsync(path.dirname(configPath));
 
 			const doesExist = await this._exists(configPath, filesystem.R_OK);
 			if(doesExist) config = require(configPath).config;
@@ -155,7 +157,8 @@ class FileConfigurationService extends PlantWorksBaseService {
 	async saveConfiguration(plantworksModule, config) {
 		try {
 			const deepEqual = require('deep-equal'),
-				fs = require('fs-extra'),
+				fs = require('fs'),
+				mkdirp = require('mkdirp'),
 				path = require('path'),
 				promises = require('bluebird');
 
@@ -168,10 +171,12 @@ class FileConfigurationService extends PlantWorksBaseService {
 			const rootPath = path.dirname(path.dirname(require.main.filename));
 			const configPath = path.join(rootPath, `config${path.sep}${plantworksEnv}`, `${plantworksModulePath}.js`);
 
-			const filesystem = promises.promisifyAll(fs);
-			await filesystem.ensureDirAsync(path.dirname(configPath));
+			const mkdirpAsync = promises.promisifyAll(mkdirp);
+			await mkdirpAsync(path.dirname(configPath));
 
 			const configString = `exports.config = ${JSON.stringify(config, undefined, '\t')};\n`;
+
+			const filesystem = promises.promisifyAll(fs);
 			await filesystem.writeFileAsync(configPath, configString);
 
 			return config;
@@ -251,7 +256,8 @@ class FileConfigurationService extends PlantWorksBaseService {
 	async _processConfigChange(configUpdateModule, config) {
 		try {
 			const deepEqual = require('deep-equal'),
-				fs = require('fs-extra'),
+				fs = require('fs'),
+				mkdirp = require('mkdirp'),
 				path = require('path'),
 				promises = require('bluebird');
 
@@ -263,10 +269,12 @@ class FileConfigurationService extends PlantWorksBaseService {
 
 			this.$cacheMap[configUpdateModule] = config;
 
-			const filesystem = promises.promisifyAll(fs);
-			await filesystem.ensureDirAsync(path.dirname(configPath));
+			const mkdirpAsync = promises.promisifyAll(mkdirp);
+			await mkdirpAsync(path.dirname(configPath));
 
 			const configString = `exports.config = ${JSON.stringify(config, undefined, '\t')};`;
+
+			const filesystem = promises.promisifyAll(fs);
 			await filesystem.writeFileAsync(`${configPath}.js`, configString);
 		}
 		catch(err) {

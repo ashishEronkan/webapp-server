@@ -1547,7 +1547,7 @@ class PlantWorksModuleLoader extends PlantWorksBaseClass {
 	 */
 	async _findFiles(rootDir, filename) {
 		try {
-			const fs = require('fs-extra'),
+			const fs = require('fs'),
 				path = require('path'),
 				promises = require('bluebird');
 
@@ -1716,7 +1716,7 @@ class PlantWorksModuleLoader extends PlantWorksBaseClass {
 	 */
 	async _exists(filepath, mode) {
 		const Promise = require('bluebird'),
-			filesystem = require('fs-extra');
+			filesystem = require('fs');
 
 		return new Promise((resolve, reject) => {
 			try {
@@ -1725,7 +1725,7 @@ class PlantWorksModuleLoader extends PlantWorksBaseClass {
 				});
 			}
 			catch(err) {
-				const error = new PlantWorksBaseError(`${this.$plantworksModule.name}::loader::_findFiles error`, err);
+				const error = new PlantWorksBaseError(`${this.$plantworksModule.name}::loader::_exists error`, err);
 				reject(error);
 			}
 		});
