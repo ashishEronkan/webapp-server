@@ -23,13 +23,13 @@
 		"excludePattern": "(docs/)"
 	},
 	"opts": {
-		"template": "./node_modules/docdash2",
 		"destination": "./jsdoc_default",
-		"readme": "./README.md",
-		"package": "./package.json",
 		"encoding": "utf8",
+		"package": "./package.json",
+		"readme": "./README.md",
 		"recurse": true,
-		"verbose": true
+		"verbose": true,
+		"template": "./node_modules/docdash"
 	},
 	"plugins": [
 		"plugins/markdown",
@@ -37,17 +37,30 @@
 	],
 	"templates": {
 		"cleverLinks": true,
+		"disableSort": false,
 		"monospaceLinks": false,
 		"referenceTitle": "Plant.Works Web Application Server",
-		"disableSort": false,
+
 		"default": {
 			"outputSourceFiles": true,
 			"includeDate": false
 		}
 	},
 	"docdash": {
-		"static": true,
+		"collapse": true,
+		"navLevel": 2,
+		"removeQuotes": "none",
+		"search": true,
 		"sort": true,
+		"static": true,
+		"typedefs": true,
+		"wrap": false,
+
+		"meta": {
+			"title": "Plant.Works Web Application Server",
+			"description": "Plant.Works Web Application Server",
+			"keyword": "plantworks"
+		},
 		"openGraph": {
 			"title": "Plant.Works Web Application Server",
 			"type": "documentation",
@@ -55,15 +68,18 @@
 			"site_name": "Plant.Works Web Application Server",
 			"url": "https://plantworks.github.io/webapp-server"
 		},
-		"meta": {
-			"title": "Plant.Works Web Application Server",
-			"description": "Plant.Works Web Application Server",
-			"keyword": "plantworks"
-		},
-		"search": true,
-		"collapse": true,
-		"typedefs": false,
-		"removeQuotes": "none",
-		"scripts": []
-	}
+
+		"scripts": [],
+
+        "sectionOrder": [
+			"Classes",
+			"Modules",
+			"Externals",
+			"Events",
+			"Namespaces",
+			"Mixins",
+			"Tutorials",
+			"Interfaces"
+	   ]
+   }
 }
