@@ -4893,7 +4893,31 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({});
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/sku-manager/sku-attribute-set-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Component.extend({});
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/sku-manager/sku-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -12086,19 +12110,23 @@
     model() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
+        this.get('store').unloadAll('sku-manager/sku-attribute-set');
+        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
         return;
       }
 
       const skuData = this.get('store').peekAll('sku-manager/sku');
       if (skuData.get('length')) return skuData;
       return this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant'
+        'include': 'tenant, attributeSet, attributeSet.properties'
       });
     },
 
     onUserDataUpdated() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
+        this.get('store').unloadAll('sku-manager/sku-attribute-set');
+        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
       }
 
       const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
@@ -12115,7 +12143,7 @@
     'refreshSkuList': (0, _emberConcurrency.task)(function* () {
       let skuData = this.get('store').peekAll('sku-manager/sku');
       if (!skuData.get('length')) skuData = yield this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant'
+        'include': 'tenant, attributeSet, attributeSet.properties'
       });
       this.get('controller').set('model', skuData);
     }).keepLatest()
@@ -12848,10 +12876,9 @@
   }
 
   let defaults = {};
-  ['separator', 'prepend', 'replace'].forEach(function (key) {
-    if (_environment.default.pageTitle && _environment.default.pageTitle[key]) {
-      defaults[`default${capitalize(key)}`] = _environment.default.pageTitle[key];
-    }
+  ['separator', 'prepend', 'replace'].forEach(key => {
+    if (!_environment.default.pageTitle || _environment.default.pageTitle[key] === null || _environment.default.pageTitle[key] === undefined) return;
+    defaults[`default${capitalize(key)}`] = _environment.default.pageTitle[key];
   });
 
   var _default = _pageTitleList.default.extend(defaults);
@@ -13566,10 +13593,46 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "TXIH3Ola",
-    "block": "{\"symbols\":[\"card\",\"table\",\"body\",\"sku\",\"row\",\"head\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,8,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L7:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[8]},null]],\"parameters\":[7]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-start-center\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"class\",\"sortProp\",\"sortDir\"],[\"flex\",\"code\",\"asc\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L13:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L14:C9) \"],null]],[[\"sortProp\"],[\"code\"]],{\"statements\":[[0,\"SKU ID\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L15:C9) \"],null]],[[\"sortProp\"],[\"name\"]],{\"statements\":[[0,\"Name\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L17:C10) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"fab\",\"title\",\"onClick\",\"bubbles\"],[true,true,true,\"Create New SKU\",[27,\"perform\",[[23,[\"createSku\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L24:C8) \"],null]],null,{\"statements\":[[4,\"each\",[[27,\"sort-by\",[[22,2,[\"sortDesc\"]],[23,[\"model\"]]],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L26:C10) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L27:C11) \"],null]],null,{\"statements\":[[1,[22,4,[\"code\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L28:C11) \"],null]],null,{\"statements\":[[1,[22,4,[\"name\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L30:C11) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[22,4,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,\"Delete SKU\",[27,\"perform\",[[23,[\"deleteSku\"]],[22,4,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "Hnq66VJ+",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L7:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-xs-column layout-sm-column layout-md-column\"]],{\"statements\":[],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/sku-manager/main-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/sku-manager/sku-attribute-set-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "kFMSoR/i",
+    "block": "{\"symbols\":[\"&default\"],\"statements\":[[14,1]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/sku-manager/sku-attribute-set-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/sku-manager/sku-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "Xk6rwBqC",
+    "block": "{\"symbols\":[\"card\",\"table\",\"body\",\"sku\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 layout-column layout-align-start-stretch\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"class\",\"sortProp\",\"sortDir\"],[\"flex\",\"code\",\"asc\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L5:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L6:C7) \"],null]],[[\"sortProp\"],[\"code\"]],{\"statements\":[[0,\"Id\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L7:C7) \"],null]],[[\"sortProp\"],[\"name\"]],{\"statements\":[[0,\"Name\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L8:C7) \"],null]],[[\"sortProp\"],[\"name\"]],{\"statements\":[[0,\"Type\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L10:C8) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"fab\",\"title\",\"onClick\",\"bubbles\"],[true,true,true,\"Create New SKU\",[27,\"perform\",[[23,[\"createSku\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L17:C6) \"],null]],null,{\"statements\":[[4,\"each\",[[27,\"sort-by\",[[22,2,[\"sortDesc\"]],[23,[\"model\"]]],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L19:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L20:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"code\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L21:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"name\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L22:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"type\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs' @ L24:C9) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[22,4,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,\"Delete SKU\",[27,\"perform\",[[23,[\"deleteSku\"]],[22,4,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/sku-manager/sku-manager.hbs"
     }
   });
 
@@ -14488,7 +14551,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+f7ae3fb1"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+3ca78c7c"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
