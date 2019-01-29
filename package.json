@@ -130,7 +130,7 @@
 		"chai": "*",
 		"chai-http": "*",
 		"chai-json": "*",
-		"clinic": "*",
+		"clinic": "^2.3.0",
 		"docdash": "*",
 		"eslint": "^5.12.1",
 		"eslint-junit": "*",
