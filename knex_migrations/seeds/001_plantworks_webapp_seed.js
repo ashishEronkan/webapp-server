@@ -455,7 +455,7 @@ exports.seed = async function(knex) {
 	if(!superAdminGroupId.rows.length) {
 		superAdminGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
-			'name': 'super-administators',
+			'name': 'super-administrators',
 			'display_name': 'Super Administrators',
 			'description': 'The Super Administrator Group for the root tenant',
 			'default_for_new_user': false
@@ -467,7 +467,7 @@ exports.seed = async function(knex) {
 	else {
 		superAdminGroupId = superAdminGroupId.rows[0]['tenant_group_id'];
 		await knex('tenant_groups').where('tenant_group_id', '=', superAdminGroupId).update({
-			'name': 'super-administators',
+			'name': 'super-administrators',
 			'display_name': 'Super Administrators',
 			'description': 'The Super Administrator Group for the root tenant',
 			'default_for_new_user': false
