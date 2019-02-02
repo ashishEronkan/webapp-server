@@ -5303,7 +5303,7 @@
         oldDefaultGroup = tenantGroup;
       });
       if (oldDefaultGroup) yield oldDefaultGroup.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
     }).drop().evented().retryable(backoffPolicy),
     'saveGroupSucceeded': Ember.on('saveGroup:succeeded', function () {
@@ -5315,7 +5315,7 @@
     'saveGroupErrored': Ember.on('saveGroup:errored', function (taskInstance, err) {
       this.get('selectedGroup').rollback();
       this.get('selectedGroup').reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
       this.get('notification').display({
         'type': 'error',
@@ -5504,7 +5504,7 @@
       subGroup.set('defaultForNewUser', true);
       yield subGroup.save();
       if (oldDefaultGroup) yield oldDefaultGroup.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
     }).keepLatest().evented().retryable(backoffPolicy),
     'changeDefaultForNewUserSucceeded': Ember.on('changeDefaultForNewUser:succeeded', function (taskInstance) {
@@ -5516,7 +5516,7 @@
     'changeDefaultForNewUserErrored': Ember.on('changeDefaultForNewUser:errored', function (taskInstance, err) {
       taskInstance.args[0].rollback();
       taskInstance.args[0].reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
       this.get('notification').display({
         'type': 'error',
@@ -5554,7 +5554,7 @@
       const subGroup = taskInstance.args[0];
       subGroup.rollback();
       if (!subGroup.get('isNew')) subGroup.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
       this.get('notification').display({
         'type': 'error',
@@ -5606,7 +5606,7 @@
       const subGroup = taskInstance.args[0];
       subGroup.rollback();
       subGroup.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       });
       const parentGroup = subGroup.get('parent');
       const groupSiblings = parentGroup.get('groups');
@@ -5620,13 +5620,18 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/tenant-administration/group-manager/tree-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+;define("plantworks-webapp-server/components/tenant-administration/group-manager/tree-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
     value: true
   });
   _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
 
   var _default = _baseComponent.default.extend({
     init() {
@@ -5680,27 +5685,26 @@
     },
 
     'onActivateNode': (0, _emberConcurrency.task)(function* (treeNode) {
-      try {
-        let tenantGroup = yield this.get('selectedGroup');
-        if (tenantGroup && tenantGroup.get('id') === treeNode.id) return;
-        const store = this.get('store');
-        tenantGroup = store.peekRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
-
-        if (!tenantGroup) {
-          tenantGroup = yield store.findRecord('tenant-administration/group-manager/tenant-group', treeNode.id, {
-            'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
-          });
-        }
-
-        this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', treeNode.id);
-        this.invokeAction('controller-action', 'setSelectedGroup', tenantGroup);
-      } catch (err) {
-        this.get('notification').display({
-          'type': 'error',
-          'error': err
-        });
-      }
-    }).keepLatest(),
+      const tenantGroup = this.get('store').peekRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
+      if (tenantGroup) return;
+      yield this.get('store').findRecord('tenant-administration/group-manager/tenant-group', treeNode.id, {
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
+      });
+    }).keepLatest().evented().retryable(backoffPolicy),
+    'onActivateNodeSucceeded': Ember.on('onActivateNode:succeeded', function (taskInstance) {
+      const treeNode = taskInstance.args[0];
+      let tenantGroup = this.get('selectedGroup');
+      if (tenantGroup && tenantGroup.get('id') === treeNode.id) return;
+      this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', treeNode.id);
+      tenantGroup = this.get('store').peekRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
+      this.invokeAction('controller-action', 'setSelectedGroup', tenantGroup);
+    }),
+    'onActivateNodeErrored': Ember.on('onActivateNode:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
     'onSelectedGroupChanged': Ember.observer('selectedGroup', function () {
       if (!this.get('selectedGroup')) return;
       if (this.$('div#tenant-administration-group-manager-tree-container').jstree('get_selected')[0] === this.get('selectedGroup.id')) return;
@@ -7447,7 +7451,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/controllers/tenant-administration/feature-manager", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+;define("plantworks-webapp-server/controllers/tenant-administration/feature-manager", ["exports", "plantworks-webapp-server/framework/base-controller", "ember-concurrency"], function (_exports, _baseController, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -7474,23 +7478,26 @@
 
       featureModel.reload().then(reloadedModel => {
         this.set('selectedFeature', reloadedModel);
-        let currentFeature = reloadedModel;
-        const breadcrumbHierarchy = [];
-
-        while (currentFeature) {
-          if (currentFeature.get('path')) breadcrumbHierarchy.unshift(currentFeature);
-          currentFeature = currentFeature.get('parent');
-        }
-
-        this.set('breadcrumbStack', breadcrumbHierarchy);
+        this.get('setBreadcrumbHierarchy').perform();
       }).catch(err => {
         this.get('notification').display({
           'type': 'error',
           'error': err
         });
       });
-    }
+    },
 
+    'setBreadcrumbHierarchy': (0, _emberConcurrency.task)(function* () {
+      let currentFeature = this.get('selectedFeature');
+      const breadcrumbHierarchy = [];
+
+      while (currentFeature) {
+        if (currentFeature.get('displayName')) breadcrumbHierarchy.unshift(currentFeature);
+        currentFeature = yield currentFeature.get('parent');
+      }
+
+      this.set('breadcrumbStack', breadcrumbHierarchy);
+    }).keepLatest()
   });
 
   _exports.default = _default;
@@ -7522,7 +7529,7 @@
 
       if (groupModel.get('id') === this.get('selectedGroup.id')) return;
       groupModel.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.group, permissions.featurePermission'
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
       }).then(reloadedModel => {
         this.set('selectedGroup', reloadedModel);
         this.get('setBreadcrumbHierarchy').perform();
@@ -7539,8 +7546,7 @@
       const breadcrumbHierarchy = [];
 
       while (currentGroup) {
-        const currentPath = yield currentGroup.get('path');
-        if (currentPath) breadcrumbHierarchy.unshift(currentGroup);
+        if (currentGroup.get('displayName')) breadcrumbHierarchy.unshift(currentGroup);
         currentGroup = yield currentGroup.get('parent');
       }
 
@@ -11602,6 +11608,10 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
     'tenantGroup': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
       'async': true,
       'inverse': 'permissions'
@@ -11649,22 +11659,18 @@
       'async': true,
       'inverse': 'tenantGroup'
     }),
-    'path': Ember.computed('parent.path', {
+    'path': Ember.computed('parent', 'parent.path', {
       get() {
         return this.get('computePath').perform();
       }
 
     }),
     'computePath': (0, _emberConcurrency.task)(function* () {
-      try {
-        const parentGroup = yield this.get('parent');
-        if (!parentGroup) return this.get('displayName');
-        const parentGroupPath = yield parentGroup.get('path');
-        if (!parentGroupPath) return this.get('displayName');
-        return `${parentGroupPath} > ${this.get('displayName')}`;
-      } catch (err) {
-        return this.get('displayName');
-      }
+      const parentGroup = yield this.get('parent');
+      if (!parentGroup) return this.get('displayName');
+      const parentGroupPath = yield parentGroup.get('path');
+      if (!parentGroupPath) return this.get('displayName');
+      return `${parentGroupPath} > ${this.get('displayName')}`;
     }).keepLatest(),
     'onDisplayNameChanged': Ember.observer('displayName', function () {
       this.set('name', this.get('displayName').dasherize());
@@ -11682,6 +11688,10 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
     'tenantGroup': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
       'async': true,
       'inverse': 'tenantUserGroups'
@@ -12814,6 +12824,8 @@
         toast[data.type ? data.type : 'info'](data.message || data, data.title || (data.type ? data.type.capitalize() : ''), options);
         return;
       }
+
+      console.error(`Error: `, data.error);
 
       if (typeof data.error === 'string') {
         toast.error(data.error.replace(/\\n/g, '\n').split('\n').splice(0, 2).join('\n'), 'Error', options);
@@ -14555,7 +14567,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+48a42a5a"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+7bf128e6"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
