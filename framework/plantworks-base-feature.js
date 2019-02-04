@@ -263,13 +263,16 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 				}
 
 				let doesUserHavePermission = false;
+				const memoizedPermissions = [];
+
 				for(let permIdx = 0; permIdx < parsedPermissions.length; permIdx++) {
 					if(doesUserHavePermission) break;
 
 					const permissionSet = parsedPermissions[permIdx];
 
 					if(permissionSet.length === 1) {
-						doesUserHavePermission = doesUserHavePermission || userPermissionNames.includes(permissionSet[0]);
+						if(memoizedPermissions[(permissionSet[0])] === undefined) memoizedPermissions[(permissionSet[0])] = userPermissionNames.includes(permissionSet[0]);
+						doesUserHavePermission = doesUserHavePermission || memoizedPermissions[(permissionSet[0])];
 						continue;
 					}
 
@@ -277,7 +280,8 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 					for(let permSetIdx = 0; permSetIdx < permissionSet.length; permSetIdx++) {
 						if(!isPermissionSetActive) break;
 
-						isPermissionSetActive = isPermissionSetActive && userPermissionNames.includes(permissionSet[permSetIdx]);
+						if(memoizedPermissions[(permissionSet[permSetIdx])] === undefined) memoizedPermissions[(permissionSet[permSetIdx])] = userPermissionNames.includes(permissionSet[permSetIdx]);
+						isPermissionSetActive = isPermissionSetActive && memoizedPermissions[(permissionSet[permSetIdx])];
 					}
 
 					doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;

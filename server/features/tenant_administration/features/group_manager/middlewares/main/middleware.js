@@ -88,12 +88,12 @@ class Main extends PlantWorksBaseMiddleware {
 						return this.hasMany(self.$TenantGroupModel, 'parent_tenant_group_id');
 					},
 
-					'permissions': function() {
-						return this.hasMany(self.$TenantGroupPermissionModel, 'tenant_group_id', 'tenant_group_id');
-					},
-
 					'tenantUserGroups': function() {
 						return this.hasMany(self.$TenantUserGroupModel, 'tenant_group_id');
+					},
+
+					'permissions': function() {
+						return this.hasMany(self.$TenantGroupPermissionModel, 'tenant_group_id', 'tenant_group_id');
 					}
 				})
 			});
@@ -111,7 +111,7 @@ class Main extends PlantWorksBaseMiddleware {
 						return this.belongsTo(self.$TenantModel, 'tenant_id');
 					},
 
-					'group': function() {
+					'tenantGroup': function() {
 						return this.belongsTo(self.$TenantGroupModel, 'tenant_group_id', 'tenant_group_id');
 					},
 
@@ -134,12 +134,12 @@ class Main extends PlantWorksBaseMiddleware {
 						return this.belongsTo(self.$TenantModel, 'tenant_id');
 					},
 
-					'tenantUser': function() {
-						return this.belongsTo(self.$TenantUserModel, 'user_id', 'user_id');
-					},
-
 					'tenantGroup': function() {
 						return this.belongsTo(self.$TenantGroupModel, 'tenant_group_id');
+					},
+
+					'tenantUser': function() {
+						return this.belongsTo(self.$TenantUserModel, 'user_id', 'user_id');
 					}
 				})
 			});
@@ -326,17 +326,17 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			let tenantGroupData = await TenantGroupRecord.fetch({
-				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((incl) => { return incl.trim(); }) : ['tenant', 'parent', 'groups', 'permissions', 'tenantUserGroups', 'permissions.tenant', 'permissions.group', 'permissions.featurePermission']
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((incl) => { return incl.trim(); }) : ['tenant', 'parent', 'groups', 'permissions', 'tenantUserGroups', 'permissions.tenant', 'permissions.tenantGroup', 'permissions.featurePermission']
 			});
 
 			tenantGroupData = this.$jsonApiMapper.map(tenantGroupData, 'tenant-administration/group-manager/tenant-group', {
 				'typeForModel': {
 					'tenant': 'tenant-administration/tenant',
 					'parent': 'tenant-administration/group-manager/tenant-group',
-					'group': 'tenant-administration/group-manager/tenant-group',
 					'groups': 'tenant-administration/group-manager/tenant-group',
 					'permissions': 'tenant-administration/group-manager/tenant-group-permission',
 					'featurePermission': 'server-administration/feature-permission',
+					'tenantGroup': 'tenant-administration/group-manager/tenant-group',
 					'tenantUserGroups': 'tenant-administration/group-manager/tenant-user-group'
 				},
 

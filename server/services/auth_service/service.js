@@ -47,7 +47,7 @@ class AuthService extends PlantWorksBaseService {
 		try {
 			await super._setup();
 
-			const fs = require('fs-extra');
+			const fs = require('fs');
 			const path = require('path');
 			const promises = require('bluebird');
 

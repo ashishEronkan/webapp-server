@@ -6,7 +6,7 @@ exports.config = {
 	"version": "2.4.3",
 	"poweredBy": "Plant.Works Portal",
 	"connectionTimeout": 120,
-	"logLevel": "debug",
+	"logLevel": "silly",
 	"honeyPot": {
 		"apiKey": "YOUR_API_KEY"
 	},

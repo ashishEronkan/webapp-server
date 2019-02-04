@@ -535,7 +535,7 @@ class PlantWorksBaseModule extends PlantWorksBaseClass {
 	 */
 	async _exists(filepath, mode) {
 		const Promise = require('bluebird'),
-			filesystem = require('fs-extra');
+			filesystem = require('fs');
 
 		return new Promise((resolve, reject) => {
 			try {
@@ -544,7 +544,7 @@ class PlantWorksBaseModule extends PlantWorksBaseClass {
 				});
 			}
 			catch(err) {
-				const error = new PlantWorksBaseError(`${this.$plantworksModule.name}::loader::_findFiles error`, err);
+				const error = new PlantWorksBaseError(`${this.$plantworksModule.name}::_exists error`, err);
 				reject(error);
 			}
 		});

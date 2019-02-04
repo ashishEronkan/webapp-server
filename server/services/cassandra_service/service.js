@@ -111,10 +111,9 @@ class CassandraService extends PlantWorksBaseService {
 	}
 
 	async _onCassandraError() {
-		const ringpopService = this.$dependencies.RingpopService;
-		const leader = ringpopService.lookup('LEADER');
-		if(leader !== ringpopService.whoami())
-			return;
+		const shardingService = this.$dependencies.ShardingService;
+		const amILeader = shardingService && shardingService.allocatedToMe('LEADER');
+		if(!amILeader) return;
 
 		const loggerService = this.$dependencies.LoggerService;
 		const mailerService = this.$dependencies.MailerService;
@@ -130,10 +129,9 @@ class CassandraService extends PlantWorksBaseService {
 	}
 
 	async _onCassandraHostDown(host) {
-		const ringpopService = this.$dependencies.RingpopService;
-		const leader = ringpopService.lookup('LEADER');
-		if(leader !== ringpopService.whoami())
-			return;
+		const shardingService = this.$dependencies.ShardingService;
+		const amILeader = shardingService && shardingService.allocatedToMe('LEADER');
+		if(!amILeader) return;
 
 		const loggerService = this.$dependencies.LoggerService;
 		const mailerService = this.$dependencies.MailerService;
@@ -149,10 +147,9 @@ class CassandraService extends PlantWorksBaseService {
 	}
 
 	async _onCassandraHostRemoved(host) {
-		const ringpopService = this.$dependencies.RingpopService;
-		const leader = ringpopService.lookup('LEADER');
-		if(leader !== ringpopService.whoami())
-			return;
+		const shardingService = this.$dependencies.ShardingService;
+		const amILeader = shardingService && shardingService.allocatedToMe('LEADER');
+		if(!amILeader) return;
 
 		const loggerService = this.$dependencies.LoggerService;
 		const mailerService = this.$dependencies.MailerService;
@@ -180,7 +177,7 @@ class CassandraService extends PlantWorksBaseService {
 	 * @override
 	 */
 	get dependencies() {
-		return ['ConfigurationService', 'LoggerService', 'MailerService', 'RingpopService'].concat(super.dependencies);
+		return ['ConfigurationService', 'LoggerService', 'MailerService', 'ShardingService'].concat(super.dependencies);
 	}
 
 	/**

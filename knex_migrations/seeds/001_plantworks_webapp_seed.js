@@ -271,25 +271,9 @@ exports.seed = async function(knex) {
 			'parent_module_id': parentId,
 			'type': 'service',
 			'deploy': 'admin',
-			'name': 'RingpopService',
-			'display_name': 'Cluster Service',
-			'description': 'The Plant.Works Web Application Cluster Service - based on Ringpop by Uber',
-			'metadata': {
-				'author': 'Plant.Works',
-				'version': '2.4.3',
-				'website': 'https://plant.works',
-				'demo': 'https://plant.works',
-				'documentation': 'https://plant.works'
-			}
-		});
-
-		await knex('modules').insert({
-			'parent_module_id': parentId,
-			'type': 'service',
-			'deploy': 'admin',
-			'name': 'StorageService',
-			'display_name': 'Storage Service',
-			'description': 'The Plant.Works Web Application Storage Service - depending on configuration, a wrapper around sandboxed-fs or s3fs',
+			'name': 'ShardingService',
+			'display_name': 'Sharding Service',
+			'description': 'The Plant.Works Web Application Sharding Service - provides application-level sharding',
 			'metadata': {
 				'author': 'Plant.Works',
 				'version': '2.4.3',
@@ -471,7 +455,7 @@ exports.seed = async function(knex) {
 	if(!superAdminGroupId.rows.length) {
 		superAdminGroupId = await knex('tenant_groups').insert({
 			'tenant_id': tenantId,
-			'name': 'super-administators',
+			'name': 'super-administrators',
 			'display_name': 'Super Administrators',
 			'description': 'The Super Administrator Group for the root tenant',
 			'default_for_new_user': false
@@ -483,7 +467,7 @@ exports.seed = async function(knex) {
 	else {
 		superAdminGroupId = superAdminGroupId.rows[0]['tenant_group_id'];
 		await knex('tenant_groups').where('tenant_group_id', '=', superAdminGroupId).update({
-			'name': 'super-administators',
+			'name': 'super-administrators',
 			'display_name': 'Super Administrators',
 			'description': 'The Super Administrator Group for the root tenant',
 			'default_for_new_user': false
