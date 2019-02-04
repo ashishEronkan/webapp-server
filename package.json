@@ -86,7 +86,7 @@
 		"koa-helmet": "*",
 		"koa-methodoverride": "*",
 		"koa-passport": "*",
-		"koa-ratelimit": "*",
+		"koa-ratelimit": "^4.2.0",
 		"koa-redis": "*",
 		"koa-requestid": "*",
 		"koa-router": "*",
