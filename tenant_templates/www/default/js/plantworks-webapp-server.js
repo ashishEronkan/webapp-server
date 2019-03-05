@@ -5049,7 +5049,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-computed-style"], function (_exports, _baseComponent, _emberComputedStyle) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -5057,7 +5057,38 @@
   });
   _exports.default = void 0;
 
-  var _default = _baseComponent.default.extend({});
+  var _default = _baseComponent.default.extend({
+    classNames: ['flex'],
+    'attributable': false,
+    'configurable': false,
+    'uploadable': false,
+    'reportable': false,
+    style: (0, _emberComputedStyle.default)('display'),
+    'display': Ember.computed('permissionCount', function () {
+      return {
+        'display': this.get('hasPermission') <= 1 ? 'none' : 'block'
+      };
+    }),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
+    },
+
+    onHasPermissionChange: Ember.observer('hasPermission', function () {
+      const currUser = this.get('currentUser');
+      this.set('attributable', currUser.hasPermission('sku-manager-attribute-set-read OR sku-manager-attribute-set-update'));
+      this.set('configurable', currUser.hasPermission('sku-manager-configuration-read OR sku-manager-configuration-update'));
+      this.set('uploadable', currUser.hasPermission('sku-manager-upload'));
+      this.set('reportable', currUser.hasPermission('sku-manager-report-execute'));
+    }),
+    'permissionCount': Ember.computed('attributable', 'configurable', 'uploadable', 'reportable', function () {
+      return ['attributable', 'configurable', 'uploadable', 'reportable'].reduce((prevVal, currVal) => {
+        return prevVal + (this.get(currVal) ? 1 : 0);
+      }, 0);
+    })
+  });
 
   _exports.default = _default;
 });
@@ -6189,7 +6220,7 @@
             'warn': true,
             'raised': true,
             'callback': () => {
-              self.get('removeLocation').perform(primaryTenantLocation);
+              self.get('_confirmedDeletePrimaryLocation').perform();
             }
           }
         };
@@ -6286,7 +6317,7 @@
     }),
     'deletePrimaryLocation': (0, _emberConcurrency.task)(function* () {
       const modalData = {
-        'title': 'Delete Group',
+        'title': 'Delete Location',
         'content': `Are you sure you want to delete the <strong>${this.get('model.tenantLocation.name')}</strong> location?`,
         'confirmButton': {
           'text': 'Delete',
@@ -7184,11 +7215,12 @@
     'advisable': false,
     'receivable': false,
     'shippable': false,
+    'reportable': false,
 
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read OR warehouse-manager-report-execute');
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -7553,10 +7585,35 @@
   _exports.default = void 0;
 
   var _default = _baseController.default.extend({
+    'attributable': false,
+    'configurable': false,
+    'uploadable': false,
+    'reportable': false,
+    'hasSubModulePermissions': Ember.computed.or('attributable', 'configurable', 'uploadable', 'reportable'),
+
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'sku-manager-read');
+      this.set('permissions', 'sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    'onPermissionChanged': Ember.on('init', Ember.observer('permissions', function () {
+      this.onUserDataUpdated();
+    })),
+
+    onUserDataUpdated() {
+      const currentUser = this.get('currentUser');
+      this.set('attributable', currentUser.hasPermission('sku-manager-attribute-set-read OR sku-manager-attribute-set-update'));
+      this.set('configurable', currentUser.hasPermission('sku-manager-configuration-read OR sku-manager-configuration-update'));
+      this.set('uploadable', currentUser.hasPermission('sku-manager-upload'));
+      this.set('reportable', currentUser.hasPermission('sku-manager-report-execute'));
     }
 
   });
@@ -7902,7 +7959,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read OR warehouse-manager-report-execute');
     }
 
   });
@@ -12190,7 +12247,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/routes/sku-manager", ["exports", "plantworks-webapp-server/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+;define("plantworks-webapp-server/routes/sku-manager", ["exports", "plantworks-webapp-server/framework/base-route", "ember-lifeline", "ember-concurrency"], function (_exports, _baseRoute, _emberLifeline, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -12214,23 +12271,24 @@
     model() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
         return;
       }
 
       const skuData = this.get('store').peekAll('sku-manager/sku');
       if (skuData.get('length')) return skuData;
       return this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant, attributeSet, attributeSet.properties'
+        'include': 'tenant'
       });
+    },
+
+    redirect(model, transition) {
+      if (this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(`${this.get('fullRouteName')}.`)) transition.abort();
+      if (transition.targetName === `${this.get('fullRouteName')}.index` || transition.targetName === this.get('fullRouteName')) (0, _emberLifeline.runTask)(this, this._redirectToSubRoute, 500);
     },
 
     onUserDataUpdated() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
       }
 
       const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
@@ -12247,10 +12305,177 @@
     'refreshSkuList': (0, _emberConcurrency.task)(function* () {
       let skuData = this.get('store').peekAll('sku-manager/sku');
       if (!skuData.get('length')) skuData = yield this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant, attributeSet, attributeSet.properties'
+        'include': 'tenant'
       });
       this.get('controller').set('model', skuData);
-    }).keepLatest()
+    }).keepLatest(),
+
+    _redirectToSubRoute() {
+      if (!this.get('controller.hasSubModulePermissions')) {
+        return;
+      }
+
+      if (this.get('controller.attributable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.attribute-sets`);
+        return;
+      }
+
+      if (this.get('controller.configurable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.configuration`);
+        return;
+      }
+
+      if (this.get('controller.uploadable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.upload`);
+        return;
+      }
+
+      if (this.get('controller.reportable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.reports`);
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/attribute-sets", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/configuration", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/reports", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/upload", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
   });
 
   _exports.default = _default;
@@ -13696,8 +13921,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Hnq66VJ+",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L7:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-xs-column layout-sm-column layout-md-column\"]],{\"statements\":[],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "1TlDyP/5",
+    "block": "{\"symbols\":[\"card\",\"card\",\"card\",\"card\"],\"statements\":[[4,\"if\",[[27,\"and\",[[23,[\"hasPermission\"]],[27,\"gt\",[[23,[\"permissionCount\"]],1],null]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"p-0 layout-row layout-align-start-stretch layout-wrap flex\"],[9],[0,\"\\n\"],[4,\"if\",[[23,[\"attributable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.attribute-sets\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"mdi-icon\",[\"video-input-component\"],[[\"size\"],[64]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tAttribute Sets\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"configurable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.configuration\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L19:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"tools\"],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tConfiguration\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"uploadable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.upload\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L32:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"upload\"],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tData Uploader\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"reportable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.reports\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L45:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"mdi-icon\",[\"chart-line\"],[[\"size\"],[64]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tReports\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/sku-manager/main-component.hbs"
     }
@@ -14164,10 +14389,82 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Dog5eX4D",
-    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"page-title\",[\"SKU Management\"],null],false],[0,\"\\n\\t\"],[1,[27,\"component\",[\"sku-manager/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "VL42kg0I",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[1,[27,\"page-title\",[\"SKU Management\"],null],false],[0,\"\\n\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L6:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L7:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"warehouse\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch layout-wrap flex\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"component\",[\"sku-manager/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"hasSubModulePermissions\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"mt-1 flex\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/sku-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/attribute-sets", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "icLpAt8n",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: Attribute Sets\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/configuration", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "0DQ0n68U",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Configuration\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/configuration.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/reports", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "a3MXlQuA",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Reports\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/reports.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/upload", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "vRYtm4Y2",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Data Upload\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/upload.hbs"
     }
   });
 
