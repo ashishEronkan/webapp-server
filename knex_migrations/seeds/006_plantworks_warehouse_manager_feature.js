@@ -40,7 +40,7 @@ exports.seed = async function(knex) {
 		'module_id': componentId,
 		'name': 'warehouse-manager-configuration-update',
 		'implies_permissions': '["warehouse-manager-configuration-read"]',
-		'display_name': 'Warehouse Manager Update',
+		'display_name': 'Warehouse Manager Configuration Update',
 		'description': 'Update Permission for the Warehouse Manager Configuration Module'
 	});
 

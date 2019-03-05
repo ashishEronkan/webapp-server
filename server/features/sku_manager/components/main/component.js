@@ -41,11 +41,11 @@ class Main extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
-			this.$router.get('/skus', this.$parent._rbac('sku-manager-read'), this._getAllSkus.bind(this));
+			this.$router.get('/skus', this.$parent._rbac('sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute'), this._getAllSkus.bind(this));
 
-			this.$router.get('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-read'), this._getSku.bind(this));
-			this.$router.post('/skus', this.$parent._rbac('sku-manager-update'), this._addSku.bind(this));
-			this.$router.del('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-update'), this._deleteSku.bind(this));
+			this.$router.get('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-configuration-read'), this._getSku.bind(this));
+			this.$router.post('/skus', this.$parent._rbac('sku-manager-configuration-update'), this._addSku.bind(this));
+			this.$router.del('/skus/:tenant_sku_id', this.$parent._rbac('sku-manager-configuration-update'), this._deleteSku.bind(this));
 
 			await super._addRoutes();
 			return null;

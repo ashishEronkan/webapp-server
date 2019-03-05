@@ -13,13 +13,13 @@ const PlantWorksBaseFeature = require('plantworks-base-feature').PlantWorksBaseF
 // const PlantWorksFeatureError = require('plantworks-feature-error').PlantWorksFeatureError;
 
 /**
- * @class   SkuManager
+ * @class   AttributeSets
  * @extends {PlantWorksBaseFeature}
- * @classdesc The Plant.Works Web Application Server SKUManager feature - manages tenant skus.
+ * @classdesc The Plant.Works Web Application Server SKU Attribute Set feature - manages SKU Attribute configuration.
  *
  *
  */
-class SkuManager extends PlantWorksBaseFeature {
+class AttributeSets extends PlantWorksBaseFeature {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
@@ -32,31 +32,17 @@ class SkuManager extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof SkuManager
+	 * @memberof Dashboard
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.
 	 *
 	 * @returns  {Object} Dashboard display stuff for this Feature.
 	 *
-	 * @summary  Everyone logged-in gets access.
+	 * @summary  No display in the dashboard itself.
 	 */
-	async getDashboardDisplayDetails(ctxt) {
-		try {
-			const rbacChecker = this._rbac('sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
-			await rbacChecker(ctxt);
-
-			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
-
-			defaultDisplay['attributes']['description'] = `Edit SKU Information`;
-			defaultDisplay['attributes']['icon_type'] = 'fa';
-			defaultDisplay['attributes']['icon_path'] = 'barcode';
-
-			return defaultDisplay;
-		}
-		catch(err) {
-			return null;
-		}
+	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
 	}
 	// #endregion
 
@@ -70,4 +56,4 @@ class SkuManager extends PlantWorksBaseFeature {
 	// #endregion
 }
 
-exports.feature = SkuManager;
+exports.feature = AttributeSets;
