@@ -992,6 +992,225 @@
     }
   });
 });
+;define("plantworks-webapp-server/components/common/attribute-set-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['flex', 'w-100'],
+    // eslint-disable-line ember/avoid-leaking-state-in-ember-objects
+    'feature': '',
+    'tenantFeature': null,
+    'attributeSets': null,
+    'tableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('tableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'description',
+        'title': 'Description'
+      }, {
+        'propertyName': 'formattedCreatedAt',
+        'title': 'Created'
+      }, {
+        'propertyName': 'formattedUpdatedAt',
+        'title': 'Updated'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Attribute Sets to show',
+        'tableSummary': 'Attribute Sets %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSet'),
+        'editTask': this.get('editAttributeSet'),
+        'saveTask': this.get('saveAttributeSet'),
+        'cancelTask': this.get('cancelAttributeSet'),
+        'deleteTask': this.get('deleteAttributeSet')
+      });
+    },
+
+    'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.get('_refreshAttributeSetList').perform();
+    }).drop().on('willInsertElement'),
+    'onFeatureChange': Ember.observer('feature', function () {
+      this.get('_refreshAttributeSetList').perform();
+    }),
+    'addAttributeSet': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      try {
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
+        });
+        const newAttributeSet = this.get('store').createRecord('common/attribute-set', {
+          'tenant': tenant,
+          'tenantFeature': this.get('tenantFeature')
+        });
+        this.get('attributeSets').addObject(newAttributeSet);
+        yield this.get('editAttributeSet').perform(newAttributeSet);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'editAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        yield;
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'cancelAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Cancel Changes',
+          'content': `Are you sure you want to cancel changes made to the <strong>${attributeSet.get('name')}</strong> attribute set?`,
+          'confirmButton': {
+            'text': 'Undo Changes',
+            'icon': 'undo',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (attributeSet.get('isNew')) {
+                this.get('_confirmedAttributeSetDelete').perform(attributeSet);
+              } else {
+                if (attributeSet.rollback) attributeSet.rollback();
+                if (attributeSet.content && attributeSet.content.rollback) attributeSet.content.rollback();
+              }
+            }
+          },
+          'cancelButton': {
+            'text': 'Keep Changes',
+            'icon': 'cancel',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'saveAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        if (attributeSet.save) yield attributeSet.save();
+        if (attributeSet.content && attributeSet.content.save) yield attributeSet.content.save();
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'deleteAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Delete Attribute Set',
+          'content': `Are you sure you want to delete the <strong>${attributeSet.get('name')}</strong> attribute set?`,
+          'confirmButton': {
+            'text': 'Delete',
+            'icon': 'delete',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              this.get('_confirmedAttributeSetDelete').perform(attributeSet);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'close',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_confirmedAttributeSetDelete': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        const attributeSetTitle = attributeSet.get('name');
+        if (attributeSet.destroyRecord) yield attributeSet.destroyRecord();
+        if (attributeSet.content && attributeSet.content.destroyRecord) yield attributeSet.content.destroyRecord();
+        this.get('attributeSets').removeObject(attributeSet);
+        notification.display({
+          'type': 'success',
+          'title': 'Delete Succesful',
+          'message': `${attributeSetTitle} was deleted`
+        });
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_refreshAttributeSetList': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+      if (this.get('feature').trim() === '') return;
+
+      try {
+        const tenantFeatureId = yield this.get('ajax').request(`/common/attribute-sets/tenantFeatureIdFromName/${this.get('feature')}`, {
+          'method': 'GET'
+        });
+        let tenantFeature = yield this.get('store').peekRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+        if (!tenantFeature) tenantFeature = yield this.get('store').findRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+        this.set('tenantFeature', tenantFeature);
+        yield this.get('store').query('common/attribute-set', {
+          'tenant-feature-id': tenantFeature.get('id')
+        });
+        this.set('attributeSets', this.get('store').peekAll('common/attribute-set').filterBy('tenantFeature.id', tenantFeature.get('id')));
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop()
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/components/dashboard/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
   "use strict";
 
@@ -3953,90 +4172,90 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend(_emberInvokeAction.InvokeActionMixin, {
-    view(record) {
-      if (this.get('callbacks.viewAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.viewAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.viewTask')) {
-        this.get('callbacks.viewTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    edit(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('editRow')();
-        return true;
-      }
-
-      if (this.get('callbacks.editAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.editAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.editTask')) {
-        this.get('callbacks.editTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    save(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('saveRow')();
-      }
-
-      if (this.get('callbacks.saveAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.saveAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.saveTask')) {
-        this.get('callbacks.saveTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    cancel(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('cancelEditRow')();
-      }
-
-      if (this.get('callbacks.cancelAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.cancelAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.cancelTask')) {
-        this.get('callbacks.cancelTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    delete(record) {
-      if (this.get('callbacks.deleteAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.deleteAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.deleteTask')) {
-        this.get('callbacks.deleteTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
     actions: {
+      view(record) {
+        if (this.get('callbacks.viewAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.viewAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.viewTask')) {
+          this.get('callbacks.viewTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      edit(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('editRow')();
+          return true;
+        }
+
+        if (this.get('callbacks.editAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.editAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.editTask')) {
+          this.get('callbacks.editTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      save(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('saveRow')();
+        }
+
+        if (this.get('callbacks.saveAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.saveAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.saveTask')) {
+          this.get('callbacks.saveTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      cancel(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('cancelEditRow')();
+        }
+
+        if (this.get('callbacks.cancelAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.cancelAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.cancelTask')) {
+          this.get('callbacks.cancelTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      delete(record) {
+        if (this.get('callbacks.deleteAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.deleteAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.deleteTask')) {
+          this.get('callbacks.deleteTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
       collapseRow(index, record) {
         this.get('collapseRow')(index, record);
       },
@@ -4089,7 +4308,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/plantworks-model-table", ["exports", "plantworks-webapp-server/framework/base-component", "plantworks-webapp-server/themes/bootstrap4", "ember-invoke-action", "ember-concurrency"], function (_exports, _baseComponent, _bootstrap, _emberInvokeAction, _emberConcurrency) {
+;define("plantworks-webapp-server/components/plantworks-model-table", ["exports", "plantworks-webapp-server/framework/base-component", "plantworks-webapp-server/themes/ember-bootstrap-v4", "ember-invoke-action", "ember-concurrency"], function (_exports, _baseComponent, _emberBootstrapV, _emberInvokeAction, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -4099,9 +4318,11 @@
 
   /* eslint-disable require-yield */
   var _default = _baseComponent.default.extend(_emberInvokeAction.InvokeActionMixin, {
-    themeInstance: null,
-    _messages: null,
-    _customIcons: null,
+    'themeInstance': null,
+    '_messages': null,
+    '_customIcons': null,
+    '_expandedItems': null,
+    '_selectedItems': null,
 
     init() {
       this.set('_messages', {
@@ -4112,17 +4333,24 @@
         'sort-asc': 'fas fa-sort-up',
         'sort-desc': 'fas fa-sort-down'
       });
+      this.set('_expandedItems', []);
+      this.set('_selectedItems', []);
 
       this._super(...arguments);
     },
 
     'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
       const mergedMessages = Object.assign({}, this.get('_messages'), this.get('messages') || {});
-      this.set('themeInstance', _bootstrap.default.create({
-        'table': 'table table-hover table-condensed',
+
+      let themeInstance = _emberBootstrapV.default.create({
         'globalFilterWrapper': 'float-right',
         'messages': mergedMessages
-      }));
+      });
+
+      Object.assign(themeInstance, this.get('_customIcons'));
+      this.set('themeInstance', themeInstance);
+      this.set('expandedItems', this.get('expandedItems') || this.get('_expandedItems'));
+      this.set('selectedItems', this.get('selectedItems') || this.get('_selectedItems'));
       if (!this.get('editEnabled') && !this.get('inlineEditEnabled')) return;
       const modelTableActionsAdded = this.get('columns').filter(columnDef => {
         return columnDef.component === 'plantworksModelTableActions';
@@ -4136,6 +4364,7 @@
       });
     }).drop().on('willInsertElement'),
     'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      this.$('form.globalSearch button.clearFilterIcon').addClass('mx-0 btn-secondary').removeClass('btn-outline-secondary').css('padding', '0.6rem 1rem');
       if (!this.get('createEnabled')) return;
       if (!(this.get('callbacks.addAction') || this.get('callbacks.addTask'))) return;
       const createButton = window.$('<button type="button" class="md-default-theme md-button md-primary md-raised"></button>');
@@ -7405,6 +7634,8 @@
     },
 
     displayModal(data) {
+      console.log('GOT TILL HERE WITH DATA: ', data);
+
       if (this.get('showDialog')) {
         this.get('notification').display({
           'type': 'error',
@@ -7614,6 +7845,82 @@
       this.set('configurable', currentUser.hasPermission('sku-manager-configuration-read OR sku-manager-configuration-update'));
       this.set('uploadable', currentUser.hasPermission('sku-manager-upload'));
       this.set('reportable', currentUser.hasPermission('sku-manager-report-execute'));
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/attribute-sets", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/configuration", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/reports", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/upload", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
     }
 
   });
@@ -11569,6 +11876,61 @@
     }
   });
 });
+;define("plantworks-webapp-server/models/common/attribute-set-property", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'description': _emberData.default.attr('string'),
+    'units': _emberData.default.attr('string'),
+    'internalTag': _emberData.default.attr('string'),
+    'evaluationExpression': _emberData.default.attr('string'),
+    'source': _emberData.default.attr('string'),
+    'datatype': _emberData.default.attr('string'),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': 'properties'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/models/common/attribute-set", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'description': _emberData.default.attr('string'),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'tenantFeature': _emberData.default.belongsTo('tenant-administration/feature-manager/tenant-feature', {
+      'async': true,
+      'inverse': null
+    }),
+    'properties': _emberData.default.hasMany('common/attribute-set-property', {
+      'async': true,
+      'inverse': 'attributeSet'
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/models/dashboard/feature", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
   "use strict";
 
@@ -11715,12 +12077,17 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
+    'code': _emberData.default.attr('string'),
+    'name': _emberData.default.attr('string'),
+    'type': _emberData.default.attr('string'),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
       'inverse': 'skus'
     }),
-    'code': _emberData.default.attr('string'),
-    'name': _emberData.default.attr('string')
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': null
+    })
   });
 
   _exports.default = _default;
@@ -13117,7 +13484,7 @@
     },
 
     display(data) {
-      if (this.get('notifyEnabled') && ((data.type || 'info') === 'success' || (data.type || 'info') === 'error')) {
+      if (this.get('notifyEnabled') && (data.type || 'info') === 'error') {
         const thisNotification = new _notifyjs.default(data.title || (data.type ? data.type.capitalize() : ''), {
           'body': data.type !== 'error' ? data.message || data : data.error.responseText || data.error.message || data.error,
           'closeOnClick': true,
@@ -13488,6 +13855,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/templates/components/common/attribute-set-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "q8EVfH2f",
+    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"callbacks\",\"controller-action\"],[[23,[\"attributeSets\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"tableActionCallbacks\"]],\"controller-action\"]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/templates/components/dashboard/main-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -13741,8 +14126,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "xrM0l9/0",
-    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"onClick\"],[true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "aY70OY1V",
+    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"raised\",\"mini\",\"onClick\"],[\"m-0\",true,true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"mini\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"mini\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"mini\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/plantworks-model-table-actions.hbs"
     }
@@ -13795,8 +14180,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "zev51Iun",
-    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"customIcons\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"doFilteringByHiddenColumns\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\"],[[23,[\"data\"]],[23,[\"columns\"]],[27,\"assign\",[[23,[\"columnComponents\"]],[27,\"hash\",null,[[\"plantworksModelTableActions\"],[[27,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\"],[[23,[\"callbacks\"]],[23,[\"expandedRowComponent\"]],[23,[\"inlineEditEnabled\"]]]]]]]]],null],[23,[\"themeInstance\"]],[23,[\"_customIcons\"]],[23,[\"expandedItems\"]],[23,[\"expandedRowComponent\"]],[23,[\"multipleExpand\"]],[23,[\"selectedItems\"]],[23,[\"multipleSelect\"]],false,true,true,true,true,true,false,true,false,[27,\"action\",[[22,0,[]],\"controller-action\",\"displayDataChanged\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "YlC22zm6",
+    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"doFilteringByHiddenColumns\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\"],[[23,[\"data\"]],[23,[\"columns\"]],[27,\"assign\",[[23,[\"columnComponents\"]],[27,\"hash\",null,[[\"plantworksModelTableActions\"],[[27,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\"],[[23,[\"callbacks\"]],[23,[\"expandedRowComponent\"]],[23,[\"inlineEditEnabled\"]]]]]]]]],null],[23,[\"themeInstance\"]],[23,[\"expandedItems\"]],[23,[\"expandedRowComponent\"]],[23,[\"multipleExpand\"]],[23,[\"selectedItems\"]],[23,[\"multipleSelect\"]],false,true,true,true,true,true,false,true,false,[27,\"action\",[[22,0,[]],\"controller-action\",\"displayDataChanged\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/plantworks-model-table.hbs"
     }
@@ -14407,8 +14792,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "icLpAt8n",
-    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: Attribute Sets\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "OKNEHC3f",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"bg-plantworks-component-reverse black-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L3:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[1,[27,\"mdi-icon\",[\"video-input-component\"],[[\"size\",\"class\"],[32,\"mr-2\"]]],false],[0,\"Attribute Sets\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L7:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch flex\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"component\",[\"common/attribute-set-manager\"],[[\"feature\",\"controller-action\"],[\"SkuManager\",[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs"
     }
