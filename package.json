@@ -47,7 +47,7 @@
 		"node": ">=10.0"
 	},
 	"dependencies": {
-		"@koa/cors": "*",
+		"@koa/cors": "^3.0.0",
 		"@phc/pbkdf2": "*",
 		"amqplib": "*",
 		"app-module-path": "*",
@@ -83,7 +83,7 @@
 		"koa-bodyparser": "*",
 		"koa-compress": "*",
 		"koa-favicon": "*",
-		"koa-helmet": "*",
+		"koa-helmet": "^4.1.0",
 		"koa-methodoverride": "*",
 		"koa-passport": "*",
 		"koa-ratelimit": "^4.2.0",
