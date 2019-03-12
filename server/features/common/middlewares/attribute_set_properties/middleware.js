@@ -13,13 +13,13 @@ const PlantWorksBaseMiddleware = require('plantworks-base-middleware').PlantWork
 const PlantWorksMiddlewareError = require('plantworks-middleware-error').PlantWorksMiddlewareError;
 
 /**
- * @class   AttributeSets
+ * @class   AttributeSetProperties
  * @extends {PlantWorksBaseMiddleware}
- * @classdesc The Plant.Works Web Application Server AttributeSets middleware - manage CRUD for all attribute sets / properties related operations.
+ * @classdesc The Plant.Works Web Application Server AttributeSetProperties middleware - manage CRUD for all attribute sets / properties related operations.
  *
  *
  */
-class AttributeSets extends PlantWorksBaseMiddleware {
+class AttributeSetProperties extends PlantWorksBaseMiddleware {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
@@ -32,7 +32,7 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof AttributeSets
+	 * @memberof AttributeSetProperties
 	 * @name     _setup
 	 *
 	 * @returns  {null} Nothing.
@@ -130,7 +130,7 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof AttributeSets
+	 * @memberof AttributeSetProperties
 	 * @name     _teardown
 	 *
 	 * @returns  {undefined} Nothing.
@@ -160,10 +160,10 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 
 			await super._registerApis();
 
-			await ApiService.add(`${this.name}::getAttributeSets`, this._getAttributeSets.bind(this));
-			await ApiService.add(`${this.name}::createAttributeSet`, this._createAttributeSet.bind(this));
-			await ApiService.add(`${this.name}::updateAttributeSet`, this._updateAttributeSet.bind(this));
-			await ApiService.add(`${this.name}::deleteAttributeSet`, this._deleteAttributeSet.bind(this));
+			await ApiService.add(`${this.name}::getAttributeSetProperty`, this._getAttributeSetProperty.bind(this));
+			await ApiService.add(`${this.name}::createAttributeSetProperty`, this._createAttributeSetProperty.bind(this));
+			await ApiService.add(`${this.name}::updateAttributeSetProperty`, this._updateAttributeSetProperty.bind(this));
+			await ApiService.add(`${this.name}::deleteAttributeSetProperty`, this._deleteAttributeSetProperty.bind(this));
 
 			return null;
 		}
@@ -176,10 +176,10 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 		try {
 			const ApiService = this.$dependencies.ApiService;
 
-			await ApiService.remove(`${this.name}::deleteAttributeSet`, this._deleteAttributeSet.bind(this));
-			await ApiService.remove(`${this.name}::updateAttributeSet`, this._updateAttributeSet.bind(this));
-			await ApiService.remove(`${this.name}::createAttributeSet`, this._createAttributeSet.bind(this));
-			await ApiService.remove(`${this.name}::getAttributeSets`, this._getAttributeSets.bind(this));
+			await ApiService.remove(`${this.name}::deleteAttributeSetProperty`, this._deleteAttributeSetProperty.bind(this));
+			await ApiService.remove(`${this.name}::updateAttributeSetProperty`, this._updateAttributeSetProperty.bind(this));
+			await ApiService.remove(`${this.name}::createAttributeSetProperty`, this._createAttributeSetProperty.bind(this));
+			await ApiService.remove(`${this.name}::getAttributeSetProperty`, this._getAttributeSetProperty.bind(this));
 
 			await super._deregisterApis();
 			return null;
@@ -191,60 +191,60 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 	// #endregion
 
 	// #region API
-	async _getAttributeSets(ctxt) {
+	async _getAttributeSetProperty(ctxt) {
 		try {
-			let attributeSetData = await this.$AttributeSetModel
+			let attributeSetPropertyData = await this.$AttributeSetPropertyModel
 			.query(function(qb) {
 				qb
-				.where('tenant_feature_id', '=', ctxt.query['tenant-feature-id'])
+				.where('attribute_set_property_id', '=', ctxt.params['attributeSetPropertyId'])
 				.andWhere({ 'tenant_id': ctxt.state.tenant.tenant_id });
 			})
-			.fetchAll({
-				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenantFeature', 'properties']
+			.fetch({
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenant', 'attributeSet']
 			});
 
-			attributeSetData = this.$jsonApiMapper.map(attributeSetData, 'common/attribute-set', {
+			attributeSetPropertyData = this.$jsonApiMapper.map(attributeSetPropertyData, 'common/attribute-set-property', {
 				'typeForModel': {
-					'tenantFeature': 'tenant-administration/feature-manager/tenant-feature',
-					'properties': 'common/attribute-set-property'
+					'tenant': 'tenant-administration/tenant',
+					'attributeSet': 'common/attribute-set'
 				},
 
 				'enableLinks': false
 			});
 
-			delete attributeSetData.included;
-			return attributeSetData;
+			delete attributeSetPropertyData.included;
+			return attributeSetPropertyData;
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_getAttributeSets`, err);
+			throw new PlantWorksMiddlewareError(`${this.name}::_getAttributeSetProperty`, err);
 		}
 	}
 
-	async _createAttributeSet(ctxt) {
+	async _createAttributeSetProperty(ctxt) {
 		try {
-			const attributeSet = ctxt.request.body;
-			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(attributeSet);
+			const attributeSetProperty = ctxt.request.body;
+			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(attributeSetProperty);
 
 			jsonDeserializedData['attribute_set_id'] = jsonDeserializedData['id'];
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
 			delete jsonDeserializedData.updated_at;
 
-			Object.keys(attributeSet.data.relationships || {}).forEach((relationshipName) => {
-				if(!attributeSet.data.relationships[relationshipName].data) {
+			Object.keys(attributeSetProperty.data.relationships || {}).forEach((relationshipName) => {
+				if(!attributeSetProperty.data.relationships[relationshipName].data) {
 					delete jsonDeserializedData[relationshipName];
 					return;
 				}
 
-				if(!attributeSet.data.relationships[relationshipName].data.id) {
+				if(!attributeSetProperty.data.relationships[relationshipName].data.id) {
 					delete jsonDeserializedData[relationshipName];
 					return;
 				}
 
-				jsonDeserializedData[`${relationshipName}_id`] = attributeSet.data.relationships[relationshipName].data.id;
+				jsonDeserializedData[`${relationshipName}_id`] = attributeSetProperty.data.relationships[relationshipName].data.id;
 			});
 
-			const savedRecord = await this.$AttributeSetModel
+			const savedRecord = await this.$AttributeSetPropertyModel
 				.forge()
 				.save(jsonDeserializedData, {
 					'method': 'insert',
@@ -253,41 +253,41 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 
 			return {
 				'data': {
-					'type': attributeSet.data.type,
-					'id': savedRecord.get('attribute_set_id')
+					'type': attributeSetProperty.data.type,
+					'id': savedRecord.get('attribute_set_property_id')
 				}
 			};
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_createAttributeSet`, err);
+			throw new PlantWorksMiddlewareError(`${this.name}::_createAttributeSetProperty`, err);
 		}
 	}
 
-	async _updateAttributeSet(ctxt) {
+	async _updateAttributeSetProperty(ctxt) {
 		try {
-			const attributeSet = ctxt.request.body;
-			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(attributeSet);
+			const attributeSetProperty = ctxt.request.body;
+			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(attributeSetProperty);
 
-			jsonDeserializedData['attribute_set_id'] = jsonDeserializedData['id'];
+			jsonDeserializedData['attribute_set_property_id'] = jsonDeserializedData['id'];
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
 			delete jsonDeserializedData.updated_at;
 
-			Object.keys(attributeSet.data.relationships || {}).forEach((relationshipName) => {
-				if(!attributeSet.data.relationships[relationshipName].data) {
+			Object.keys(attributeSetProperty.data.relationships || {}).forEach((relationshipName) => {
+				if(!attributeSetProperty.data.relationships[relationshipName].data) {
 					delete jsonDeserializedData[relationshipName];
 					return;
 				}
 
-				if(!attributeSet.data.relationships[relationshipName].data.id) {
+				if(!attributeSetProperty.data.relationships[relationshipName].data.id) {
 					delete jsonDeserializedData[relationshipName];
 					return;
 				}
 
-				jsonDeserializedData[`${relationshipName}_id`] = attributeSet.data.relationships[relationshipName].data.id;
+				jsonDeserializedData[`${relationshipName}_id`] = attributeSetProperty.data.relationships[relationshipName].data.id;
 			});
 
-			const savedRecord = await this.$AttributeSetModel
+			const savedRecord = await this.$AttributeSetPropertyModel
 				.forge()
 				.save(jsonDeserializedData, {
 					'method': 'update',
@@ -296,31 +296,31 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 
 			return {
 				'data': {
-					'type': attributeSet.data.type,
-					'id': savedRecord.get('attribute_set_id')
+					'type': attributeSetProperty.data.type,
+					'id': savedRecord.get('attribute_set_property_id')
 				}
 			};
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_updateAttributeSet`, err);
+			throw new PlantWorksMiddlewareError(`${this.name}::_updateAttributeSetProperty`, err);
 		}
 	}
 
-	async _deleteAttributeSet(ctxt) {
+	async _deleteAttributeSetProperty(ctxt) {
 		try {
-			const attributeSet = await new this.$AttributeSetModel({
+			const attributeSetProperty = await new this.$AttributeSetPropertyModel({
 				'tenant_id': ctxt.state.tenant['tenant_id'],
-				'attribute_set_id': ctxt.params['attributeSetId']
+				'attribute_set_property_id': ctxt.params['attributeSetPropertyId']
 			})
 			.fetch();
 
-			if(!attributeSet) throw new Error('Unknown Attribute Set');
+			if(!attributeSetProperty) throw new Error('Unknown Attribute Set Property');
 
-			await attributeSet.destroy();
+			await attributeSetProperty.destroy();
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_deleteAttributeSet`, err);
+			throw new PlantWorksMiddlewareError(`${this.name}::_deleteAttributeSetProperty`, err);
 		}
 	}
 	// #endregion
@@ -335,4 +335,4 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 	// #endregion
 }
 
-exports.middleware = AttributeSets;
+exports.middleware = AttributeSetProperties;

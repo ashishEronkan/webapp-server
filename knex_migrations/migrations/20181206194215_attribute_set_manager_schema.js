@@ -28,14 +28,18 @@ exports.up = async function(knex) {
 			AttributePropertiesTbl.uuid('attribute_set_property_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 
 			AttributePropertiesTbl.text('name').notNullable();
-			AttributePropertiesTbl.text('description');
-			AttributePropertiesTbl.text('units');
-
 			AttributePropertiesTbl.text('internal_tag').notNullable();
+			AttributePropertiesTbl.text('units');
+			AttributePropertiesTbl.integer('persist_period').notNullable().defaultTo(0);
+
 			AttributePropertiesTbl.text('evaluation_expression');
+			AttributePropertiesTbl.text('description');
 
 			AttributePropertiesTbl.specificType('source', 'public.attribute_source_type').notNullable().defaultTo('static');
 			AttributePropertiesTbl.specificType('datatype', 'public.attribute_value_type').notNullable().defaultTo('string');
+
+			AttributePropertiesTbl.boolean('is_timestamp').notNullable().defaultTo(false);
+			AttributePropertiesTbl.specificType('timestamp_format', 'public.timestamp_type');
 
 			AttributePropertiesTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			AttributePropertiesTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
@@ -50,7 +54,7 @@ exports.up = async function(knex) {
 			CREATE UNIQUE INDEX uidx_attribute_set_properties_id_name ON public.attribute_set_properties
 			USING btree
 			(
-				attribute_set_property_id ASC,
+				attribute_set_id ASC,
 				name ASC
 			)`
 		);
