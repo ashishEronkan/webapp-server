@@ -992,13 +992,51 @@
     }
   });
 });
-;define("plantworks-webapp-server/components/common/attribute-set-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+;define("plantworks-webapp-server/components/common/attribute-set-editor", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
     value: true
   });
   _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['mb-4'],
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    willInsertElement() {
+      this._super(...arguments);
+
+      this.get('record').set('isEditing', true);
+    },
+
+    didDestroyElement() {
+      this._super(...arguments);
+
+      this.get('record').set('isEditing', false);
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
 
   var _default = _baseComponent.default.extend({
     'classNames': ['flex', 'w-100'],
@@ -1009,6 +1047,7 @@
     'tableColumns': null,
     'messages': null,
     'tableActionCallbacks': null,
+    'expandedItems': null,
 
     init() {
       this._super(...arguments);
@@ -1044,6 +1083,7 @@
         'cancelTask': this.get('cancelAttributeSet'),
         'deleteTask': this.get('deleteAttributeSet')
       });
+      this.set('expandedItems', []);
     },
 
     'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
@@ -1077,7 +1117,7 @@
       const notification = this.get('notification');
 
       try {
-        yield;
+        yield this.get('expandedItems').push(attributeSet);
       } catch (err) {
         notification.display({
           'type': 'error',
@@ -1093,16 +1133,21 @@
           'title': 'Cancel Changes',
           'content': `Are you sure you want to cancel changes made to the <strong>${attributeSet.get('name')}</strong> attribute set?`,
           'confirmButton': {
-            'text': 'Undo Changes',
-            'icon': 'undo',
+            'text': attributeSet.get('isNew') ? 'Delete Attribute Set' : 'Undo Changes',
+            'icon': attributeSet.get('isNew') ? 'delete' : 'undo',
             'warn': true,
             'raised': true,
             'callback': () => {
               if (attributeSet.get('isNew')) {
                 this.get('_confirmedAttributeSetDelete').perform(attributeSet);
               } else {
-                if (attributeSet.rollback) attributeSet.rollback();
-                if (attributeSet.content && attributeSet.content.rollback) attributeSet.content.rollback();
+                if (attributeSet.rollback) {
+                  attributeSet.rollback();
+                }
+
+                if (attributeSet.content && attributeSet.content.rollback) {
+                  attributeSet.content.rollback();
+                }
               }
             }
           },
@@ -1122,18 +1167,23 @@
       }
     }).enqueue(),
     'saveAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
-      const notification = this.get('notification');
-
-      try {
-        if (attributeSet.save) yield attributeSet.save();
-        if (attributeSet.content && attributeSet.content.save) yield attributeSet.content.save();
-      } catch (err) {
-        notification.display({
-          'type': 'error',
-          'error': err
-        });
-      }
-    }).enqueue(),
+      if (attributeSet.save) yield attributeSet.save();
+      if (attributeSet.content && attributeSet.content.save) yield attributeSet.content.save();
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onSaveAttributeSetSucceeded': Ember.on('saveAttributeSet:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Save Succesful',
+        'message': `${attributeSetTitle} was saved`
+      });
+    }),
+    'onSaveAttributeSetErrored': Ember.on('saveAttributeSet:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
     'deleteAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
       const notification = this.get('notification');
 
@@ -1166,18 +1216,206 @@
       }
     }).enqueue(),
     '_confirmedAttributeSetDelete': (0, _emberConcurrency.task)(function* (attributeSet) {
+      if (attributeSet.destroyRecord) yield attributeSet.destroyRecord();
+      if (attributeSet.content && attributeSet.content.destroyRecord) yield attributeSet.content.destroyRecord();
+      this.get('attributeSets').removeObject(attributeSet);
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onConfirmedAttributeSetDeleteSucceeded': Ember.on('_confirmedAttributeSetDelete:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onConfirmedAttributeSetDeleteErrored': Ember.on('_confirmedAttributeSetDelete:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    '_refreshAttributeSetList': (0, _emberConcurrency.task)(function* () {
+      if (this.get('feature').trim() === '') return;
+      const tenantFeatureId = yield this.get('ajax').request(`/common/attribute-sets/tenantFeatureIdFromName/${this.get('feature')}`, {
+        'method': 'GET'
+      });
+      let tenantFeature = yield this.get('store').peekRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+      if (!tenantFeature) tenantFeature = yield this.get('store').findRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+      this.set('tenantFeature', tenantFeature);
+      yield this.get('store').query('common/attribute-set', {
+        'tenant-feature-id': tenantFeature.get('id')
+      });
+      this.set('attributeSets', this.get('store').peekAll('common/attribute-set').filterBy('tenantFeature.id', tenantFeature.get('id')));
+    }).evented().drop().retryable(backoffPolicy),
+    'onRefreshAttributeSetListErrored': Ember.on('_refreshAttributeSetList:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-properties-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-lifeline", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberLifeline, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
+  var _default = _baseComponent.default.extend({
+    'categorized': true,
+    'currentCategory': 'static',
+    'sourceTypes': null,
+    'dataTypes': null,
+    'timestampFormatTypes': null,
+    'uncategorizedTableColumns': null,
+    'categorizedTableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+    'expandedItems': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('uncategorizedTableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'internalTag',
+        'title': 'Tag'
+      }, {
+        'propertyName': 'units',
+        'title': 'Units'
+      }, {
+        'propertyName': 'displaySource',
+        'title': 'Source Type'
+      }, {
+        'propertyName': 'displayDatatype',
+        'title': 'Data Type'
+      }, {
+        'propertyName': 'persistPeriod',
+        'title': 'Persist Period'
+      }, {
+        'propertyName': 'displayTimestampFormat',
+        'title': 'Timestamp'
+      }]);
+      this.set('categorizedTableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'internalTag',
+        'title': 'Tag'
+      }, {
+        'propertyName': 'units',
+        'title': 'Units'
+      }, {
+        'propertyName': 'displayDatatype',
+        'title': 'Data Type'
+      }, {
+        'propertyName': 'persistPeriod',
+        'title': 'Persist Period'
+      }, {
+        'propertyName': 'displayTimestampFormat',
+        'title': 'Timestamp'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Properties to show',
+        'tableSummary': 'Properties %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSetProperty'),
+        'editTask': this.get('editAttributeSetProperty'),
+        'saveTask': this.get('saveAttributeSetProperty'),
+        'cancelTask': this.get('cancelAttributeSetProperty'),
+        'deleteTask': this.get('deleteAttributeSetProperty')
+      });
+      this.set('expandedItems', Ember.ArrayProxy.create({
+        'content': Ember.A([])
+      }));
+    },
+
+    'onInit': (0, _emberConcurrency.task)(function* () {
+      if (!this.get('sourceTypes')) {
+        const sourceTypes = yield this.get('ajax').request('/masterdata/attributeSourceTypes', {
+          'method': 'GET'
+        });
+        this.set('sourceTypes', sourceTypes.filter(srcType => {
+          return srcType !== 'imported';
+        }));
+      }
+
+      if (!this.get('dataTypes')) {
+        const dataTypes = yield this.get('ajax').request('/masterdata/attributeDataTypes', {
+          'method': 'GET'
+        });
+        this.set('dataTypes', dataTypes);
+      }
+
+      if (!this.get('timestampFormatTypes')) {
+        const timestampFormatTypes = yield this.get('ajax').request('/masterdata/timestampFormatTypes', {
+          'method': 'GET'
+        });
+        this.set('timestampFormatTypes', timestampFormatTypes);
+      }
+    }).on('init').evented().drop().retryable(backoffPolicy),
+    'onInitErrored': Ember.on('onInit:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.$('div.classic-tabs').css('margin-right', '-1px');
+      yield this.$('div.classic-tabs > ul').addClass('tabs-grey');
+    }).keepLatest().on('didInsertElement'),
+    'onCategorizedChange': Ember.observer('categorized', function () {
+      if (!this.get('categorized')) return;
+      (0, _emberLifeline.runTask)(this, () => {
+        this.$('div.classic-tabs').css('margin-right', '-1px');
+        this.$('div.classic-tabs > ul').addClass('tabs-grey');
+      }, 500);
+    }),
+    'setAttributeSource': function (newTabId) {
+      const newSourceType = this.$(`a[href="#${newTabId}"]`).html().trim().toLowerCase();
+      this.set('currentCategory', newSourceType);
+      return true;
+    },
+    'addAttributeSetProperty': (0, _emberConcurrency.task)(function* () {
       const notification = this.get('notification');
 
       try {
-        const attributeSetTitle = attributeSet.get('name');
-        if (attributeSet.destroyRecord) yield attributeSet.destroyRecord();
-        if (attributeSet.content && attributeSet.content.destroyRecord) yield attributeSet.content.destroyRecord();
-        this.get('attributeSets').removeObject(attributeSet);
-        notification.display({
-          'type': 'success',
-          'title': 'Delete Succesful',
-          'message': `${attributeSetTitle} was deleted`
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
         });
+        const newAttributeSetProperty = this.get('store').createRecord('common/attribute-set-property', {
+          'tenant': tenant,
+          'attributeSet': this.get('model'),
+          'source': this.get('categorized') ? this.get('currentCategory') : 'static'
+        });
+        this.get('model.properties').addObject(newAttributeSetProperty);
+        yield this.get('editAttributeSetProperty').perform(newAttributeSetProperty);
       } catch (err) {
         notification.display({
           'type': 'error',
@@ -1185,28 +1423,152 @@
         });
       }
     }).enqueue(),
-    '_refreshAttributeSetList': (0, _emberConcurrency.task)(function* () {
+    'editAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
       const notification = this.get('notification');
-      if (this.get('feature').trim() === '') return;
 
       try {
-        const tenantFeatureId = yield this.get('ajax').request(`/common/attribute-sets/tenantFeatureIdFromName/${this.get('feature')}`, {
-          'method': 'GET'
-        });
-        let tenantFeature = yield this.get('store').peekRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
-        if (!tenantFeature) tenantFeature = yield this.get('store').findRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
-        this.set('tenantFeature', tenantFeature);
-        yield this.get('store').query('common/attribute-set', {
-          'tenant-feature-id': tenantFeature.get('id')
-        });
-        this.set('attributeSets', this.get('store').peekAll('common/attribute-set').filterBy('tenantFeature.id', tenantFeature.get('id')));
+        yield this.get('expandedItems').addObject(attributeSetProperty);
       } catch (err) {
         notification.display({
           'type': 'error',
           'error': err
         });
       }
-    }).drop()
+    }).enqueue(),
+    'cancelAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Cancel Changes',
+          'content': `Are you sure you want to cancel changes made to the <strong>${attributeSetProperty.get('name')}</strong> attribute set property?`,
+          'confirmButton': {
+            'text': attributeSetProperty.get('isNew') ? 'Delete Attribute Set Property' : 'Undo Changes',
+            'icon': attributeSetProperty.get('isNew') ? 'delete' : 'undo',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (attributeSetProperty.get('isNew')) {
+                this.get('_confirmedAttributeSetPropertyDelete').perform(attributeSetProperty);
+              } else {
+                if (attributeSetProperty.rollback) {
+                  attributeSetProperty.rollback();
+                }
+
+                if (attributeSetProperty.content && attributeSetProperty.content.rollback) {
+                  attributeSetProperty.content.rollback();
+                }
+              }
+            }
+          },
+          'cancelButton': {
+            'text': 'Keep Changes',
+            'icon': 'cancel',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'saveAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      if (attributeSetProperty.save) {
+        yield attributeSetProperty.save();
+        return;
+      }
+
+      if (attributeSetProperty.content && attributeSetProperty.content.save) yield attributeSetProperty.content.save();
+    }).evented().drop().retryable(backoffPolicy),
+    'onSaveAttributeSetPropertySucceeded': Ember.on('saveAttributeSetProperty:succeeded', function (taskInstance) {
+      const attributeSetPropertyTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Save Succesful',
+        'message': `${attributeSetPropertyTitle} was saved`
+      });
+    }),
+    'onSaveAttributeSetPropertyErrored': Ember.on('saveAttributeSetProperty:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Delete Attribute Set Property',
+          'content': `Are you sure you want to delete the <strong>${attributeSetProperty.get('name')}</strong> attribute set property?`,
+          'confirmButton': {
+            'text': 'Delete',
+            'icon': 'delete',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              this.get('_confirmedAttributeSetPropertyDelete').perform(attributeSetProperty);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'close',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_confirmedAttributeSetPropertyDelete': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      if (attributeSetProperty.destroyRecord) yield attributeSetProperty.destroyRecord();
+      if (attributeSetProperty.content && attributeSetProperty.content.destroyRecord) yield attributeSetProperty.content.destroyRecord();
+      this.get('model.properties').removeObject(attributeSetProperty);
+    }).evented().drop().retryable(backoffPolicy),
+    'onConfirmedAttributeSetPropertyDeleteSucceeded': Ember.on('_confirmedAttributeSetPropertyDelete:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onConfirmedAttributeSetPropertyDeleteErrored': Ember.on('_confirmedAttributeSetPropertyDelete:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-property-editor", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['layout-row', 'layout-align-space-between-start', 'layout-wrap', 'pt-4', 'px-2', 'pb-2'],
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
   });
 
   _exports.default = _default;
@@ -4364,7 +4726,8 @@
       });
     }).drop().on('willInsertElement'),
     'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
-      this.$('form.globalSearch button.clearFilterIcon').addClass('mx-0 btn-secondary').removeClass('btn-outline-secondary').css('padding', '0.6rem 1rem');
+      this.$('button.clearFilterIcon').attr('class', 'clearFilterIcon btn btn-secondary btn-link mx-0').css('padding', '0.6rem 1rem');
+      this.$('button.clearFilters').attr('class', 'clearFilters btn btn-link m-0 ml-2 p-0');
       if (!this.get('createEnabled')) return;
       if (!(this.get('callbacks.addAction') || this.get('callbacks.addTask'))) return;
       const createButton = window.$('<button type="button" class="md-default-theme md-button md-primary md-raised"></button>');
@@ -7634,8 +7997,6 @@
     },
 
     displayModal(data) {
-      console.log('GOT TILL HERE WITH DATA: ', data);
-
       if (this.get('showDialog')) {
         this.get('notification').display({
           'type': 'error',
@@ -11885,13 +12246,30 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'name': _emberData.default.attr('string'),
-    'description': _emberData.default.attr('string'),
+    'name': _emberData.default.attr('string', {
+      'defaultValue': 'New Attribute'
+    }),
+    'internalTag': _emberData.default.attr('string', {
+      'defaultValue': 'NEW_ATTRIBUTE'
+    }),
     'units': _emberData.default.attr('string'),
-    'internalTag': _emberData.default.attr('string'),
+    'persistPeriod': _emberData.default.attr('number', {
+      'defaultValue': 0
+    }),
     'evaluationExpression': _emberData.default.attr('string'),
-    'source': _emberData.default.attr('string'),
-    'datatype': _emberData.default.attr('string'),
+    'description': _emberData.default.attr('string'),
+    'source': _emberData.default.attr('string', {
+      'defaultValue': 'static'
+    }),
+    'datatype': _emberData.default.attr('string', {
+      'defaultValue': 'number'
+    }),
+    'isTimestamp': _emberData.default.attr('boolean', {
+      'defaultValue': false
+    }),
+    'timestampFormat': _emberData.default.attr('string', {
+      'defaultValue': 'not_a_timestamp'
+    }),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
       'inverse': null
@@ -11899,6 +12277,17 @@
     'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
       'async': true,
       'inverse': 'properties'
+    }),
+    'displaySource': Ember.computed('source', function () {
+      return Ember.String.capitalize(this.get('source'));
+    }),
+    'displayDatatype': Ember.computed('datatype', function () {
+      return Ember.String.capitalize(this.get('datatype'));
+    }),
+    'displayTimestampFormat': Ember.computed('isTimestamp', 'timestampFormat', function () {
+      return this.get('isTimestamp') ? (this.get('timestampFormat') || '').split('_').map(segment => {
+        return Ember.String.capitalize(segment);
+      }).join(' ') : '';
     })
   });
 
@@ -11913,7 +12302,9 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'name': _emberData.default.attr('string'),
+    'name': _emberData.default.attr('string', {
+      'defaultValue': 'New Attribute Set'
+    }),
     'description': _emberData.default.attr('string'),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
@@ -12422,6 +12813,38 @@
   _exports.default = void 0;
   var _default = _emberResolver.default;
   _exports.default = _default;
+});
+;/*
+import EmberRouter from '@ember/routing/router';
+import config from './config/environment';
+
+const Router = EmberRouter.extend({
+  location: config.locationType,
+  rootURL: config.rootURL
+});
+
+Router.map(function() {
+  this.route('freestyle');
+  this.route('profile');
+  this.route('dashboard');
+  this.route('tenant-administration', function() {
+    this.route('feature-manager');
+    this.route('group-manager');
+    this.route('user-manager');
+  });
+  this.route('sku-manager', function() {
+    this.route('attribute-sets');
+    this.route('configuration');
+    this.route('upload');
+    this.route('reports');
+  });
+  this.route('warehouse-manager');
+});
+
+export default Router;
+*/
+define("plantworks-webapp-server/router", [], function () {
+  "use strict";
 });
 ;define("plantworks-webapp-server/routes/application", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
   "use strict";
@@ -13855,6 +14278,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/templates/components/common/attribute-set-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "dSPJA9X7",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch p-2\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"pt-4 px-2 grey lighten-4 layout-row layout-align-space-between-center layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex flex-gt-md-70\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\"],[4,\"if\",[[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"component\",[\"common/attribute-set-properties-manager\"],[[\"model\",\"controller-action\"],[[23,[\"record\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/templates/components/common/attribute-set-manager", ["exports"], function (_exports) {
   "use strict";
 
@@ -13864,10 +14305,46 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "q8EVfH2f",
-    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"callbacks\",\"controller-action\"],[[23,[\"attributeSets\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"tableActionCallbacks\"]],\"controller-action\"]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "Y2yKksqO",
+    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"attributeSets\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-editor\"],[[\"controller-action\"],[[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-properties-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "mcH7IxXV",
+    "block": "{\"symbols\":[\"card\",\"tab\",\"sourceType\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Attributes\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[5]},null],[4,\"paper-switch\",null,[[\"class\",\"value\",\"onChange\"],[\"m-0\",[23,[\"categorized\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"categorized\"]]],null]],null]]],{\"statements\":[[4,\"if\",[[23,[\"categorized\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\tTabbed View\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\tConsolidated View\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L14:C4) \"],null]],[[\"class\"],[\"p-0 pb-2\"]],{\"statements\":[[4,\"liquid-if\",[[23,[\"categorized\"]]],null,{\"statements\":[[4,\"bs-tab\",null,[[\"class\",\"onChange\"],[\"classic-tabs\",[27,\"action\",[[22,0,[]],\"controller-action\",\"setAttributeSource\"],null]]],{\"statements\":[[4,\"each\",[[23,[\"sourceTypes\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L18:C8) \"],null]],[[\"title\"],[[27,\"titleize\",[[22,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"model\",\"properties\"]]],null],[23,[\"categorizedTableColumns\"]],[23,[\"messages\"]],true,true,[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"expandedItems\"]]],null],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[27,\"array\",[[22,3,[]]],null],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"model\",\"properties\"]],[23,[\"uncategorizedTableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[23,[\"sourceTypes\"]],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-property-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "F88z8sC3",
+    "block": "{\"symbols\":[\"timestampFormat\",\"dataType\",\"sourceType\"],\"statements\":[[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-60 layout-column layout-align-start-stretch\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-start layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-70\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Units\",[23,[\"record\",\"units\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"units\"]]],null]],null]]]],false],[0,\"\\n\\t\"],[10],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Value\",[23,[\"record\",\"internalTag\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"internalTag\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Tag\",[23,[\"record\",\"internalTag\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"internalTag\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-15 layout-column layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"gt\",[[27,\"get\",[[23,[\"allowedSources\"]],\"length\"],null],1],null]],null,{\"statements\":[[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex m-0\",[23,[\"record\",\"source\"]],[23,[\"allowedSources\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"source\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"titleize\",[[22,3,[]]],null],false],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex\",\"Source Type\",[23,[\"record\",\"displaySource\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex m-0\",[23,[\"record\",\"datatype\"]],[23,[\"allDataTypes\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"datatype\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"titleize\",[[22,2,[]]],null],false],[0,\"\\n\"]],\"parameters\":[2]},null],[10],[0,\"\\n\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-15 layout-column layout-align-start-stretch\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Static Value\",[23,[\"record\",\"evaluationExpression\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"evaluationExpression\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"number\",\"flex-100\",\"Persist Period\",[23,[\"record\",\"persistPeriod\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"persistPeriod\"]]],null]],null],[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\"],[10],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-space-between layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"paper-switch\",null,[[\"value\",\"onChange\"],[[23,[\"record\",\"isTimestamp\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"isTimestamp\"]]],null]],null]]]],false],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"disabled\"],[\"flex m-0\",[23,[\"record\",\"timestampFormat\"]],[23,[\"timestampFormats\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"timestampFormat\"]]],null]],null],[27,\"not\",[[23,[\"record\",\"isTimestamp\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"titleize\",[[27,\"humanize\",[[22,1,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"],[7,\"div\"],[11,\"class\",\"flex-100 layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs"
     }
   });
 
@@ -14126,8 +14603,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "aY70OY1V",
-    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"raised\",\"mini\",\"onClick\"],[\"m-0\",true,true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"mini\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"mini\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"mini\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\"],[true,true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "JxPQGHsn",
+    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"iconButton\",\"onClick\"],[\"m-0\",true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/plantworks-model-table-actions.hbs"
     }
@@ -15375,7 +15852,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+2fe2708f"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+34395a28"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
