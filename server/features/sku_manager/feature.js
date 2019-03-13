@@ -43,7 +43,7 @@ class SkuManager extends PlantWorksBaseFeature {
 	 */
 	async getDashboardDisplayDetails(ctxt) {
 		try {
-			const rbacChecker = this._rbac('sku-manager-read');
+			const rbacChecker = this._rbac('sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
 			await rbacChecker(ctxt);
 
 			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);

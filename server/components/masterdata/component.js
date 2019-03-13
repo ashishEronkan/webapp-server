@@ -41,6 +41,9 @@ class Masterdata extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
+			this.$router.get('/attributeSourceTypes', this._getAttributeSourceTypes.bind(this));
+			this.$router.get('/attributeDataTypes', this._getAttributeDataTypes.bind(this));
+			this.$router.get('/timestampFormatTypes', this._getTimestampTypes.bind(this));
 			this.$router.get('/contactTypes', this._getContactTypes.bind(this));
 
 			await super._addRoutes();
@@ -53,6 +56,51 @@ class Masterdata extends PlantWorksBaseComponent {
 	// #endregion
 
 	// #region Route Handlers
+	async _getAttributeSourceTypes(ctxt) {
+		if(!ctxt.state.user) throw new Error('This information is available only to logged-in Users');
+
+		const dbSrvc = this.$dependencies.DatabaseService;
+		const sourceTypes = await dbSrvc.knex.raw('SELECT unnest(enum_range(NULL::attribute_source_type)) AS source_type');
+
+		const responseData = [];
+		sourceTypes.rows.forEach((sourceTypeData) => {
+			responseData.push(sourceTypeData['source_type']);
+		});
+
+		ctxt.status = 200;
+		ctxt.body = responseData;
+	}
+
+	async _getAttributeDataTypes(ctxt) {
+		if(!ctxt.state.user) throw new Error('This information is available only to logged-in Users');
+
+		const dbSrvc = this.$dependencies.DatabaseService;
+		const valueTypes = await dbSrvc.knex.raw('SELECT unnest(enum_range(NULL::attribute_value_type)) AS value_type');
+
+		const responseData = [];
+		valueTypes.rows.forEach((valueTypeData) => {
+			responseData.push(valueTypeData['value_type']);
+		});
+
+		ctxt.status = 200;
+		ctxt.body = responseData;
+	}
+
+	async _getTimestampTypes(ctxt) {
+		if(!ctxt.state.user) throw new Error('This information is available only to logged-in Users');
+
+		const dbSrvc = this.$dependencies.DatabaseService;
+		const timestampTypes = await dbSrvc.knex.raw('SELECT unnest(enum_range(NULL::timestamp_type)) AS timestamp_type');
+
+		const responseData = [];
+		timestampTypes.rows.forEach((timestampTypeData) => {
+			responseData.push(timestampTypeData['timestamp_type']);
+		});
+
+		ctxt.status = 200;
+		ctxt.body = responseData;
+	}
+
 	async _getContactTypes(ctxt) {
 		if(!ctxt.state.user) throw new Error('This information is available only to logged-in Users');
 

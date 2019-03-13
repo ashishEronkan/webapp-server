@@ -992,6 +992,585 @@
     }
   });
 });
+;define("plantworks-webapp-server/components/common/attribute-set-editor", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['p-2'],
+
+    // eslint-disable-line ember/avoid-leaking-state-in-ember-objects
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    willInsertElement() {
+      this._super(...arguments);
+
+      this.get('record').set('isEditing', true);
+    },
+
+    didDestroyElement() {
+      this._super(...arguments);
+
+      this.get('record').set('isEditing', false);
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['flex', 'w-100'],
+    // eslint-disable-line ember/avoid-leaking-state-in-ember-objects
+    'feature': '',
+    'tenantFeature': null,
+    'attributeSets': null,
+    'tableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+    'expandedItems': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('tableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'description',
+        'title': 'Description'
+      }, {
+        'propertyName': 'formattedCreatedAt',
+        'title': 'Created'
+      }, {
+        'propertyName': 'formattedUpdatedAt',
+        'title': 'Updated'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Attribute Sets to show',
+        'tableSummary': 'Attribute Sets %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSet'),
+        'editTask': this.get('editAttributeSet'),
+        'saveTask': this.get('saveAttributeSet'),
+        'cancelTask': this.get('cancelAttributeSet'),
+        'deleteTask': this.get('deleteAttributeSet')
+      });
+      this.set('expandedItems', []);
+    },
+
+    'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.get('_refreshAttributeSetList').perform();
+    }).drop().on('willInsertElement'),
+    'onFeatureChange': Ember.observer('feature', function () {
+      this.get('_refreshAttributeSetList').perform();
+    }),
+    'addAttributeSet': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      try {
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
+        });
+        const newAttributeSet = this.get('store').createRecord('common/attribute-set', {
+          'tenant': tenant,
+          'tenantFeature': this.get('tenantFeature')
+        });
+        this.get('attributeSets').addObject(newAttributeSet);
+        yield this.get('editAttributeSet').perform(newAttributeSet);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'editAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        yield this.get('expandedItems').push(attributeSet);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'cancelAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Cancel Changes',
+          'content': `Are you sure you want to cancel changes made to the <strong>${attributeSet.get('name')}</strong> attribute set?`,
+          'confirmButton': {
+            'text': attributeSet.get('isNew') ? 'Delete Attribute Set' : 'Undo Changes',
+            'icon': attributeSet.get('isNew') ? 'delete' : 'undo',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (attributeSet.get('isNew')) {
+                this.get('_confirmedAttributeSetDelete').perform(attributeSet);
+              } else {
+                if (attributeSet.rollback) {
+                  attributeSet.rollback();
+                }
+
+                if (attributeSet.content && attributeSet.content.rollback) {
+                  attributeSet.content.rollback();
+                }
+              }
+            }
+          },
+          'cancelButton': {
+            'text': 'Keep Changes',
+            'icon': 'cancel',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'saveAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      if (attributeSet.save) yield attributeSet.save();
+      if (attributeSet.content && attributeSet.content.save) yield attributeSet.content.save();
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onSaveAttributeSetSucceeded': Ember.on('saveAttributeSet:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Save Succesful',
+        'message': `${attributeSetTitle} was saved`
+      });
+    }),
+    'onSaveAttributeSetErrored': Ember.on('saveAttributeSet:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteAttributeSet': (0, _emberConcurrency.task)(function* (attributeSet) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Delete Attribute Set',
+          'content': `Are you sure you want to delete the <strong>${attributeSet.get('name')}</strong> attribute set?`,
+          'confirmButton': {
+            'text': 'Delete',
+            'icon': 'delete',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              this.get('_confirmedAttributeSetDelete').perform(attributeSet);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'close',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_confirmedAttributeSetDelete': (0, _emberConcurrency.task)(function* (attributeSet) {
+      if (attributeSet.destroyRecord) yield attributeSet.destroyRecord();
+      if (attributeSet.content && attributeSet.content.destroyRecord) yield attributeSet.content.destroyRecord();
+      this.get('attributeSets').removeObject(attributeSet);
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onConfirmedAttributeSetDeleteSucceeded': Ember.on('_confirmedAttributeSetDelete:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onConfirmedAttributeSetDeleteErrored': Ember.on('_confirmedAttributeSetDelete:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    '_refreshAttributeSetList': (0, _emberConcurrency.task)(function* () {
+      if (this.get('feature').trim() === '') return;
+      const tenantFeatureId = yield this.get('ajax').request(`/common/attribute-sets/tenantFeatureIdFromName/${this.get('feature')}`, {
+        'method': 'GET'
+      });
+      let tenantFeature = yield this.get('store').peekRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+      if (!tenantFeature) tenantFeature = yield this.get('store').findRecord('tenant-administration/feature-manager/tenant-feature', tenantFeatureId.tenantFeatureId);
+      this.set('tenantFeature', tenantFeature);
+      yield this.get('store').query('common/attribute-set', {
+        'tenant-feature-id': tenantFeature.get('id')
+      });
+      this.set('attributeSets', this.get('store').peekAll('common/attribute-set').filterBy('tenantFeature.id', tenantFeature.get('id')));
+    }).evented().drop().retryable(backoffPolicy),
+    'onRefreshAttributeSetListErrored': Ember.on('_refreshAttributeSetList:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-properties-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-lifeline", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberLifeline, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
+  var _default = _baseComponent.default.extend({
+    'categorized': false,
+    'currentCategory': 'static',
+    'sourceTypes': null,
+    'dataTypes': null,
+    'timestampFormatTypes': null,
+    'uncategorizedTableColumns': null,
+    'categorizedTableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+    'expandedItems': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('uncategorizedTableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'internalTag',
+        'title': 'Tag'
+      }, {
+        'propertyName': 'units',
+        'title': 'Units'
+      }, {
+        'propertyName': 'displaySource',
+        'title': 'Source Type'
+      }, {
+        'propertyName': 'displayDatatype',
+        'title': 'Data Type'
+      }, {
+        'propertyName': 'persistPeriod',
+        'title': 'Persist Period'
+      }, {
+        'propertyName': 'displayTimestampFormat',
+        'title': 'Timestamp Format'
+      }]);
+      this.set('categorizedTableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'internalTag',
+        'title': 'Tag'
+      }, {
+        'propertyName': 'units',
+        'title': 'Units'
+      }, {
+        'propertyName': 'displayDatatype',
+        'title': 'Data Type'
+      }, {
+        'propertyName': 'persistPeriod',
+        'title': 'Persist Period'
+      }, {
+        'propertyName': 'displayTimestampFormat',
+        'title': 'Timestamp Format'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Properties to show',
+        'tableSummary': 'Properties %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSetProperty'),
+        'editTask': this.get('editAttributeSetProperty'),
+        'saveTask': this.get('saveAttributeSetProperty'),
+        'cancelTask': this.get('cancelAttributeSetProperty'),
+        'deleteTask': this.get('deleteAttributeSetProperty')
+      });
+      this.set('expandedItems', Ember.ArrayProxy.create({
+        'content': Ember.A([])
+      }));
+    },
+
+    'onInit': (0, _emberConcurrency.task)(function* () {
+      if (!this.get('sourceTypes')) {
+        const sourceTypes = yield this.get('ajax').request('/masterdata/attributeSourceTypes', {
+          'method': 'GET'
+        });
+        this.set('sourceTypes', sourceTypes.filter(srcType => {
+          return srcType !== 'imported';
+        }));
+      }
+
+      if (!this.get('dataTypes')) {
+        const dataTypes = yield this.get('ajax').request('/masterdata/attributeDataTypes', {
+          'method': 'GET'
+        });
+        this.set('dataTypes', dataTypes);
+      }
+
+      if (!this.get('timestampFormatTypes')) {
+        const timestampFormatTypes = yield this.get('ajax').request('/masterdata/timestampFormatTypes', {
+          'method': 'GET'
+        });
+        this.set('timestampFormatTypes', timestampFormatTypes);
+      }
+    }).on('init').evented().drop().retryable(backoffPolicy),
+    'onInitErrored': Ember.on('onInit:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.$('div.classic-tabs').css('margin-right', '-1px');
+      yield this.$('div.classic-tabs > ul').addClass('tabs-grey');
+    }).keepLatest().on('didInsertElement'),
+    'onCategorizedChange': Ember.observer('categorized', function () {
+      if (!this.get('categorized')) return;
+      (0, _emberLifeline.runTask)(this, () => {
+        this.$('div.classic-tabs').css('margin-right', '-1px');
+        this.$('div.classic-tabs > ul').addClass('tabs-grey');
+      }, 500);
+    }),
+    'setAttributeSource': function (newTabId) {
+      const newSourceType = this.$(`a[href="#${newTabId}"]`).html().trim().toLowerCase();
+      this.set('currentCategory', newSourceType);
+      return true;
+    },
+    'addAttributeSetProperty': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      try {
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
+        });
+        const newAttributeSetProperty = this.get('store').createRecord('common/attribute-set-property', {
+          'tenant': tenant,
+          'attributeSet': this.get('model'),
+          'source': this.get('categorized') ? this.get('currentCategory') : 'static'
+        });
+        this.get('model.properties').addObject(newAttributeSetProperty);
+        yield this.get('editAttributeSetProperty').perform(newAttributeSetProperty);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'editAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      const notification = this.get('notification');
+
+      try {
+        yield this.get('expandedItems').addObject(attributeSetProperty);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'cancelAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Cancel Changes',
+          'content': `Are you sure you want to cancel changes made to the <strong>${attributeSetProperty.get('name')}</strong> attribute set property?`,
+          'confirmButton': {
+            'text': attributeSetProperty.get('isNew') ? 'Delete Attribute Set Property' : 'Undo Changes',
+            'icon': attributeSetProperty.get('isNew') ? 'delete' : 'undo',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (attributeSetProperty.get('isNew')) {
+                this.get('_confirmedAttributeSetPropertyDelete').perform(attributeSetProperty);
+              } else {
+                if (attributeSetProperty.rollback) {
+                  attributeSetProperty.rollback();
+                }
+
+                if (attributeSetProperty.content && attributeSetProperty.content.rollback) {
+                  attributeSetProperty.content.rollback();
+                }
+              }
+            }
+          },
+          'cancelButton': {
+            'text': 'Keep Changes',
+            'icon': 'cancel',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'saveAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      if (attributeSetProperty.save) yield attributeSetProperty.save();
+      if (attributeSetProperty.content && attributeSetProperty.content.save) yield attributeSetProperty.content.save();
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onSaveAttributeSetPropertySucceeded': Ember.on('saveAttributeSetProperty:succeeded', function (taskInstance) {
+      const attributeSetPropertyTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Save Succesful',
+        'message': `${attributeSetPropertyTitle} was saved`
+      });
+    }),
+    'onSaveAttributeSetPropertyErrored': Ember.on('saveAttributeSetProperty:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteAttributeSetProperty': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Delete Attribute Set Property',
+          'content': `Are you sure you want to delete the <strong>${attributeSetProperty.get('name')}</strong> attribute set property?`,
+          'confirmButton': {
+            'text': 'Delete',
+            'icon': 'delete',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              this.get('_confirmedAttributeSetPropertyDelete').perform(attributeSetProperty);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'close',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_confirmedAttributeSetPropertyDelete': (0, _emberConcurrency.task)(function* (attributeSetProperty) {
+      if (attributeSetProperty.destroyRecord) yield attributeSetProperty.destroyRecord();
+      if (attributeSetProperty.content && attributeSetProperty.content.destroyRecord) yield attributeSetProperty.content.destroyRecord();
+      this.get('model.properties').removeObject(attributeSetProperty);
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onConfirmedAttributeSetPropertyDeleteSucceeded': Ember.on('_confirmedAttributeSetPropertyDelete:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onConfirmedAttributeSetPropertyDeleteErrored': Ember.on('_confirmedAttributeSetPropertyDelete:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-property-editor", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'classNames': ['layout-column', 'layout-align-start-stretch'],
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/components/dashboard/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
   "use strict";
 
@@ -2240,6 +2819,162 @@
     enumerable: true,
     get: function () {
       return _rowFilteringCell.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v3/columns-dropdown", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v3/columns-dropdown"], function (_exports, _columnsDropdown) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _columnsDropdown.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v3/data-group-by-select", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v3/data-group-by-select"], function (_exports, _dataGroupBySelect) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _dataGroupBySelect.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v3/global-filter", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v3/global-filter"], function (_exports, _globalFilter) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _globalFilter.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v3/row-filtering-cell", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v3/row-filtering-cell"], function (_exports, _rowFilteringCell) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _rowFilteringCell.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v3/summary", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v3/summary"], function (_exports, _summary) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _summary.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v4/columns-dropdown", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v4/columns-dropdown"], function (_exports, _columnsDropdown) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _columnsDropdown.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v4/data-group-by-select", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v4/data-group-by-select"], function (_exports, _dataGroupBySelect) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _dataGroupBySelect.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v4/global-filter", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v4/global-filter"], function (_exports, _globalFilter) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _globalFilter.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v4/row-filtering-cell", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v4/row-filtering-cell"], function (_exports, _rowFilteringCell) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _rowFilteringCell.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-bootstrap-v4/summary", ["exports", "ember-models-table/components/models-table/themes/ember-bootstrap-v4/summary"], function (_exports, _summary) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _summary.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-semanticui/row-filtering-cell", ["exports", "ember-models-table/components/models-table/themes/ember-semanticui/row-filtering-cell"], function (_exports, _rowFilteringCell) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _rowFilteringCell.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/components/models-table/themes/ember-semanticui/select", ["exports", "ember-models-table/components/models-table/themes/ember-semanticui/select"], function (_exports, _select) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _select.default;
     }
   });
 });
@@ -3797,90 +4532,90 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend(_emberInvokeAction.InvokeActionMixin, {
-    view(record) {
-      if (this.get('callbacks.viewAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.viewAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.viewTask')) {
-        this.get('callbacks.viewTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    edit(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('editRow')();
-        return true;
-      }
-
-      if (this.get('callbacks.editAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.editAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.editTask')) {
-        this.get('callbacks.editTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    save(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('saveRow')();
-      }
-
-      if (this.get('callbacks.saveAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.saveAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.saveTask')) {
-        this.get('callbacks.saveTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    cancel(record) {
-      if (this.get('inlineEditEnabled')) {
-        this.get('cancelEditRow')();
-      }
-
-      if (this.get('callbacks.cancelAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.cancelAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.cancelTask')) {
-        this.get('callbacks.cancelTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
-    delete(record) {
-      if (this.get('callbacks.deleteAction')) {
-        this.invokeAction('controller-action', this.get('callbacks.deleteAction'), record);
-        return true;
-      }
-
-      if (this.get('callbacks.deleteTask')) {
-        this.get('callbacks.deleteTask').perform(record);
-        return true;
-      }
-
-      return false;
-    },
-
     actions: {
+      view(record) {
+        if (this.get('callbacks.viewAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.viewAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.viewTask')) {
+          this.get('callbacks.viewTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      edit(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('editRow')();
+          return true;
+        }
+
+        if (this.get('callbacks.editAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.editAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.editTask')) {
+          this.get('callbacks.editTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      save(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('saveRow')();
+        }
+
+        if (this.get('callbacks.saveAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.saveAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.saveTask')) {
+          this.get('callbacks.saveTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      cancel(record) {
+        if (this.get('inlineEditEnabled')) {
+          this.get('cancelEditRow')();
+        }
+
+        if (this.get('callbacks.cancelAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.cancelAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.cancelTask')) {
+          this.get('callbacks.cancelTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
+      delete(record) {
+        if (this.get('callbacks.deleteAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.deleteAction'), record);
+          return true;
+        }
+
+        if (this.get('callbacks.deleteTask')) {
+          this.get('callbacks.deleteTask').perform(record);
+          return true;
+        }
+
+        return false;
+      },
+
       collapseRow(index, record) {
         this.get('collapseRow')(index, record);
       },
@@ -3933,7 +4668,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/plantworks-model-table", ["exports", "plantworks-webapp-server/framework/base-component", "plantworks-webapp-server/themes/bootstrap4", "ember-invoke-action", "ember-concurrency"], function (_exports, _baseComponent, _bootstrap, _emberInvokeAction, _emberConcurrency) {
+;define("plantworks-webapp-server/components/plantworks-model-table", ["exports", "plantworks-webapp-server/framework/base-component", "plantworks-webapp-server/themes/ember-bootstrap-v4", "ember-invoke-action", "ember-concurrency"], function (_exports, _baseComponent, _emberBootstrapV, _emberInvokeAction, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -3943,9 +4678,11 @@
 
   /* eslint-disable require-yield */
   var _default = _baseComponent.default.extend(_emberInvokeAction.InvokeActionMixin, {
-    themeInstance: null,
-    _messages: null,
-    _customIcons: null,
+    'themeInstance': null,
+    '_messages': null,
+    '_customIcons': null,
+    '_expandedItems': null,
+    '_selectedItems': null,
 
     init() {
       this.set('_messages', {
@@ -3956,17 +4693,24 @@
         'sort-asc': 'fas fa-sort-up',
         'sort-desc': 'fas fa-sort-down'
       });
+      this.set('_expandedItems', []);
+      this.set('_selectedItems', []);
 
       this._super(...arguments);
     },
 
     'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
       const mergedMessages = Object.assign({}, this.get('_messages'), this.get('messages') || {});
-      this.set('themeInstance', _bootstrap.default.create({
-        'table': 'table table-hover table-condensed',
+
+      let themeInstance = _emberBootstrapV.default.create({
         'globalFilterWrapper': 'float-right',
         'messages': mergedMessages
-      }));
+      });
+
+      Object.assign(themeInstance, this.get('_customIcons'));
+      this.set('themeInstance', themeInstance);
+      this.set('expandedItems', this.get('expandedItems') || this.get('_expandedItems'));
+      this.set('selectedItems', this.get('selectedItems') || this.get('_selectedItems'));
       if (!this.get('editEnabled') && !this.get('inlineEditEnabled')) return;
       const modelTableActionsAdded = this.get('columns').filter(columnDef => {
         return columnDef.component === 'plantworksModelTableActions';
@@ -3980,6 +4724,8 @@
       });
     }).drop().on('willInsertElement'),
     'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      this.$('button.clearFilterIcon').attr('class', 'clearFilterIcon btn btn-secondary btn-link mx-0').css('padding', '0.6rem 1rem');
+      this.$('button.clearFilters').attr('class', 'clearFilters btn btn-link m-0 ml-2 p-0');
       if (!this.get('createEnabled')) return;
       if (!(this.get('callbacks.addAction') || this.get('callbacks.addTask'))) return;
       const createButton = window.$('<button type="button" class="md-default-theme md-button md-primary md-raised"></button>');
@@ -4893,7 +5639,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+;define("plantworks-webapp-server/components/sku-manager/main-component", ["exports", "plantworks-webapp-server/framework/base-component", "ember-computed-style"], function (_exports, _baseComponent, _emberComputedStyle) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -4901,7 +5647,38 @@
   });
   _exports.default = void 0;
 
-  var _default = _baseComponent.default.extend({});
+  var _default = _baseComponent.default.extend({
+    classNames: ['flex'],
+    'attributable': false,
+    'configurable': false,
+    'uploadable': false,
+    'reportable': false,
+    style: (0, _emberComputedStyle.default)('display'),
+    'display': Ember.computed('permissionCount', function () {
+      return {
+        'display': this.get('hasPermission') <= 1 ? 'none' : 'block'
+      };
+    }),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
+    },
+
+    onHasPermissionChange: Ember.observer('hasPermission', function () {
+      const currUser = this.get('currentUser');
+      this.set('attributable', currUser.hasPermission('sku-manager-attribute-set-read OR sku-manager-attribute-set-update'));
+      this.set('configurable', currUser.hasPermission('sku-manager-configuration-read OR sku-manager-configuration-update'));
+      this.set('uploadable', currUser.hasPermission('sku-manager-upload'));
+      this.set('reportable', currUser.hasPermission('sku-manager-report-execute'));
+    }),
+    'permissionCount': Ember.computed('attributable', 'configurable', 'uploadable', 'reportable', function () {
+      return ['attributable', 'configurable', 'uploadable', 'reportable'].reduce((prevVal, currVal) => {
+        return prevVal + (this.get(currVal) ? 1 : 0);
+      }, 0);
+    })
+  });
 
   _exports.default = _default;
 });
@@ -6033,7 +6810,7 @@
             'warn': true,
             'raised': true,
             'callback': () => {
-              self.get('removeLocation').perform(primaryTenantLocation);
+              self.get('_confirmedDeletePrimaryLocation').perform();
             }
           }
         };
@@ -6130,7 +6907,7 @@
     }),
     'deletePrimaryLocation': (0, _emberConcurrency.task)(function* () {
       const modalData = {
-        'title': 'Delete Group',
+        'title': 'Delete Location',
         'content': `Are you sure you want to delete the <strong>${this.get('model.tenantLocation.name')}</strong> location?`,
         'confirmButton': {
           'text': 'Delete',
@@ -7028,11 +7805,12 @@
     'advisable': false,
     'receivable': false,
     'shippable': false,
+    'reportable': false,
 
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read OR warehouse-manager-report-execute');
     },
 
     onHasPermissionChange: Ember.observer('hasPermission', function () {
@@ -7312,8 +8090,6 @@
     value: true
   });
   _exports.default = void 0;
-
-  /* eslint-disable ember/avoid-leaking-state-in-ember-objects */
   const {
     inject
   } = Ember;
@@ -7399,10 +8175,111 @@
   _exports.default = void 0;
 
   var _default = _baseController.default.extend({
+    'attributable': false,
+    'configurable': false,
+    'uploadable': false,
+    'reportable': false,
+    'hasSubModulePermissions': Ember.computed.or('attributable', 'configurable', 'uploadable', 'reportable'),
+
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'sku-manager-read');
+      this.set('permissions', 'sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    'onPermissionChanged': Ember.on('init', Ember.observer('permissions', function () {
+      this.onUserDataUpdated();
+    })),
+
+    onUserDataUpdated() {
+      const currentUser = this.get('currentUser');
+      this.set('attributable', currentUser.hasPermission('sku-manager-attribute-set-read OR sku-manager-attribute-set-update'));
+      this.set('configurable', currentUser.hasPermission('sku-manager-configuration-read OR sku-manager-configuration-update'));
+      this.set('uploadable', currentUser.hasPermission('sku-manager-upload'));
+      this.set('reportable', currentUser.hasPermission('sku-manager-report-execute'));
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/attribute-sets", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/configuration", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/reports", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/controllers/sku-manager/upload", ["exports", "plantworks-webapp-server/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
     }
 
   });
@@ -7748,7 +8625,7 @@
     init() {
       this._super(...arguments);
 
-      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
+      this.set('permissions', 'warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read OR warehouse-manager-report-execute');
     }
 
   });
@@ -8371,6 +9248,25 @@
     }
   });
 });
+;define("plantworks-webapp-server/helpers/changeset-set", ["exports", "ember-changeset/helpers/changeset-set"], function (_exports, _changesetSet) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _changesetSet.default;
+    }
+  });
+  Object.defineProperty(_exports, "changesetSet", {
+    enumerable: true,
+    get: function () {
+      return _changesetSet.changesetSet;
+    }
+  });
+});
 ;define("plantworks-webapp-server/helpers/changeset", ["exports", "ember-changeset-validations/helpers/changeset"], function (_exports, _changeset) {
   "use strict";
 
@@ -8457,12 +9353,6 @@
     enumerable: true,
     get: function () {
       return _compact.default;
-    }
-  });
-  Object.defineProperty(_exports, "compact", {
-    enumerable: true,
-    get: function () {
-      return _compact.compact;
     }
   });
 });
@@ -8611,12 +9501,6 @@
       return _drop.default;
     }
   });
-  Object.defineProperty(_exports, "drop", {
-    enumerable: true,
-    get: function () {
-      return _drop.drop;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/ember-power-select-is-group", ["exports", "ember-power-select/helpers/ember-power-select-is-group"], function (_exports, _emberPowerSelectIsGroup) {
   "use strict";
@@ -8763,12 +9647,6 @@
       return _filterBy.default;
     }
   });
-  Object.defineProperty(_exports, "filterBy", {
-    enumerable: true,
-    get: function () {
-      return _filterBy.filterBy;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/filter", ["exports", "ember-composable-helpers/helpers/filter"], function (_exports, _filter) {
   "use strict";
@@ -8782,12 +9660,6 @@
       return _filter.default;
     }
   });
-  Object.defineProperty(_exports, "filter", {
-    enumerable: true,
-    get: function () {
-      return _filter.filter;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/find-by", ["exports", "ember-composable-helpers/helpers/find-by"], function (_exports, _findBy) {
   "use strict";
@@ -8799,12 +9671,6 @@
     enumerable: true,
     get: function () {
       return _findBy.default;
-    }
-  });
-  Object.defineProperty(_exports, "findBy", {
-    enumerable: true,
-    get: function () {
-      return _findBy.findBy;
     }
   });
 });
@@ -8913,12 +9779,6 @@
     enumerable: true,
     get: function () {
       return _groupBy.default;
-    }
-  });
-  Object.defineProperty(_exports, "groupBy", {
-    enumerable: true,
-    get: function () {
-      return _groupBy.groupBy;
     }
   });
 });
@@ -9103,12 +9963,6 @@
     enumerable: true,
     get: function () {
       return _intersect.default;
-    }
-  });
-  Object.defineProperty(_exports, "intersect", {
-    enumerable: true,
-    get: function () {
-      return _intersect.intersect;
     }
   });
 });
@@ -9329,12 +10183,6 @@
       return _join.default;
     }
   });
-  Object.defineProperty(_exports, "join", {
-    enumerable: true,
-    get: function () {
-      return _join.join;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/lcm", ["exports", "ember-math-helpers/helpers/lcm"], function (_exports, _lcm) {
   "use strict";
@@ -9538,12 +10386,6 @@
       return _mapBy.default;
     }
   });
-  Object.defineProperty(_exports, "mapBy", {
-    enumerable: true,
-    get: function () {
-      return _mapBy.mapBy;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/map", ["exports", "ember-composable-helpers/helpers/map"], function (_exports, _map) {
   "use strict";
@@ -9555,12 +10397,6 @@
     enumerable: true,
     get: function () {
       return _map.default;
-    }
-  });
-  Object.defineProperty(_exports, "map", {
-    enumerable: true,
-    get: function () {
-      return _map.map;
     }
   });
 });
@@ -10159,12 +10995,6 @@
       return _reduce.default;
     }
   });
-  Object.defineProperty(_exports, "reduce", {
-    enumerable: true,
-    get: function () {
-      return _reduce.reduce;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/reject-by", ["exports", "ember-composable-helpers/helpers/reject-by"], function (_exports, _rejectBy) {
   "use strict";
@@ -10176,12 +11006,6 @@
     enumerable: true,
     get: function () {
       return _rejectBy.default;
-    }
-  });
-  Object.defineProperty(_exports, "rejectBy", {
-    enumerable: true,
-    get: function () {
-      return _rejectBy.rejectBy;
     }
   });
 });
@@ -10214,12 +11038,6 @@
     enumerable: true,
     get: function () {
       return _reverse.default;
-    }
-  });
-  Object.defineProperty(_exports, "reverse", {
-    enumerable: true,
-    get: function () {
-      return _reverse.reverse;
     }
   });
 });
@@ -10321,12 +11139,6 @@
       return _slice.default;
     }
   });
-  Object.defineProperty(_exports, "slice", {
-    enumerable: true,
-    get: function () {
-      return _slice.slice;
-    }
-  });
 });
 ;define("plantworks-webapp-server/helpers/sort-by", ["exports", "ember-composable-helpers/helpers/sort-by"], function (_exports, _sortBy) {
   "use strict";
@@ -10338,12 +11150,6 @@
     enumerable: true,
     get: function () {
       return _sortBy.default;
-    }
-  });
-  Object.defineProperty(_exports, "sortBy", {
-    enumerable: true,
-    get: function () {
-      return _sortBy.sortBy;
     }
   });
 });
@@ -10363,6 +11169,25 @@
     enumerable: true,
     get: function () {
       return _sqrt.sqrt;
+    }
+  });
+});
+;define("plantworks-webapp-server/helpers/stringify", ["exports", "ember-models-table/helpers/stringify"], function (_exports, _stringify) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _stringify.default;
+    }
+  });
+  Object.defineProperty(_exports, "stringify", {
+    enumerable: true,
+    get: function () {
+      return _stringify.stringify;
     }
   });
 });
@@ -10395,12 +11220,6 @@
     enumerable: true,
     get: function () {
       return _take.default;
-    }
-  });
-  Object.defineProperty(_exports, "take", {
-    enumerable: true,
-    get: function () {
-      return _take.take;
     }
   });
 });
@@ -10592,12 +11411,6 @@
     enumerable: true,
     get: function () {
       return _union.default;
-    }
-  });
-  Object.defineProperty(_exports, "union", {
-    enumerable: true,
-    get: function () {
-      return _union.union;
     }
   });
 });
@@ -11422,6 +12235,97 @@
     }
   });
 });
+;define("plantworks-webapp-server/models/common/attribute-set-property", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string', {
+      'defaultValue': 'New Attribute'
+    }),
+    'internalTag': _emberData.default.attr('string', {
+      'defaultValue': 'NEW_ATTRIBUTE'
+    }),
+    'units': _emberData.default.attr('string'),
+    'persistPeriod': _emberData.default.attr('number', {
+      'defaultValue': 0
+    }),
+    'evaluationExpression': _emberData.default.attr('string'),
+    'description': _emberData.default.attr('string'),
+    'source': _emberData.default.attr('string', {
+      'defaultValue': 'static'
+    }),
+    'datatype': _emberData.default.attr('string', {
+      'defaultValue': 'number'
+    }),
+    'timestampFormat': _emberData.default.attr('string', {
+      'defaultValue': 'not_a_timestamp'
+    }),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': 'properties'
+    }),
+    'onDatatypeChange': Ember.observer('datatype', function () {
+      if (this.get('datatype') === 'date') {
+        if (this.get('timestampFormat') !== 'not_a_timestamp') return;
+        this.set('timestampFormat', 'unix_epoch');
+        return;
+      }
+
+      this.set('timestampFormat', 'not_a_timestamp');
+    }),
+    'displaySource': Ember.computed('source', function () {
+      return Ember.String.capitalize(this.get('source'));
+    }),
+    'displayDatatype': Ember.computed('datatype', function () {
+      return Ember.String.capitalize(this.get('datatype'));
+    }),
+    'displayTimestampFormat': Ember.computed('isTimestamp', 'timestampFormat', function () {
+      return this.get('datatype') === 'date' ? (this.get('timestampFormat') || '').split('_').map(segment => {
+        return Ember.String.capitalize(segment);
+      }).join(' ') : '';
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/models/common/attribute-set", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string', {
+      'defaultValue': 'New Attribute Set'
+    }),
+    'description': _emberData.default.attr('string'),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'tenantFeature': _emberData.default.belongsTo('tenant-administration/feature-manager/tenant-feature', {
+      'async': true,
+      'inverse': null
+    }),
+    'properties': _emberData.default.hasMany('common/attribute-set-property', {
+      'async': true,
+      'inverse': 'attributeSet'
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/models/dashboard/feature", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
   "use strict";
 
@@ -11568,12 +12472,17 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
+    'code': _emberData.default.attr('string'),
+    'name': _emberData.default.attr('string'),
+    'type': _emberData.default.attr('string'),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
       'inverse': 'skus'
     }),
-    'code': _emberData.default.attr('string'),
-    'name': _emberData.default.attr('string')
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': null
+    })
   });
 
   _exports.default = _default;
@@ -11909,6 +12818,38 @@
   var _default = _emberResolver.default;
   _exports.default = _default;
 });
+;/*
+import EmberRouter from '@ember/routing/router';
+import config from './config/environment';
+
+const Router = EmberRouter.extend({
+  location: config.locationType,
+  rootURL: config.rootURL
+});
+
+Router.map(function() {
+  this.route('freestyle');
+  this.route('profile');
+  this.route('dashboard');
+  this.route('tenant-administration', function() {
+    this.route('feature-manager');
+    this.route('group-manager');
+    this.route('user-manager');
+  });
+  this.route('sku-manager', function() {
+    this.route('attribute-sets');
+    this.route('configuration');
+    this.route('upload');
+    this.route('reports');
+  });
+  this.route('warehouse-manager');
+});
+
+export default Router;
+*/
+define("plantworks-webapp-server/router", [], function () {
+  "use strict";
+});
 ;define("plantworks-webapp-server/routes/application", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
   "use strict";
 
@@ -12100,7 +13041,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks-webapp-server/routes/sku-manager", ["exports", "plantworks-webapp-server/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+;define("plantworks-webapp-server/routes/sku-manager", ["exports", "plantworks-webapp-server/framework/base-route", "ember-lifeline", "ember-concurrency"], function (_exports, _baseRoute, _emberLifeline, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -12124,23 +13065,24 @@
     model() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
         return;
       }
 
       const skuData = this.get('store').peekAll('sku-manager/sku');
       if (skuData.get('length')) return skuData;
       return this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant, attributeSet, attributeSet.properties'
+        'include': 'tenant'
       });
+    },
+
+    redirect(model, transition) {
+      if (this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(`${this.get('fullRouteName')}.`)) transition.abort();
+      if (transition.targetName === `${this.get('fullRouteName')}.index` || transition.targetName === this.get('fullRouteName')) (0, _emberLifeline.runTask)(this, this._redirectToSubRoute, 500);
     },
 
     onUserDataUpdated() {
       if (!window.plantworksTenantId) {
         this.get('store').unloadAll('sku-manager/sku');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set');
-        this.get('store').unloadAll('sku-manager/sku-attribute-set-properties');
       }
 
       const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
@@ -12157,10 +13099,177 @@
     'refreshSkuList': (0, _emberConcurrency.task)(function* () {
       let skuData = this.get('store').peekAll('sku-manager/sku');
       if (!skuData.get('length')) skuData = yield this.get('store').findAll('sku-manager/sku', {
-        'include': 'tenant, attributeSet, attributeSet.properties'
+        'include': 'tenant'
       });
       this.get('controller').set('model', skuData);
-    }).keepLatest()
+    }).keepLatest(),
+
+    _redirectToSubRoute() {
+      if (!this.get('controller.hasSubModulePermissions')) {
+        return;
+      }
+
+      if (this.get('controller.attributable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.attribute-sets`);
+        return;
+      }
+
+      if (this.get('controller.configurable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.configuration`);
+        return;
+      }
+
+      if (this.get('controller.uploadable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.upload`);
+        return;
+      }
+
+      if (this.get('controller.reportable')) {
+        this.transitionTo(`${this.get('fullRouteName')}.reports`);
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/attribute-sets", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/configuration", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/reports", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/routes/sku-manager/upload", ["exports", "plantworks-webapp-server/framework/base-route"], function (_exports, _baseRoute) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+    }
+
   });
 
   _exports.default = _default;
@@ -12802,7 +13911,7 @@
     },
 
     display(data) {
-      if (this.get('notifyEnabled') && ((data.type || 'info') === 'success' || (data.type || 'info') === 'error')) {
+      if (this.get('notifyEnabled') && (data.type || 'info') === 'error') {
         const thisNotification = new _notifyjs.default(data.title || (data.type ? data.type.capitalize() : ''), {
           'body': data.type !== 'error' ? data.message || data : data.error.responseText || data.error.message || data.error,
           'closeOnClick': true,
@@ -12824,8 +13933,6 @@
         toast[data.type ? data.type : 'info'](data.message || data, data.title || (data.type ? data.type.capitalize() : ''), options);
         return;
       }
-
-      console.error(`Error: `, data.error);
 
       if (typeof data.error === 'string') {
         toast.error(data.error.replace(/\\n/g, '\n').split('\n').splice(0, 2).join('\n'), 'Error', options);
@@ -13057,7 +14164,6 @@
   });
   _exports.default = void 0;
 
-  /* globals FastBoot */
   let isString = function (value) {
     return typeof value === 'string';
   };
@@ -13171,6 +14277,78 @@
     "block": "{\"symbols\":[\"navbar\",\"nav\"],\"statements\":[[2,\" For the configurable Page Title \"],[0,\"\\n\"],[1,[21,\"head-layout\"],false],[0,\"\\n\"],[1,[27,\"page-title\",[[23,[\"mainTitle\"]]],null],false],[0,\"\\n\\n\"],[2,\" Customizable Header \"],[0,\"\\n\"],[7,\"header\"],[11,\"class\",\"sticky-top\"],[9],[0,\"\\n\"],[4,\"bs-navbar\",null,[[\"class\",\"position\",\"type\",\"backgroundColor\",\"collapsed\",\"fluid\"],[\"p-0 px-2 py-1\",\"sticky-top\",\"light\",\"plantworks\",false,true]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"navbar-header\"],[9],[0,\"\\n\"],[4,\"link-to\",[\"index\"],[[\"class\"],[\"navbar-brand\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"img\"],[11,\"src\",\"/img/logo.png\"],[11,\"style\",\"max-height:2.5rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `navbar.content` to be a contextual component but found a string. Did you mean `(component navbar.content)`? ('plantworks-webapp-server/templates/application.hbs' @ L13:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"nav\"]],\"expected `navbar.nav` to be a contextual component but found a string. Did you mean `(component navbar.nav)`? ('plantworks-webapp-server/templates/application.hbs' @ L14:C6) \"],null]],[[\"id\",\"class\"],[\"plantworks-webapp-server-template-bhairavi-notification-area\",\"ml-auto nav-flex-icons white-text layout-row layout-align-end-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks-webapp-server/templates/application.hbs' @ L15:C7) \"],null]],null,{\"statements\":[[1,[27,\"component\",[\"tenant/notification-area\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks-webapp-server/templates/application.hbs' @ L16:C7) \"],null]],null,{\"statements\":[[1,[27,\"component\",[\"dashboard/notification-area\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks-webapp-server/templates/application.hbs' @ L17:C7) \"],null]],null,{\"statements\":[[1,[27,\"component\",[\"profile/notification-area\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks-webapp-server/templates/application.hbs' @ L18:C7) \"],null]],null,{\"statements\":[[1,[27,\"component\",[\"session/logout-component\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[10],[0,\"\\n\\n\"],[2,\" Main Area \"],[0,\"\\n\"],[7,\"main\"],[11,\"class\",\"bg-light\"],[11,\"style\",\"box-shadow:0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-second-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-second-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-second-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-second-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-left-column\"],[11,\"class\",\"layout-column layout-align-start flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-outlet\"],[11,\"class\",\"layout-row layout-align-center-start flex\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-right-column\"],[11,\"class\",\"layout-column layout-align-start flex-initial\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"component\",[\"session/login-component\"],null],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" Customizable Footer \"],[0,\"\\n\"],[7,\"footer\"],[11,\"class\",\"page-footer mt-2 layout-row layout-align-space-between grey\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\tCopyright© 2014 \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[0,\"EroNkan Technologies\"],[10]],\"parameters\":[]},null],[0,\". All rights reserved.\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" The mandatory empty div elements for wormhole, paper, bootstrap, etc. \"],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-bootstrap-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-basic-dropdown-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-toast-fab-wormhole\"],[9],[10],[0,\"\\n\\n\\n\"],[2,\" Modal \"],[0,\"\\n\"],[4,\"liquid-if\",[[23,[\"showDialog\"]]],null,{\"statements\":[[4,\"paper-dialog\",null,[[\"class\",\"onClose\",\"parent\",\"origin\",\"clickOutsideToClose\",\"escapeToClose\"],[[23,[\"modalData\",\"dialogClass\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null],[23,[\"modalData\",\"parentElement\"]],[23,[\"modalData\",\"dialogOrigin\"]],false,false]],{\"statements\":[[4,\"paper-toolbar\",null,[[\"class\"],[\"stylish-color white-text\"]],{\"statements\":[[4,\"paper-toolbar-tools\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h2\"],[9],[1,[23,[\"modalData\",\"title\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"componentName\"]]],null,{\"statements\":[[4,\"paper-dialog-content\",null,[[\"class\"],[\"flex m-0 p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"component\",[[23,[\"modalData\",\"componentName\"]]],[[\"state\"],[[23,[\"modalData\",\"componentState\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-dialog-content\",null,null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[23,[\"modalData\",\"content\"]],true],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"modalData\",\"confirmButton\"]],[23,[\"modalData\",\"cancelButton\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[21,\"paper-divider\"],false],[0,\"\\n\"],[4,\"paper-dialog-actions\",null,[[\"class\"],[\"layout-row layout-align-end-center\"]],{\"statements\":[[4,\"if\",[[23,[\"modalData\",\"cancelButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"cancelButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"cancelButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"confirmButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",true],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"confirmButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"confirmButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/application.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "JZDZox5s",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0 mb-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L8:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-start p-2\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex flex-gt-md-70\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"],[4,\"if\",[[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"component\",[\"common/attribute-set-properties-manager\"],[[\"model\",\"controller-action\"],[[23,[\"record\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "Y2yKksqO",
+    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"attributeSets\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-editor\"],[[\"controller-action\"],[[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-properties-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "mcH7IxXV",
+    "block": "{\"symbols\":[\"card\",\"tab\",\"sourceType\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Attributes\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[5]},null],[4,\"paper-switch\",null,[[\"class\",\"value\",\"onChange\"],[\"m-0\",[23,[\"categorized\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"categorized\"]]],null]],null]]],{\"statements\":[[4,\"if\",[[23,[\"categorized\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\tTabbed View\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\tConsolidated View\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L14:C4) \"],null]],[[\"class\"],[\"p-0 pb-2\"]],{\"statements\":[[4,\"liquid-if\",[[23,[\"categorized\"]]],null,{\"statements\":[[4,\"bs-tab\",null,[[\"class\",\"onChange\"],[\"classic-tabs\",[27,\"action\",[[22,0,[]],\"controller-action\",\"setAttributeSource\"],null]]],{\"statements\":[[4,\"each\",[[23,[\"sourceTypes\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L18:C8) \"],null]],[[\"title\"],[[27,\"titleize\",[[22,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"model\",\"properties\"]]],null],[23,[\"categorizedTableColumns\"]],[23,[\"messages\"]],true,true,[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"expandedItems\"]]],null],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[27,\"array\",[[22,3,[]]],null],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"model\",\"properties\"]],[23,[\"uncategorizedTableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[23,[\"sourceTypes\"]],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-property-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "S10aQoxq",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\",\"card\",\"header\",\"text\",\"card\",\"timestampFormat\",\"dataType\",\"header\",\"text\",\"card\",\"sourceType\",\"header\",\"text\",\"card\",\"header\",\"text\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 layout-row layout-align-space-between-stretch layout-wrap\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-50\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,17,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,18,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L5:C7) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[18]},null]],\"parameters\":[17]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L9:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-start layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-70\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Units\",[23,[\"record\",\"units\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"units\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Tag\",[23,[\"record\",\"internalTag\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"internalTag\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[16]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-20\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L21:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,14,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L22:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,15,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L23:C7) \"],null]],null,{\"statements\":[[0,\"Source/Storage\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[15]},null]],\"parameters\":[14]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L27:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"gt\",[[27,\"get\",[[23,[\"allowedSources\"]],\"length\"],null],1],null]],null,{\"statements\":[[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"source\"]],[23,[\"allowedSources\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"source\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,13,[]]],null],false],[0,\"\\n\"]],\"parameters\":[13]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",\"Source Type\",[23,[\"record\",\"displaySource\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Static Value\",[23,[\"record\",\"evaluationExpression\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"evaluationExpression\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"number\",\"flex-100\",\"Persist Period\",[23,[\"record\",\"persistPeriod\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"persistPeriod\"]]],null]],null],[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[12]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-25\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L49:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,10,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L50:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,11,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L51:C7) \"],null]],null,{\"statements\":[[0,\"Data Format\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[11]},null]],\"parameters\":[10]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L55:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"datatype\"]],[23,[\"allDataTypes\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"datatype\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,9,[]]],null],false],[0,\"\\n\"]],\"parameters\":[9]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"disabled\"],[\"flex-100 mt-0\",[23,[\"record\",\"timestampFormat\"]],[23,[\"timestampFormats\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"timestampFormat\"]]],null]],null],[27,\"not-eq\",[[23,[\"record\",\"datatype\"]],\"date\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[27,\"humanize\",[[22,8,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[8]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[7]},null],[10],[0,\"\\n\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L71:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L72:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L73:C6) \"],null]],null,{\"statements\":[[0,\"Description\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L77:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[4]},null],[0,\"\\n\"],[4,\"liquid-if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"computed\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L84:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L85:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L86:C6) \"],null]],null,{\"statements\":[[0,\"Expression\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L90:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs"
     }
   });
 
@@ -13429,8 +14607,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "xrM0l9/0",
-    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"onClick\"],[true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "JxPQGHsn",
+    "block": "{\"symbols\":[\"&default\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isLoading\"]],[23,[\"record\",\"isReloading\"]],[23,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"viewAction\"]],[23,[\"callbacks\",\"viewTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"iconButton\",\"onClick\"],[\"m-0\",true,[27,\"action\",[[22,0,[]],\"view\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"not\",[[27,\"not\",[[23,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[23,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"collapseRow\"]],true,true,[27,\"action\",[[22,0,[]],\"collapseRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"primary\",\"iconButton\",\"onClick\"],[[23,[\"themeInstance\",\"expandRow\"]],true,true,[27,\"action\",[[22,0,[]],\"expandRow\",[23,[\"index\"]],[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"editAction\"]],[23,[\"callbacks\",\"editTask\"]]],null],[27,\"not\",[[27,\"get\",[[23,[\"record\"]],[27,\"or\",[[23,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"edit\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"record\",\"isNew\"]],[23,[\"record\",\"hasDirtyAttributes\"]],[23,[\"record\",\"isDirty\"]],[23,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"saveAction\"]],[23,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"save\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[27,\"or\",[[23,[\"callbacks\",\"cancelAction\"]],[23,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"cancel\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[27,\"and\",[[27,\"or\",[[23,[\"callbacks\",\"deleteAction\"]],[23,[\"callbacks\",\"deleteTask\"]]],null],[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,[27,\"action\",[[22,0,[]],\"delete\",[23,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"],[14,1],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/plantworks-model-table-actions.hbs"
     }
@@ -13483,8 +14661,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "zev51Iun",
-    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"customIcons\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"doFilteringByHiddenColumns\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\"],[[23,[\"data\"]],[23,[\"columns\"]],[27,\"assign\",[[23,[\"columnComponents\"]],[27,\"hash\",null,[[\"plantworksModelTableActions\"],[[27,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\"],[[23,[\"callbacks\"]],[23,[\"expandedRowComponent\"]],[23,[\"inlineEditEnabled\"]]]]]]]]],null],[23,[\"themeInstance\"]],[23,[\"_customIcons\"]],[23,[\"expandedItems\"]],[23,[\"expandedRowComponent\"]],[23,[\"multipleExpand\"]],[23,[\"selectedItems\"]],[23,[\"multipleSelect\"]],false,true,true,true,true,true,false,true,false,[27,\"action\",[[22,0,[]],\"controller-action\",\"displayDataChanged\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "YlC22zm6",
+    "block": "{\"symbols\":[],\"statements\":[[1,[27,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"doFilteringByHiddenColumns\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\"],[[23,[\"data\"]],[23,[\"columns\"]],[27,\"assign\",[[23,[\"columnComponents\"]],[27,\"hash\",null,[[\"plantworksModelTableActions\"],[[27,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\"],[[23,[\"callbacks\"]],[23,[\"expandedRowComponent\"]],[23,[\"inlineEditEnabled\"]]]]]]]]],null],[23,[\"themeInstance\"]],[23,[\"expandedItems\"]],[23,[\"expandedRowComponent\"]],[23,[\"multipleExpand\"]],[23,[\"selectedItems\"]],[23,[\"multipleSelect\"]],false,true,true,true,true,true,false,true,false,[27,\"action\",[[22,0,[]],\"controller-action\",\"displayDataChanged\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/plantworks-model-table.hbs"
     }
@@ -13609,8 +14787,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Hnq66VJ+",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L7:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"barcode\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-xs-column layout-sm-column layout-md-column\"]],{\"statements\":[],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "1TlDyP/5",
+    "block": "{\"symbols\":[\"card\",\"card\",\"card\",\"card\"],\"statements\":[[4,\"if\",[[27,\"and\",[[23,[\"hasPermission\"]],[27,\"gt\",[[23,[\"permissionCount\"]],1],null]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"p-0 layout-row layout-align-start-stretch layout-wrap flex\"],[9],[0,\"\\n\"],[4,\"if\",[[23,[\"attributable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.attribute-sets\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L6:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"mdi-icon\",[\"video-input-component\"],[[\"size\"],[64]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tAttribute Sets\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"configurable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.configuration\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L19:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"tools\"],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tConfiguration\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"uploadable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.upload\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L32:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"upload\"],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tData Uploader\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"reportable\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"link-to\",[\"sku-manager.reports\"],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/sku-manager/main-component.hbs' @ L45:C6) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"mdi-icon\",[\"chart-line\"],[[\"size\"],[64]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-4\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\tReports\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/sku-manager/main-component.hbs"
     }
@@ -14077,10 +15255,82 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Dog5eX4D",
-    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"page-title\",[\"SKU Management\"],null],false],[0,\"\\n\\t\"],[1,[27,\"component\",[\"sku-manager/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "VL42kg0I",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[1,[27,\"page-title\",[\"SKU Management\"],null],false],[0,\"\\n\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L6:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L7:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"warehouse\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"SKU Manager\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/sku-manager.hbs' @ L11:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch layout-wrap flex\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"component\",[\"sku-manager/main-component\"],[[\"model\",\"controller-action\"],[[23,[\"model\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"hasSubModulePermissions\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"mt-1 flex\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/sku-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/attribute-sets", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "OKNEHC3f",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"bg-plantworks-component-reverse black-text\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L3:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[1,[27,\"mdi-icon\",[\"video-input-component\"],[[\"size\",\"class\"],[32,\"mr-2\"]]],false],[0,\"Attribute Sets\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs' @ L7:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch flex\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"component\",[\"common/attribute-set-manager\"],[[\"feature\",\"controller-action\"],[\"SkuManager\",[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/attribute-sets.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/configuration", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "0DQ0n68U",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Configuration\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/configuration.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/reports", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "a3MXlQuA",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Reports\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/reports.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/sku-manager/upload", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "vRYtm4Y2",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"h1\"],[9],[0,\"TODO: SKU Data Upload\"],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/sku-manager/upload.hbs"
     }
   });
 
@@ -14215,7 +15465,7 @@
     }
   });
 });
-;define("plantworks-webapp-server/themes/semanticui", ["exports", "ember-models-table/themes/semanticui"], function (_exports, _semanticui) {
+;define("plantworks-webapp-server/themes/ember-bootstrap-v3", ["exports", "ember-models-table/themes/ember-bootstrap-v3"], function (_exports, _emberBootstrapV) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -14224,7 +15474,46 @@
   Object.defineProperty(_exports, "default", {
     enumerable: true,
     get: function () {
-      return _semanticui.default;
+      return _emberBootstrapV.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/themes/ember-bootstrap-v4", ["exports", "ember-models-table/themes/ember-bootstrap-v4"], function (_exports, _emberBootstrapV) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _emberBootstrapV.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/themes/ember-semanticui", ["exports", "ember-models-table/themes/ember-semanticui"], function (_exports, _emberSemanticui) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _emberSemanticui.default;
+    }
+  });
+});
+;define("plantworks-webapp-server/themes/semanticui", ["exports", "ember-models-table/themes/ember-semanticui"], function (_exports, _emberSemanticui) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _emberSemanticui.default;
     }
   });
 });
@@ -14567,7 +15856,7 @@
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+7bf128e6"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+6bf70ae5"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
