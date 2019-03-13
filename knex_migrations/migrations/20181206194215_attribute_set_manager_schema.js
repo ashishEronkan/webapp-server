@@ -37,8 +37,6 @@ exports.up = async function(knex) {
 
 			AttributePropertiesTbl.specificType('source', 'public.attribute_source_type').notNullable().defaultTo('static');
 			AttributePropertiesTbl.specificType('datatype', 'public.attribute_value_type').notNullable().defaultTo('string');
-
-			AttributePropertiesTbl.boolean('is_timestamp').notNullable().defaultTo(false);
 			AttributePropertiesTbl.specificType('timestamp_format', 'public.timestamp_type');
 
 			AttributePropertiesTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
@@ -51,7 +49,7 @@ exports.up = async function(knex) {
 		});
 
 		await knex.schema.withSchema('public').raw(`
-			CREATE UNIQUE INDEX uidx_attribute_set_properties_id_name ON public.attribute_set_properties
+			CREATE UNIQUE INDEX uidx_attribute_set_id_name ON public.attribute_set_properties
 			USING btree
 			(
 				attribute_set_id ASC,

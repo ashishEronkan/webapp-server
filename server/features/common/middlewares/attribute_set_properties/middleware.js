@@ -225,7 +225,7 @@ class AttributeSetProperties extends PlantWorksBaseMiddleware {
 			const attributeSetProperty = ctxt.request.body;
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(attributeSetProperty);
 
-			jsonDeserializedData['attribute_set_id'] = jsonDeserializedData['id'];
+			jsonDeserializedData['attribute_set_property_id'] = jsonDeserializedData['id'];
 			delete jsonDeserializedData.id;
 			delete jsonDeserializedData.created_at;
 			delete jsonDeserializedData.updated_at;
