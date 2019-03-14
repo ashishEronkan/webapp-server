@@ -114,6 +114,60 @@ class AttributeSetProperties extends PlantWorksBaseMiddleware {
 
 					'attributeSet': function() {
 						return this.belongsTo(self.$AttributeSetModel, 'attribute_set_id');
+					},
+
+					'dependantFunctions': function() {
+						return this.hasMany(self.$AttributeSetFunctionObservedPropertyModel, 'attribute_set_property_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$AttributeSetFunctionModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'attribute_set_functions',
+					'idAttribute': 'attribute_set_function_id',
+					'hasTimestamps': true,
+
+					'tenant': function() {
+						return this.belongsTo(self.$TenantModel, 'tenant_id');
+					},
+
+					'attributeSet': function() {
+						return this.belongsTo(self.$AttributeSetModel, 'attribute_set_id');
+					},
+
+					'observedProperties': function() {
+						return this.hasMany(self.$AttributeSetFunctionObservedPropertyModel, 'attribute_set_function_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$AttributeSetFunctionObservedPropertyModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'attribute_set_function_observed_properties',
+					'idAttribute': 'attribute_set_function_observed_property_id',
+					'hasTimestamps': true,
+
+					'tenant': function() {
+						return this.belongsTo(self.$TenantModel, 'tenant_id');
+					},
+
+					'attributeSet': function() {
+						return this.belongsTo(self.$AttributeSetModel, 'attribute_set_id');
+					},
+
+					'attributeSetFunction': function() {
+						return this.belongsTo(self.$AttributeSetFunctionModel, 'attribute_set_function_id');
+					},
+
+					'attributeSetProperty': function() {
+						return this.belongsTo(self.$AttributeSetPropertyModel, 'attribute_set_property_id');
 					}
 				})
 			});
@@ -139,6 +193,7 @@ class AttributeSetProperties extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
+			delete this.$AttributeSetFunctionObservedPropertyModel;
 			delete this.$AttributeSetPropertyModel;
 			delete this.$AttributeSetModel;
 			delete this.$TenantFeatureModel;
@@ -200,13 +255,14 @@ class AttributeSetProperties extends PlantWorksBaseMiddleware {
 				.andWhere({ 'tenant_id': ctxt.state.tenant.tenant_id });
 			})
 			.fetch({
-				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenant', 'attributeSet']
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenant', 'attributeSet', 'dependantFunctions']
 			});
 
 			attributeSetPropertyData = this.$jsonApiMapper.map(attributeSetPropertyData, 'common/attribute-set-property', {
 				'typeForModel': {
 					'tenant': 'tenant-administration/tenant',
-					'attributeSet': 'common/attribute-set'
+					'attributeSet': 'common/attribute-set',
+					'dependantFunctions': 'common/attribute-set-function-observed-property'
 				},
 
 				'enableLinks': false

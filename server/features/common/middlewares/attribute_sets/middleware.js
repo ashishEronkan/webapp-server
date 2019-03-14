@@ -15,7 +15,7 @@ const PlantWorksMiddlewareError = require('plantworks-middleware-error').PlantWo
 /**
  * @class   AttributeSets
  * @extends {PlantWorksBaseMiddleware}
- * @classdesc The Plant.Works Web Application Server AttributeSets middleware - manage CRUD for all attribute sets / properties related operations.
+ * @classdesc The Plant.Works Web Application Server AttributeSets middleware - manage CRUD for all attribute sets / properties / functions related operations.
  *
  *
  */
@@ -95,6 +95,10 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 
 					'properties': function() {
 						return this.hasMany(self.$AttributeSetPropertyModel, 'attribute_set_id');
+					},
+
+					'functions': function() {
+						return this.hasMany(self.$AttributeSetFunctionModel, 'attribute_set_id');
 					}
 				})
 			});
@@ -106,6 +110,25 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 				'value': dbSrvc.Model.extend({
 					'tableName': 'attribute_set_properties',
 					'idAttribute': 'attribute_set_property_id',
+					'hasTimestamps': true,
+
+					'tenant': function() {
+						return this.belongsTo(self.$TenantModel, 'tenant_id');
+					},
+
+					'attributeSet': function() {
+						return this.belongsTo(self.$AttributeSetModel, 'attribute_set_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$AttributeSetFunctionModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'attribute_set_functions',
+					'idAttribute': 'attribute_set_function_id',
 					'hasTimestamps': true,
 
 					'tenant': function() {
@@ -139,6 +162,7 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
+			delete this.$AttributeSetFunctionModel;
 			delete this.$AttributeSetPropertyModel;
 			delete this.$AttributeSetModel;
 			delete this.$TenantFeatureModel;
@@ -200,13 +224,14 @@ class AttributeSets extends PlantWorksBaseMiddleware {
 				.andWhere({ 'tenant_id': ctxt.state.tenant.tenant_id });
 			})
 			.fetchAll({
-				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenantFeature', 'properties']
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenantFeature', 'properties', 'functions']
 			});
 
 			attributeSetData = this.$jsonApiMapper.map(attributeSetData, 'common/attribute-set', {
 				'typeForModel': {
 					'tenantFeature': 'tenant-administration/feature-manager/tenant-feature',
-					'properties': 'common/attribute-set-property'
+					'properties': 'common/attribute-set-property',
+					'functions': 'common/attribute-set-function'
 				},
 
 				'enableLinks': false

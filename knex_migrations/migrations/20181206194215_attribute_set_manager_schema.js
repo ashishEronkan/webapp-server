@@ -66,9 +66,92 @@ exports.up = async function(knex) {
 			)`
 		);
 	}
+
+	exists = await knex.schema.withSchema('public').hasTable('attribute_set_functions');
+	if(!exists) {
+		await knex.schema.withSchema('public').createTable('attribute_set_functions', function(AttributeFunctionsTbl) {
+			AttributeFunctionsTbl.uuid('tenant_id').notNullable();
+			AttributeFunctionsTbl.uuid('attribute_set_id').notNullable();
+			AttributeFunctionsTbl.uuid('attribute_set_function_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
+
+			AttributeFunctionsTbl.text('name').notNullable();
+			AttributeFunctionsTbl.text('description');
+			AttributeFunctionsTbl.text('code');
+
+			AttributeFunctionsTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
+			AttributeFunctionsTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+
+			AttributeFunctionsTbl.primary(['tenant_id', 'attribute_set_id', 'attribute_set_function_id']);
+			AttributeFunctionsTbl.unique(['attribute_set_function_id']);
+
+			AttributeFunctionsTbl.foreign(['tenant_id', 'attribute_set_id']).references(['tenant_id', 'attribute_set_id']).inTable('attribute_sets').onDelete('CASCADE').onUpdate('CASCADE');
+		});
+
+		await knex.schema.withSchema('public').raw(`
+			CREATE UNIQUE INDEX uidx_attribute_set_id_function_name ON public.attribute_set_functions
+			USING btree
+			(
+				attribute_set_id ASC,
+				name ASC
+			)`
+		);
+	}
+
+	exists = await knex.schema.withSchema('public').hasTable('attribute_set_function_observed_properties');
+	if(!exists) {
+		await knex.schema.withSchema('public').createTable('attribute_set_function_observed_properties', function(AttributeFunctionObservedPropertiesTbl) {
+			AttributeFunctionObservedPropertiesTbl.uuid('tenant_id').notNullable();
+			AttributeFunctionObservedPropertiesTbl.uuid('attribute_set_id').notNullable();
+			AttributeFunctionObservedPropertiesTbl.uuid('attribute_set_function_id').notNullable();
+			AttributeFunctionObservedPropertiesTbl.uuid('attribute_set_property_id').notNullable();
+			AttributeFunctionObservedPropertiesTbl.uuid('attribute_set_function_observed_property_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));;
+
+			AttributeFunctionObservedPropertiesTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
+			AttributeFunctionObservedPropertiesTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
+
+			AttributeFunctionObservedPropertiesTbl.primary(['tenant_id', 'attribute_set_id', 'attribute_set_function_id', 'attribute_set_property_id']);
+			AttributeFunctionObservedPropertiesTbl.unique(['attribute_set_function_observed_property_id']);
+		});
+
+		await knex.schema.withSchema('public').raw(`
+			ALTER TABLE public.attribute_set_function_observed_properties
+			ADD CONSTRAINT fk_attribute_set_fn_observed_prop_attribute_set_fn
+			FOREIGN KEY (
+				tenant_id,
+				attribute_set_id,
+				attribute_set_function_id
+			)
+			REFERENCES attribute_set_functions (
+				tenant_id,
+				attribute_set_id,
+				attribute_set_function_id
+			)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE`
+		);
+
+		await knex.schema.withSchema('public').raw(`
+			ALTER TABLE public.attribute_set_function_observed_properties
+			ADD CONSTRAINT fk_attribute_set_fn_observed_prop_attribute_set_prop
+			FOREIGN KEY (
+				tenant_id,
+				attribute_set_id,
+				attribute_set_property_id
+			)
+			REFERENCES attribute_set_properties (
+				tenant_id,
+				attribute_set_id,
+				attribute_set_property_id
+			)
+			ON UPDATE CASCADE
+			ON DELETE CASCADE`
+		);
+	}
 };
 
 exports.down = async function(knex) {
+	await knex.raw(`DROP TABLE IF EXISTS public.attribute_set_function_observed_properties CASCADE;`);
+	await knex.raw(`DROP TABLE IF EXISTS public.attribute_set_functions CASCADE;`);
 	await knex.raw(`DROP TABLE IF EXISTS public.attribute_set_properties CASCADE;`);
 	await knex.raw(`DROP TABLE IF EXISTS public.attribute_sets CASCADE;`);
 };

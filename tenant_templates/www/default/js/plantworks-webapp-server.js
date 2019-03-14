@@ -1026,6 +1026,372 @@
 
   _exports.default = _default;
 });
+;define("plantworks-webapp-server/components/common/attribute-set-function-editor", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
+  var _default = _baseComponent.default.extend({
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'classNames': ['layout-column', 'layout-align-start-stretch'],
+    'tableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('tableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'attributeSetProperty.name',
+        'title': 'Attribute Set Property'
+      }, {
+        'propertyName': 'attributeSetProperty.internalTag',
+        'title': 'Tag'
+      }, {
+        'propertyName': 'attributeSetProperty.units',
+        'title': 'Units'
+      }, {
+        'propertyName': 'attributeSetProperty.displaySource',
+        'title': 'Source Type'
+      }, {
+        'propertyName': 'attributeSetProperty.displayDatatype',
+        'title': 'Data Type'
+      }, {
+        'propertyName': 'attributeSetProperty.displayTimestampFormat',
+        'title': 'Timestamp Format'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Observed Properties to show',
+        'tableSummary': 'Observed Properties %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSetFunctionObservedProperty'),
+        'deleteTask': this.get('deleteAttributeSetFunctionObservedProperty')
+      });
+    },
+
+    'addAttributeSetFunctionObservedProperty': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      try {
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
+        });
+        const attributeSet = this.get('record.attributeSet');
+        const attributeSetProperties = yield attributeSet.get('properties');
+        const observedProperties = yield this.get('record.observedProperties');
+        const observedPropertyIds = [];
+        observedProperties.forEach(observedProperty => {
+          observedPropertyIds.push(observedProperty.get('attributeSetProperty.id'));
+        });
+        const allowedProperties = [];
+        attributeSetProperties.forEach(attributeSetProperty => {
+          if (observedPropertyIds.includes(attributeSetProperty.get('is'))) return;
+          allowedProperties.push({
+            'selected': false,
+            'attributeSetProperty': attributeSetProperty
+          });
+        });
+        const modalData = {
+          'title': 'Cancel Changes',
+          'componentName': 'common/attribute-set-function-property-chooser',
+          'componentState': allowedProperties,
+          'confirmButton': {
+            'text': 'OK',
+            'icon': 'done',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              allowedProperties.forEach(allowedProperty => {
+                if (!allowedProperty.selected) return;
+                const newAttributeSetFunctionObservedProperty = this.get('store').createRecord('common/attribute-set-function-observed-property', {
+                  'tenant': tenant,
+                  'attributeSet': this.get('record.attributeSet'),
+                  'attributeSetFunction': this.get('record'),
+                  'attributeSetProperty': allowedProperty.attributeSetProperty
+                });
+                this.get('record.observedProperties').addObject(newAttributeSetFunctionObservedProperty);
+                newAttributeSetFunctionObservedProperty.save();
+              });
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true
+          }
+        };
+        this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'deleteAttributeSetFunctionObservedProperty': (0, _emberConcurrency.task)(function* (attributeSetFunctionObservedProperty) {
+      if (attributeSetFunctionObservedProperty.destroyRecord) yield attributeSetFunctionObservedProperty.destroyRecord();
+      if (attributeSetFunctionObservedProperty.content && attributeSetFunctionObservedProperty.content.destroyRecord) yield attributeSetFunctionObservedProperty.content.destroyRecord();
+      this.get('record.observedProperties').removeObject(attributeSetFunctionObservedProperty);
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onDeleteAttributeSetFunctionObservedPropertySucceeded': Ember.on('deleteAttributeSetFunctionObservedProperty:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('attributeSetProperty.name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onDeleteAttributeSetFunctionObservedPropertyErrored': Ember.on('deleteAttributeSetFunctionObservedProperty:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-function-property-chooser", ["exports", "plantworks-webapp-server/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    'toggleAll': function (selected) {
+      this.get('state').forEach(dataPoint => {
+        dataPoint.selected = selected;
+      });
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/components/common/attribute-set-functions-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const backoffPolicy = new _exponentialBackoff.default({
+    'multiplier': 1.5,
+    'minDelay': 30,
+    'maxDelay': 400
+  });
+
+  var _default = _baseComponent.default.extend({
+    'tableColumns': null,
+    'messages': null,
+    'tableActionCallbacks': null,
+    'expandedItems': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.set('tableColumns', [{
+        'propertyName': 'id',
+        'title': 'ID',
+        'isHidden': true
+      }, {
+        'sortDirection': 'asc',
+        'sortPrecedence': 1,
+        'propertyName': 'name',
+        'title': 'Name'
+      }, {
+        'propertyName': 'description',
+        'title': 'Description'
+      }]);
+      this.set('messages', {
+        'noDataToShow': 'No Functions to show',
+        'tableSummary': 'Functions %@ - %@ of %@'
+      });
+      this.set('tableActionCallbacks', {
+        'addTask': this.get('addAttributeSetFunction'),
+        'editTask': this.get('editAttributeSetFunction'),
+        'saveTask': this.get('saveAttributeSetFunction'),
+        'cancelTask': this.get('cancelAttributeSetFunction'),
+        'deleteTask': this.get('deleteAttributeSetFunction')
+      });
+      this.set('expandedItems', Ember.ArrayProxy.create({
+        'content': Ember.A([])
+      }));
+    },
+
+    'addAttributeSetFunction': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      try {
+        let tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        if (!tenant) tenant = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId, {
+          'include': 'tenantLocation'
+        });
+        const newAttributeSetFunction = this.get('store').createRecord('common/attribute-set-function', {
+          'tenant': tenant,
+          'attributeSet': this.get('model'),
+          'source': this.get('categorized') ? this.get('currentCategory') : 'static'
+        });
+        this.get('model.functions').addObject(newAttributeSetFunction);
+        yield this.get('editAttributeSetFunction').perform(newAttributeSetFunction);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'editAttributeSetFunction': (0, _emberConcurrency.task)(function* (attributeSetFunction) {
+      const notification = this.get('notification');
+
+      try {
+        yield this.get('expandedItems').addObject(attributeSetFunction);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'cancelAttributeSetFunction': (0, _emberConcurrency.task)(function* (attributeSetFunction) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Cancel Changes',
+          'content': `Are you sure you want to cancel changes made to the <strong>${attributeSetFunction.get('name')}</strong> attribute set function?`,
+          'confirmButton': {
+            'text': attributeSetFunction.get('isNew') ? 'Delete Attribute Set Function' : 'Undo Changes',
+            'icon': attributeSetFunction.get('isNew') ? 'delete' : 'undo',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (attributeSetFunction.get('isNew')) {
+                this.get('_confirmedAttributeSetFunctionDelete').perform(attributeSetFunction);
+              } else {
+                if (attributeSetFunction.rollback) {
+                  attributeSetFunction.rollback();
+                }
+
+                if (attributeSetFunction.content && attributeSetFunction.content.rollback) {
+                  attributeSetFunction.content.rollback();
+                }
+              }
+            }
+          },
+          'cancelButton': {
+            'text': 'Keep Changes',
+            'icon': 'cancel',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    'saveAttributeSetFunction': (0, _emberConcurrency.task)(function* (attributeSetFunction) {
+      if (attributeSetFunction.save) yield attributeSetFunction.save();
+      if (attributeSetFunction.content && attributeSetFunction.content.save) yield attributeSetFunction.content.save();
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onSaveAttributeSetFunctionSucceeded': Ember.on('saveAttributeSetFunction:succeeded', function (taskInstance) {
+      const attributeSetFunctionTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Save Succesful',
+        'message': `${attributeSetFunctionTitle} was saved`
+      });
+    }),
+    'onSaveAttributeSetFunctionErrored': Ember.on('saveAttributeSetFunction:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteAttributeSetFunction': (0, _emberConcurrency.task)(function* (attributeSetFunction) {
+      const notification = this.get('notification');
+
+      try {
+        const modalData = {
+          'title': 'Delete Attribute Set Function',
+          'content': `Are you sure you want to delete the <strong>${attributeSetFunction.get('name')}</strong> attribute set function?`,
+          'confirmButton': {
+            'text': 'Delete',
+            'icon': 'delete',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              this.get('_confirmedAttributeSetFunctionDelete').perform(attributeSetFunction);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'close',
+            'primary': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).enqueue(),
+    '_confirmedAttributeSetFunctionDelete': (0, _emberConcurrency.task)(function* (attributeSetFunction) {
+      if (attributeSetFunction.destroyRecord) yield attributeSetFunction.destroyRecord();
+      if (attributeSetFunction.content && attributeSetFunction.content.destroyRecord) yield attributeSetFunction.content.destroyRecord();
+      this.get('model.functions').removeObject(attributeSetFunction);
+    }).evented().enqueue().retryable(backoffPolicy),
+    'onConfirmedAttributeSetFunctionDeleteSucceeded': Ember.on('_confirmedAttributeSetFunctionDelete:succeeded', function (taskInstance) {
+      const attributeSetTitle = taskInstance.args[0].get('name');
+      this.get('notification').display({
+        'type': 'success',
+        'title': 'Delete Succesful',
+        'message': `${attributeSetTitle} was deleted`
+      });
+    }),
+    'onConfirmedAttributeSetFunctionDeleteErrored': Ember.on('_confirmedAttributeSetFunctionDelete:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/components/common/attribute-set-manager", ["exports", "plantworks-webapp-server/framework/base-component", "ember-concurrency-retryable/policies/exponential-backoff", "ember-concurrency"], function (_exports, _baseComponent, _exponentialBackoff, _emberConcurrency) {
   "use strict";
 
@@ -1309,11 +1675,11 @@
         'propertyName': 'displayDatatype',
         'title': 'Data Type'
       }, {
-        'propertyName': 'persistPeriod',
-        'title': 'Persist Period'
-      }, {
         'propertyName': 'displayTimestampFormat',
         'title': 'Timestamp Format'
+      }, {
+        'propertyName': 'displayPersistPeriod',
+        'title': 'Persist Period'
       }]);
       this.set('categorizedTableColumns', [{
         'propertyName': 'id',
@@ -1334,11 +1700,11 @@
         'propertyName': 'displayDatatype',
         'title': 'Data Type'
       }, {
-        'propertyName': 'persistPeriod',
-        'title': 'Persist Period'
-      }, {
         'propertyName': 'displayTimestampFormat',
         'title': 'Timestamp Format'
+      }, {
+        'propertyName': 'displayPersistPeriod',
+        'title': 'Persist Period'
       }]);
       this.set('messages', {
         'noDataToShow': 'No Properties to show',
@@ -1386,10 +1752,10 @@
         'error': err
       });
     }),
-    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
-      yield this.$('div.classic-tabs').css('margin-right', '-1px');
-      yield this.$('div.classic-tabs > ul').addClass('tabs-grey');
-    }).keepLatest().on('didInsertElement'),
+    // 'onDidInsertElement': task(function* () {
+    // 	yield this.$('div.classic-tabs').css('margin-right', '-1px');
+    // 	yield this.$('div.classic-tabs > ul').addClass('tabs-grey');
+    // }).keepLatest().on('didInsertElement'),
     'onCategorizedChange': Ember.observer('categorized', function () {
       if (!this.get('categorized')) return;
       (0, _emberLifeline.runTask)(this, () => {
@@ -4704,7 +5070,8 @@
 
       let themeInstance = _emberBootstrapV.default.create({
         'globalFilterWrapper': 'float-right',
-        'messages': mergedMessages
+        'messages': mergedMessages,
+        'table': 'table table-hover table-condensed table-sm'
       });
 
       Object.assign(themeInstance, this.get('_customIcons'));
@@ -12235,6 +12602,67 @@
     }
   });
 });
+;define("plantworks-webapp-server/models/common/attribute-set-function-observed-property", ["exports", "ember-data"], function (_exports, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _emberData.default.Model.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': null
+    }),
+    'attributeSetFunction': _emberData.default.belongsTo('common/attribute-set-function', {
+      'async': true,
+      'inverse': 'observedProperties'
+    }),
+    'attributeSetProperty': _emberData.default.belongsTo('common/attribute-set-property', {
+      'async': true,
+      'inverse': 'dependantFunctions'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/models/common/attribute-set-function", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string', {
+      'defaultValue': 'New Function'
+    }),
+    'description': _emberData.default.attr('string'),
+    'code': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': null
+    }),
+    'attributeSet': _emberData.default.belongsTo('common/attribute-set', {
+      'async': true,
+      'inverse': 'functions'
+    }),
+    'observedProperties': _emberData.default.hasMany('common/attribute-set-function-observed-property', {
+      'async': true,
+      'inverse': 'attributeSetFunction'
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks-webapp-server/models/common/attribute-set-property", ["exports", "plantworks-webapp-server/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
   "use strict";
 
@@ -12254,7 +12682,9 @@
     'persistPeriod': _emberData.default.attr('number', {
       'defaultValue': 0
     }),
-    'evaluationExpression': _emberData.default.attr('string'),
+    'evaluationExpression': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
     'description': _emberData.default.attr('string'),
     'source': _emberData.default.attr('string', {
       'defaultValue': 'static'
@@ -12273,25 +12703,40 @@
       'async': true,
       'inverse': 'properties'
     }),
-    'onDatatypeChange': Ember.observer('datatype', function () {
+    'dependantFunctions': _emberData.default.hasMany('common/attribute-set-function-observed-property', {
+      'async': true,
+      'inverse': 'attributeSetProperty'
+    }),
+    'onSourceChange': Ember.on('ready', Ember.observer('source', function () {
+      if (this.get('source') === 'static') return;
+      if (this.get('source') === 'computed') return;
+      if (!this.get('evaluationExpression')) return;
+      if (this.get('evaluationExpression') === '') return;
+      this.set('evaluationExpression', '');
+    })),
+    'onDatatypeChange': Ember.on('ready', Ember.observer('datatype', function () {
       if (this.get('datatype') === 'date') {
         if (this.get('timestampFormat') !== 'not_a_timestamp') return;
         this.set('timestampFormat', 'unix_epoch');
         return;
       }
 
+      if (this.get('timestampFormat') === 'not_a_timestamp') return;
       this.set('timestampFormat', 'not_a_timestamp');
-    }),
+    })),
     'displaySource': Ember.computed('source', function () {
       return Ember.String.capitalize(this.get('source'));
     }),
     'displayDatatype': Ember.computed('datatype', function () {
       return Ember.String.capitalize(this.get('datatype'));
     }),
-    'displayTimestampFormat': Ember.computed('isTimestamp', 'timestampFormat', function () {
+    'displayTimestampFormat': Ember.computed('timestampFormat', function () {
       return this.get('datatype') === 'date' ? (this.get('timestampFormat') || '').split('_').map(segment => {
         return Ember.String.capitalize(segment);
       }).join(' ') : '';
+    }),
+    'displayPersistPeriod': Ember.computed('source', 'persistPeriod', function () {
+      return this.get('source') === 'static' ? 'FOREVER' : `${this.get('persistPeriod')} Days`;
     })
   });
 
@@ -12319,6 +12764,10 @@
       'inverse': null
     }),
     'properties': _emberData.default.hasMany('common/attribute-set-property', {
+      'async': true,
+      'inverse': 'attributeSet'
+    }),
+    'functions': _emberData.default.hasMany('common/attribute-set-function', {
       'async': true,
       'inverse': 'attributeSet'
     })
@@ -14291,10 +14740,64 @@ define("plantworks-webapp-server/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "JZDZox5s",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0 mb-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L8:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-start p-2\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex flex-gt-md-70\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"],[4,\"if\",[[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"component\",[\"common/attribute-set-properties-manager\"],[[\"model\",\"controller-action\"],[[23,[\"record\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "vmo7Zjas",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0 mb-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs' @ L8:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-start p-2\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex flex-gt-md-70\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"],[4,\"if\",[[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null,{\"statements\":[[0,\"\\t\"],[1,[27,\"component\",[\"common/attribute-set-properties-manager\"],[[\"model\",\"controller-action\"],[[23,[\"record\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\\t\"],[1,[27,\"component\",[\"common/attribute-set-functions-manager\"],[[\"model\",\"controller-action\"],[[23,[\"record\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-function-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "fZefpJNz",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\",\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L3:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L8:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-stretch layout-wrap\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex flex-gt-md-70\",\"Description\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[4]},null],[0,\"\\n\"],[4,\"if\",[[27,\"not\",[[23,[\"record\",\"isNew\"]]],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L16:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L17:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L18:C6) \"],null]],null,{\"statements\":[[0,\"Observed Properties\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs' @ L22:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"class\",\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"inlineEditEnabled\",\"callbacks\",\"controller-action\"],[\"flex\",[23,[\"record\",\"observedProperties\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,false,false,[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-function-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "WoXNYzdX",
+    "block": "{\"symbols\":[\"card\",\"table\",\"body\",\"allowedDataPoint\",\"row\",\"head\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"flex p-0\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"attributeSetProperty.name\",\"asc\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L5:C7) \"],null]],null,{\"statements\":[[1,[27,\"paper-checkbox\",null,[[\"label\",\"value\",\"onChange\"],[\"\",[23,[\"allSelected\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"toggleAll\"],null]]]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L6:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.name\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Name\"],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L7:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.internalTag\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Tag\"],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L8:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.units\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Units\"],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L9:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.displaySource\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Source Type\"],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L10:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.displayDatatype\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Data Type\"],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L11:C7) \"],null]],[[\"sortProp\"],[\"attributeSetProperty.displayTimestampFormat\"]],{\"statements\":[[7,\"span\"],[9],[0,\"Timestamp Format\"],[10]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L13:C6) \"],null]],null,{\"statements\":[[4,\"each\",[[27,\"sort-by\",[[22,2,[\"sortDesc\"]],[23,[\"state\"]]],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L15:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L16:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-checkbox\",null,[[\"label\",\"value\",\"onChange\"],[\"\",[22,4,[\"selected\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[22,4,[\"selected\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L19:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"name\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L20:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"internalTag\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L21:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"units\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L22:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"displaySource\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L23:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"displayDatatype\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs' @ L24:C9) \"],null]],null,{\"statements\":[[1,[22,4,[\"attributeSetProperty\",\"displayTimestampFormat\"]],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-function-property-chooser.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks-webapp-server/templates/components/common/attribute-set-functions-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "6fINaFZr",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0 mb-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-functions-manager.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-functions-manager.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-functions-manager.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Functions\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-functions-manager.hbs' @ L7:C4) \"],null]],[[\"class\"],[\"p-0 pb-2\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"model\",\"functions\"]],[23,[\"tableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-function-editor\"],[[\"controller-action\"],[[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-functions-manager.hbs"
     }
   });
 
@@ -14327,8 +14830,8 @@ define("plantworks-webapp-server/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "mcH7IxXV",
-    "block": "{\"symbols\":[\"card\",\"tab\",\"sourceType\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Attributes\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[5]},null],[4,\"paper-switch\",null,[[\"class\",\"value\",\"onChange\"],[\"m-0\",[23,[\"categorized\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"categorized\"]]],null]],null]]],{\"statements\":[[4,\"if\",[[23,[\"categorized\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\tTabbed View\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\tConsolidated View\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L14:C4) \"],null]],[[\"class\"],[\"p-0 pb-2\"]],{\"statements\":[[4,\"liquid-if\",[[23,[\"categorized\"]]],null,{\"statements\":[[4,\"bs-tab\",null,[[\"class\",\"onChange\"],[\"classic-tabs\",[27,\"action\",[[22,0,[]],\"controller-action\",\"setAttributeSource\"],null]]],{\"statements\":[[4,\"each\",[[23,[\"sourceTypes\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L18:C8) \"],null]],[[\"title\"],[[27,\"titleize\",[[22,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"model\",\"properties\"]]],null],[23,[\"categorizedTableColumns\"]],[23,[\"messages\"]],true,true,[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"expandedItems\"]]],null],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[27,\"array\",[[22,3,[]]],null],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"model\",\"properties\"]],[23,[\"uncategorizedTableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[23,[\"sourceTypes\"]],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "/x8ndvSJ",
+    "block": "{\"symbols\":[\"card\",\"tab\",\"sourceType\",\"header\",\"text\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0 mb-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"grey lighten-2\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"flex\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"Attributes\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[5]},null],[4,\"paper-switch\",null,[[\"class\",\"value\",\"onChange\"],[\"m-0\",[23,[\"categorized\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"categorized\"]]],null]],null]]],{\"statements\":[[4,\"if\",[[23,[\"categorized\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\tTabbed View\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\tConsolidated View\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L14:C4) \"],null]],[[\"class\"],[\"p-0 pb-2\"]],{\"statements\":[[4,\"liquid-if\",[[23,[\"categorized\"]]],null,{\"statements\":[[4,\"bs-tab\",null,[[\"class\",\"onChange\"],[\"classic-tabs\",[27,\"action\",[[22,0,[]],\"controller-action\",\"setAttributeSource\"],null]]],{\"statements\":[[4,\"each\",[[23,[\"sourceTypes\"]]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs' @ L18:C8) \"],null]],[[\"title\"],[[27,\"titleize\",[[22,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"model\",\"properties\"]]],null],[23,[\"categorizedTableColumns\"]],[23,[\"messages\"]],true,true,[27,\"filter-by\",[\"source\",[22,3,[]],[23,[\"expandedItems\"]]],null],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[27,\"array\",[[22,3,[]]],null],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"plantworks-model-table\",null,[[\"data\",\"columns\",\"messages\",\"createEnabled\",\"editEnabled\",\"expandedItems\",\"multipleExpand\",\"expandedRowComponent\",\"callbacks\",\"controller-action\"],[[23,[\"model\",\"properties\"]],[23,[\"uncategorizedTableColumns\"]],[23,[\"messages\"]],true,true,[23,[\"expandedItems\"]],true,[27,\"component\",[\"common/attribute-set-property-editor\"],[[\"allowedSources\",\"allDataTypes\",\"timestampFormats\",\"controller-action\"],[[23,[\"sourceTypes\"]],[23,[\"dataTypes\"]],[23,[\"timestampFormatTypes\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],[23,[\"tableActionCallbacks\"]],[27,\"action\",[[22,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-properties-manager.hbs"
     }
@@ -14345,8 +14848,8 @@ define("plantworks-webapp-server/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "S10aQoxq",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\",\"card\",\"header\",\"text\",\"card\",\"timestampFormat\",\"dataType\",\"header\",\"text\",\"card\",\"sourceType\",\"header\",\"text\",\"card\",\"header\",\"text\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 layout-row layout-align-space-between-stretch layout-wrap\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-50\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,17,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,18,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L5:C7) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[18]},null]],\"parameters\":[17]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L9:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-start layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-70\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Units\",[23,[\"record\",\"units\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"units\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Tag\",[23,[\"record\",\"internalTag\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"internalTag\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[16]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-20\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L21:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,14,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L22:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,15,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L23:C7) \"],null]],null,{\"statements\":[[0,\"Source/Storage\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[15]},null]],\"parameters\":[14]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L27:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"gt\",[[27,\"get\",[[23,[\"allowedSources\"]],\"length\"],null],1],null]],null,{\"statements\":[[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"source\"]],[23,[\"allowedSources\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"source\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,13,[]]],null],false],[0,\"\\n\"]],\"parameters\":[13]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",\"Source Type\",[23,[\"record\",\"displaySource\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Static Value\",[23,[\"record\",\"evaluationExpression\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"evaluationExpression\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"number\",\"flex-100\",\"Persist Period\",[23,[\"record\",\"persistPeriod\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"persistPeriod\"]]],null]],null],[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[12]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-25\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L49:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,10,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L50:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,11,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L51:C7) \"],null]],null,{\"statements\":[[0,\"Data Format\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[11]},null]],\"parameters\":[10]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L55:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"datatype\"]],[23,[\"allDataTypes\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"datatype\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,9,[]]],null],false],[0,\"\\n\"]],\"parameters\":[9]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"disabled\"],[\"flex-100 mt-0\",[23,[\"record\",\"timestampFormat\"]],[23,[\"timestampFormats\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"timestampFormat\"]]],null]],null],[27,\"not-eq\",[[23,[\"record\",\"datatype\"]],\"date\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[27,\"humanize\",[[22,8,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[8]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[7]},null],[10],[0,\"\\n\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L71:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L72:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L73:C6) \"],null]],null,{\"statements\":[[0,\"Description\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L77:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[4]},null],[0,\"\\n\"],[4,\"liquid-if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"computed\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L84:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L85:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L86:C6) \"],null]],null,{\"statements\":[[0,\"Expression\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L90:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "NauWYsCx",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\",\"card\",\"header\",\"text\",\"card\",\"timestampFormat\",\"dataType\",\"header\",\"text\",\"card\",\"sourceType\",\"header\",\"text\",\"card\",\"header\",\"text\"],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 layout-row layout-align-space-between-stretch layout-wrap\"],[9],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-50\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L3:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,17,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L4:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,18,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L5:C7) \"],null]],null,{\"statements\":[[0,\"Basics\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[18]},null]],\"parameters\":[17]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,16,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L9:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-start layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-70\",\"Name\",[23,[\"record\",\"name\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100 flex-gt-md-25\",\"Units\",[23,[\"record\",\"units\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"units\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Tag\",[23,[\"record\",\"internalTag\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"internalTag\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[16]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-20\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L21:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,14,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L22:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,15,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L23:C7) \"],null]],null,{\"statements\":[[0,\"Source/Storage\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[15]},null]],\"parameters\":[14]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,12,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L27:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"gt\",[[27,\"get\",[[23,[\"allowedSources\"]],\"length\"],null],1],null]],null,{\"statements\":[[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"source\"]],[23,[\"allowedSources\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"source\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,13,[]]],null],false],[0,\"\\n\"]],\"parameters\":[13]},null]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",\"Source Type\",[23,[\"record\",\"displaySource\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",\"Static Value\",[23,[\"record\",\"evaluationExpression\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"evaluationExpression\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"number\",\"flex-100\",\"Storage Period\",[23,[\"record\",\"persistPeriod\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"persistPeriod\"]]],null]],null],[27,\"eq\",[[23,[\"record\",\"source\"]],\"static\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[12]},null],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100 flex-gt-md-25\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L49:C5) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,10,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L50:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,11,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L51:C7) \"],null]],null,{\"statements\":[[0,\"Data Format\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[11]},null]],\"parameters\":[10]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L55:C5) \"],null]],[[\"class\"],[\"layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\"],[\"flex-100 mt-0\",[23,[\"record\",\"datatype\"]],[23,[\"allDataTypes\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"datatype\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[22,9,[]]],null],false],[0,\"\\n\"]],\"parameters\":[9]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"disabled\"],[\"flex-100 mt-0\",[23,[\"record\",\"timestampFormat\"]],[23,[\"timestampFormats\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"timestampFormat\"]]],null]],null],[27,\"not-eq\",[[23,[\"record\",\"datatype\"]],\"date\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"titleize\",[[27,\"humanize\",[[22,8,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[8]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[7]},null],[10],[0,\"\\n\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L71:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L72:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L73:C6) \"],null]],null,{\"statements\":[[0,\"Description\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L77:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"description\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"description\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[4]},null],[0,\"\\n\"],[4,\"liquid-if\",[[27,\"eq\",[[23,[\"record\",\"source\"]],\"computed\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex-100\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L84:C4) \"],null]],[[\"class\"],[\"grey lighten-4\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L85:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L86:C6) \"],null]],null,{\"statements\":[[0,\"Expression\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs' @ L90:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[27,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[23,[\"record\",\"evaluationExpression\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"record\",\"evaluationExpression\"]]],null]],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks-webapp-server/templates/components/common/attribute-set-property-editor.hbs"
     }
@@ -15856,7 +16359,7 @@ define("plantworks-webapp-server/router", [], function () {
 ;define('plantworks-webapp-server/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+6bf70ae5"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks-webapp-server","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/js/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{}},"APP":{"name":"plantworks-webapp-server","version":"2.4.3+519af3ad"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
