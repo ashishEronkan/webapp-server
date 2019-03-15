@@ -13,13 +13,13 @@ const PlantWorksBaseComponent = require('plantworks-base-component').PlantWorksB
 const PlantWorksComponentError = require('plantworks-component-error').PlantWorksComponentError;
 
 /**
- * @class   AttributeSetFunctions
+ * @class   AttributeSetFunctionObservedProperties
  * @extends {PlantWorksBaseComponent}
- * @classdesc The Plant.Works Web Application Server AttributeSetFunction component - exposes attribute set management.
+ * @classdesc The Plant.Works Web Application Server AttributeSetFunctionObservedProperties component - exposes attribute set management.
  *
  *
  */
-class AttributeSetFunctions extends PlantWorksBaseComponent {
+class AttributeSetFunctionObservedProperties extends PlantWorksBaseComponent {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
@@ -32,7 +32,7 @@ class AttributeSetFunctions extends PlantWorksBaseComponent {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof AttributeSetFunction
+	 * @memberof AttributeSetFunctionObservedProperties
 	 * @name     _addRoutes
 	 *
 	 * @returns  {undefined} Nothing.
@@ -41,10 +41,10 @@ class AttributeSetFunctions extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
-			this.$router.get('/:attributeSetFunctionId', this.$parent._rbac('registered'), this._getAttributeSetFunction.bind(this));
-			this.$router.post('/', this.$parent._rbac('registered'), this._addAttributeSetFunction.bind(this));
-			this.$router.patch('/:attributeSetFunctionId', this.$parent._rbac('registered'), this._updateAttributeSetFunction.bind(this));
-			this.$router.delete('/:attributeSetFunctionId', this.$parent._rbac('registered'), this._deleteAttributeSetFunction.bind(this));
+			this.$router.get('/:attributeSetFunctionObservedPropertyId', this.$parent._rbac('registered'), this._getAttributeSetFunctionObservedProperty.bind(this));
+			this.$router.post('/', this.$parent._rbac('registered'), this._addAttributeSetFunctionObservedProperty.bind(this));
+			this.$router.patch('/:attributeSetFunctionObservedPropertyId', this.$parent._rbac('registered'), this._updateAttributeSetFunctionObservedProperty.bind(this));
+			this.$router.delete('/:attributeSetFunctionObservedPropertyId', this.$parent._rbac('registered'), this._deleteAttributeSetFunctionObservedProperty.bind(this));
 
 			await super._addRoutes();
 			return null;
@@ -56,61 +56,61 @@ class AttributeSetFunctions extends PlantWorksBaseComponent {
 	// #endregion
 
 	// #region Route Handlers
-	async _getAttributeSetFunction(ctxt) {
+	async _getAttributeSetFunctionObservedProperty(ctxt) {
 		try {
 			const apiSrvc = this.$dependencies.ApiService;
-			const attributeSetFunctionData = await apiSrvc.execute('AttributeSetFunctions::getAttributeSetFunction', ctxt);
+			const attributeSetFunctionObservedPropertyData = await apiSrvc.execute('AttributeSetFunctionObservedProperties::getAttributeSetFunctionObservedProperty', ctxt);
 
 			ctxt.status = 200;
-			ctxt.body = attributeSetFunctionData.shift();
+			ctxt.body = attributeSetFunctionObservedPropertyData.shift();
 
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error retrieving attribute set function data`, err);
+			throw new PlantWorksComponentError(`Error retrieving attribute set function observed property data`, err);
 		}
 	}
 
-	async _addAttributeSetFunction(ctxt) {
+	async _addAttributeSetFunctionObservedProperty(ctxt) {
 		try {
 			const apiSrvc = this.$dependencies.ApiService;
-			const attributeSetFunctionData = await apiSrvc.execute('AttributeSetFunctions::createAttributeSetFunction', ctxt);
+			const attributeSetFunctionObservedPropertyData = await apiSrvc.execute('AttributeSetFunctionObservedProperties::createAttributeSetFunctionObservedProperty', ctxt);
 
 			ctxt.status = 200;
-			ctxt.body = attributeSetFunctionData.shift();
+			ctxt.body = attributeSetFunctionObservedPropertyData.shift();
 
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error creating attribute set function data`, err);
+			throw new PlantWorksComponentError(`Error creating attribute set function observed property data`, err);
 		}
 	}
 
-	async _updateAttributeSetFunction(ctxt) {
+	async _updateAttributeSetFunctionObservedProperty(ctxt) {
 		try {
 			const apiSrvc = this.$dependencies.ApiService;
-			const attributeSetFunctionData = await apiSrvc.execute('AttributeSetFunctions::updateAttributeSetFunction', ctxt);
+			const attributeSetFunctionObservedPropertyData = await apiSrvc.execute('AttributeSetFunctionObservedProperties::updateAttributeSetFunctionObservedProperty', ctxt);
 
 			ctxt.status = 200;
-			ctxt.body = attributeSetFunctionData.shift();
+			ctxt.body = attributeSetFunctionObservedPropertyData.shift();
 
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error updating attribute set function data`, err);
+			throw new PlantWorksComponentError(`Error updating attribute set function observed property data`, err);
 		}
 	}
 
-	async _deleteAttributeSetFunction(ctxt) {
+	async _deleteAttributeSetFunctionObservedProperty(ctxt) {
 		try {
 			const apiSrvc = this.$dependencies.ApiService;
-			await apiSrvc.execute('AttributeSetFunctions::deleteAttributeSetFunction', ctxt);
+			await apiSrvc.execute('AttributeSetFunctionObservedProperties::deleteAttributeSetFunctionObservedProperty', ctxt);
 
 			ctxt.status = 204;
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error deleting attribute set function data`, err);
+			throw new PlantWorksComponentError(`Error deleting attribute set function observed property data`, err);
 		}
 	}
 	// #endregion
@@ -132,4 +132,4 @@ class AttributeSetFunctions extends PlantWorksBaseComponent {
 	// #endregion
 }
 
-exports.component = AttributeSetFunctions;
+exports.component = AttributeSetFunctionObservedProperties;
