@@ -26,9 +26,11 @@
   });
   _exports.default = void 0;
   var _default = {
-    mobile: '(max-width: 767px)',
-    tablet: '(min-width: 768px) and (max-width: 991px)',
-    desktop: '(min-width: 992px) and (max-width: 1200px)'
+    'xs': '(max-width: 575px)',
+    'sm': '(min-width: 576px) and (max-width: 767px)',
+    'md': '(min-width: 768px) and (max-width: 991px)',
+    'lg': '(min-width: 992px) and (max-width: 1199px)',
+    'xl': '(min-width: 1200px)'
   };
   _exports.default = _default;
 });
@@ -3678,32 +3680,38 @@
   });
   _exports.default = void 0;
   var _default = {
-    time: {
-      hhmmss: {
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric'
+    'time': {
+      'hhmmss': {
+        'hour': 'numeric',
+        'minute': 'numeric',
+        'second': 'numeric'
       }
     },
-    date: {
-      hhmmss: {
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric'
+    'date': {
+      'hhmmss': {
+        'hour': 'numeric',
+        'minute': 'numeric',
+        'second': 'numeric'
       }
     },
-    number: {
-      EUR: {
-        style: 'currency',
-        currency: 'EUR',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+    'number': {
+      'EUR': {
+        'style': 'currency',
+        'currency': 'EUR',
+        'minimumFractionDigits': 2,
+        'maximumFractionDigits': 2
       },
-      USD: {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+      'INR': {
+        'style': 'currency',
+        'currency': 'INR',
+        'minimumFractionDigits': 2,
+        'maximumFractionDigits': 2
+      },
+      'USD': {
+        'style': 'currency',
+        'currency': 'USD',
+        'minimumFractionDigits': 2,
+        'maximumFractionDigits': 2
       }
     }
   };
@@ -7028,20 +7036,22 @@
   var _default = _emberResolver.default;
   _exports.default = _default;
 });
-;define("plantworks/router", ["exports", "plantworks/config/environment"], function (_exports, _environment) {
-  "use strict";
+;/*
+import EmberRouter from '@ember/routing/router';
+import config from './config/environment';
 
-  Object.defineProperty(_exports, "__esModule", {
-    value: true
-  });
-  _exports.default = void 0;
-  const Router = Ember.Router.extend({
-    location: _environment.default.locationType,
-    rootURL: _environment.default.rootURL
-  });
-  Router.map(function () {});
-  var _default = Router;
-  _exports.default = _default;
+const Router = EmberRouter.extend({
+	location: config.locationType,
+	rootURL: config.rootURL
+});
+
+Router.map(function() {
+});
+
+export default Router;
+*/
+define("plantworks/router", [], function () {
+  "use strict";
 });
 ;define("plantworks/services/ajax", ["exports", "ember-ajax/services/ajax"], function (_exports, _ajax) {
   "use strict";
@@ -7398,8 +7408,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "oiSd4PY9",
-    "block": "{\"symbols\":[\"navbar\",\"nav\"],\"statements\":[[2,\" For the configurable Page Title \"],[0,\"\\n\"],[1,[21,\"head-layout\"],false],[0,\"\\n\"],[1,[27,\"page-title\",[[23,[\"mainTitle\"]]],null],false],[0,\"\\n\\n\"],[2,\" Customizable Header \"],[0,\"\\n\"],[7,\"header\"],[11,\"class\",\"sticky-top\"],[9],[0,\"\\n\"],[4,\"bs-navbar\",null,[[\"class\",\"position\",\"type\",\"backgroundColor\",\"collapsed\",\"fluid\"],[\"p-0 px-2 py-1\",\"sticky-top\",\"light\",\"plantworks\",false,true]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"navbar-header\"],[9],[0,\"\\n\"],[4,\"link-to\",[\"index\"],[[\"class\"],[\"navbar-brand\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"img\"],[11,\"src\",\"/img/logo.png\"],[11,\"alt\",\"Plant.Works\"],[11,\"style\",\"max-height:2.5rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `navbar.content` to be a contextual component but found a string. Did you mean `(component navbar.content)`? ('plantworks/templates/application.hbs' @ L13:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"nav\"]],\"expected `navbar.nav` to be a contextual component but found a string. Did you mean `(component navbar.nav)`? ('plantworks/templates/application.hbs' @ L14:C6) \"],null]],[[\"id\",\"class\"],[\"plantworks-template-bhairavi-notification-area\",\"ml-auto nav-flex-icons white-text layout-row layout-align-end-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks/templates/application.hbs' @ L15:C7) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"logout\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[10],[0,\"\\n\\n\"],[7,\"main\"],[11,\"class\",\"bg-light\"],[11,\"style\",\"box-shadow:0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12);\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-left-column\"],[11,\"class\",\"layout-column layout-align-start-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-outlet\"],[11,\"class\",\"layout-row layout-align-center-start flex\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-right-column\"],[11,\"class\",\"layout-column layout-align-end-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" Customizable Footer \"],[0,\"\\n\"],[7,\"footer\"],[11,\"class\",\"page-footer mt-2 layout-row layout-align-space-between grey\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\tCopyright© 2014 \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[0,\"EroNkan Technologies\"],[10]],\"parameters\":[]},null],[0,\". All rights reserved.\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" The mandatory empty div elements for wormhole, paper, bootstrap, etc. \"],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-bootstrap-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-basic-dropdown-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-toast-fab-wormhole\"],[9],[10],[0,\"\\n\\n\\n\"],[2,\" Modal \"],[0,\"\\n\"],[4,\"liquid-if\",[[23,[\"showDialog\"]]],null,{\"statements\":[[4,\"paper-dialog\",null,[[\"class\",\"onClose\",\"parent\",\"origin\",\"clickOutsideToClose\",\"escapeToClose\"],[[23,[\"modalData\",\"dialogClass\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null],[23,[\"modalData\",\"parentElement\"]],[23,[\"modalData\",\"dialogOrigin\"]],false,false]],{\"statements\":[[4,\"paper-toolbar\",null,[[\"class\"],[\"stylish-color white-text\"]],{\"statements\":[[4,\"paper-toolbar-tools\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h2\"],[9],[1,[23,[\"modalData\",\"title\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"componentName\"]]],null,{\"statements\":[[4,\"paper-dialog-content\",null,[[\"class\"],[\"flex m-0 p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"component\",[[23,[\"modalData\",\"componentName\"]]],[[\"state\"],[[23,[\"modalData\",\"componentState\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-dialog-content\",null,null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[23,[\"modalData\",\"content\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"modalData\",\"confirmButton\"]],[23,[\"modalData\",\"cancelButton\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[21,\"paper-divider\"],false],[0,\"\\n\"],[4,\"paper-dialog-actions\",null,[[\"class\"],[\"layout-row layout-align-end-center\"]],{\"statements\":[[4,\"if\",[[23,[\"modalData\",\"cancelButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"cancelButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"cancelButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"confirmButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",true],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"confirmButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"confirmButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "mjJfe/9r",
+    "block": "{\"symbols\":[\"navbar\",\"nav\"],\"statements\":[[2,\" For the configurable Page Title \"],[0,\"\\n\"],[1,[21,\"head-layout\"],false],[0,\"\\n\"],[1,[27,\"page-title\",[[23,[\"mainTitle\"]]],null],false],[0,\"\\n\\n\"],[2,\" Customizable Header \"],[0,\"\\n\"],[7,\"header\"],[11,\"class\",\"fixed-top\"],[9],[0,\"\\n\"],[4,\"bs-navbar\",null,[[\"class\",\"position\",\"type\",\"backgroundColor\",\"collapsed\",\"fluid\"],[\"p-0 px-2 py-1\",\"sticky-top\",\"light\",\"plantworks\",false,true]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"navbar-header\"],[9],[0,\"\\n\"],[4,\"link-to\",[\"index\"],[[\"class\"],[\"navbar-brand\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"img\"],[11,\"src\",\"/img/logo.png\"],[12,\"alt\",[27,\"t\",[\"logo.alt\"],null]],[11,\"style\",\"max-height:2.5rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `navbar.content` to be a contextual component but found a string. Did you mean `(component navbar.content)`? ('plantworks/templates/application.hbs' @ L13:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"nav\"]],\"expected `navbar.nav` to be a contextual component but found a string. Did you mean `(component navbar.nav)`? ('plantworks/templates/application.hbs' @ L14:C6) \"],null]],[[\"id\",\"class\"],[\"plantworks-template-bhairavi-notification-area\",\"ml-auto nav-flex-icons white-text layout-row layout-align-end-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks/templates/application.hbs' @ L15:C7) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"logout\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[10],[0,\"\\n\\n\"],[7,\"main\"],[11,\"class\",\"bg-light main-shadow\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-left-column\"],[11,\"class\",\"layout-column layout-align-start-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-outlet\"],[11,\"class\",\"layout-row layout-align-center-start flex\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-right-column\"],[11,\"class\",\"layout-column layout-align-end-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" Customizable Footer \"],[0,\"\\n\"],[7,\"footer\"],[11,\"class\",\"page-footer fixed-bottom mt-2 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"t\",[\"footer.copyright\"],null],false],[0,\"© 2014 \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[1,[27,\"t\",[\"footer.erkn_name\"],null],false],[10]],\"parameters\":[]},null],[0,\". \"],[1,[27,\"t\",[\"footer.reserved_rights\"],null],false],[0,\".\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" The mandatory empty div elements for wormhole, paper, bootstrap, etc. \"],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-bootstrap-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-basic-dropdown-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-toast-fab-wormhole\"],[9],[10],[0,\"\\n\\n\\n\"],[2,\" Modal \"],[0,\"\\n\"],[4,\"liquid-if\",[[23,[\"showDialog\"]]],null,{\"statements\":[[4,\"paper-dialog\",null,[[\"class\",\"onClose\",\"parent\",\"origin\",\"clickOutsideToClose\",\"escapeToClose\"],[[23,[\"modalData\",\"dialogClass\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null],[23,[\"modalData\",\"parentElement\"]],[23,[\"modalData\",\"dialogOrigin\"]],false,false]],{\"statements\":[[4,\"paper-toolbar\",null,[[\"class\"],[\"stylish-color white-text\"]],{\"statements\":[[4,\"paper-toolbar-tools\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h2\"],[9],[1,[23,[\"modalData\",\"title\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"componentName\"]]],null,{\"statements\":[[4,\"paper-dialog-content\",null,[[\"class\"],[\"flex m-0 p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"component\",[[23,[\"modalData\",\"componentName\"]]],[[\"state\"],[[23,[\"modalData\",\"componentState\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-dialog-content\",null,null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[23,[\"modalData\",\"content\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"modalData\",\"confirmButton\"]],[23,[\"modalData\",\"cancelButton\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[21,\"paper-divider\"],false],[0,\"\\n\"],[4,\"paper-dialog-actions\",null,[[\"class\"],[\"layout-row layout-align-end-center\"]],{\"statements\":[[4,\"if\",[[23,[\"modalData\",\"cancelButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"cancelButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"cancelButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"confirmButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",true],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"confirmButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"confirmButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/application.hbs"
     }
@@ -7826,7 +7836,14 @@
   });
   _exports.default = void 0;
   var _default = {
-    "price_banner": "The {product} costs {price, number, USD}"
+    "footer": {
+      "copyright": "Copyright",
+      "erkn_name": "EroNkan Technologies",
+      "reserved_rights": "All Rights Reserved"
+    },
+    "logo": {
+      "alt": "Plant.Works Logo"
+    }
   };
   _exports.default = _default;
 });
@@ -7919,7 +7936,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"name":"webapp-frontend","version":"2.4.3+decd8c8c"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+76fd98d1"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;

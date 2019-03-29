@@ -20147,6 +20147,9 @@ section.team-section .avatar img {
 .reverse-grey-gradient {
   background: linear-gradient(40deg, #eaeaea, #efefef); }
 
+.main-shadow {
+  box-shadow: 0 2px 5px 0 rgba(0, 0, 0, 0.16), 0 2px 10px 0 rgba(0, 0, 0, 0.12); }
+
 /* Ember Paper */
 /*
 $colors-export: export('palettes', $colors);
