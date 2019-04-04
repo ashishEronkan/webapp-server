@@ -2,17 +2,89 @@
 
 
 
-;define("plantworks/app", ["exports", "plantworks/resolver", "ember-load-initializers", "plantworks/config/environment"], function (_exports, _resolver, _emberLoadInitializers, _environment) {
+;define("plantworks/app", ["exports", "ember-concurrency-retryable/policies/exponential-backoff", "plantworks/resolver", "ember-load-initializers", "plantworks/config/environment", "ember-concurrency-retryable/define-modifier"], function (_exports, _exponentialBackoff, _resolver, _emberLoadInitializers, _environment, _defineModifier) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
     value: true
   });
   _exports.default = void 0;
-  const App = Ember.Application.extend({
-    modulePrefix: _environment.default.modulePrefix,
-    podModulePrefix: _environment.default.podModulePrefix,
-    Resolver: _resolver.default
+  // Add a "retryable" to all ember-concurrency tasks
+  (0, _defineModifier.default)();
+  const App = Ember.Application.extend(Ember.Evented, {
+    'backoffPolicy': null,
+    'modulePrefix': _environment.default.modulePrefix,
+    'podModulePrefix': _environment.default.podModulePrefix,
+    Resolver: _resolver.default,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('backoffPolicy', new _exponentialBackoff.default({
+        'multiplier': 1.5,
+        'minDelay': 500,
+        'maxDelay': 10000
+      }));
+
+      window.Ember.onerror = function (error) {
+        const beaconData = {
+          'data': {
+            'user': window.plantworksUserId,
+            'tenant': window.plantworksTenantId,
+            'urlPath': location.href,
+            'error': error.message,
+            'stack': error.stack
+          }
+        };
+        let beaconStatus = false;
+
+        if (navigator.sendBeacon) {
+          const formData = new FormData();
+          Object.keys(beaconData.data).forEach(key => {
+            formData.append(key, beaconData.data[key]);
+          });
+          beaconStatus = navigator.sendBeacon('/collectClientErrorData?source=onerror&method=beacon', formData);
+        }
+
+        if (!beaconStatus) {
+          beaconData.dataType = 'json';
+          beaconData.method = 'post';
+          beaconData.type = 'post';
+          beaconData.url = '/collectClientErrorData?source=onerror&method=ajax';
+          window.$.ajax(beaconData);
+        }
+      };
+
+      Ember.RSVP.on('error', function (error) {
+        const beaconData = {
+          'data': {
+            'user': window.plantworksUserId,
+            'tenant': window.plantworksTenantId,
+            'urlPath': location.href,
+            'error': error.message,
+            'stack': error.stack
+          }
+        };
+        let beaconStatus = false;
+
+        if (navigator.sendBeacon) {
+          const formData = new FormData();
+          Object.keys(beaconData.data).forEach(key => {
+            formData.append(key, beaconData.data[key]);
+          });
+          beaconStatus = navigator.sendBeacon('/collectClientErrorData?source=rsvperror&method=beacon', formData);
+        }
+
+        if (!beaconStatus) {
+          beaconData.dataType = 'json';
+          beaconData.method = 'post';
+          beaconData.type = 'post';
+          beaconData.url = '/collectClientErrorData?source=rsvperror&method=ajax';
+          window.$.ajax(beaconData);
+        }
+      });
+    }
+
   });
   (0, _emberLoadInitializers.default)(App, _environment.default.modulePrefix);
   var _default = App;
@@ -26,11 +98,11 @@
   });
   _exports.default = void 0;
   var _default = {
-    'xs': '(max-width: 575px)',
-    'sm': '(min-width: 576px) and (max-width: 767px)',
-    'md': '(min-width: 768px) and (max-width: 991px)',
-    'lg': '(min-width: 992px) and (max-width: 1199px)',
-    'xl': '(min-width: 1200px)'
+    'xs': '(max-width: 599px)',
+    'sm': '(min-width: 600px) and (max-width: 959px)',
+    'md': '(min-width: 960px) and (max-width: 1279px)',
+    'lg': '(min-width: 1280px) and (max-width: 1919px)',
+    'xl': '(min-width: 1920px)'
   };
   _exports.default = _default;
 });
@@ -3646,6 +3718,216 @@
     }
   });
 });
+;define("plantworks/components/session/log-in", ["exports", "plantworks/framework/base-component", "plantworks/config/environment", "ember-computed-style", "ember-concurrency"], function (_exports, _baseComponent, _environment, _emberComputedStyle, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    router: Ember.inject.service('router'),
+    attributeBindings: ['style'],
+    style: (0, _emberComputedStyle.default)('display'),
+    displayForm: 'loginForm',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    mobileNumber: '',
+    'display': Ember.computed('hasPermission', function () {
+      return {
+        'display': this.get('hasPermission') ? 'none' : 'block',
+        'min-width': this.get('hasPermission') ? '0rem' : '20rem'
+      };
+    }),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    'doLogin': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+      notification.display({
+        'type': 'info',
+        'message': 'Logging you in...'
+      });
+
+      try {
+        const loginResult = yield this.get('ajax').post('/session/login', {
+          'dataType': 'json',
+          'data': {
+            'username': this.get('username'),
+            'password': this.get('password')
+          }
+        });
+        notification.display({
+          'type': loginResult.status < 400 ? 'success' : 'error',
+          'message': loginResult.info.message,
+          'error': loginResult.info.message
+        });
+
+        if (loginResult.nextAction === 'proceed') {
+          this.get('currentUser').one('userDataUpdated', () => {
+            const userData = this.get('currentUser').getUser();
+            this.get('router').transitionTo(userData.defaultApplication);
+          });
+          window.PlantWorksApp.trigger('userChanged');
+          return;
+        }
+
+        if (loginResult.nextAction === 'redirect') {
+          const currentSubDomain = window.location.hostname.replace(_environment.default.plantworks.domain, '');
+          const newHref = window.location.href.replace(currentSubDomain, loginResult.redirectDomain);
+          window.location.href = newHref;
+          return;
+        }
+
+        if (loginResult.nextAction === 'choose') {
+          notification.display({
+            'type': 'info',
+            'message': 'TBD: Allow user to choose tenant'
+          });
+          return;
+        }
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'resetPassword': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+      notification.display({
+        'type': 'info',
+        'message': 'Resetting your password...'
+      });
+
+      try {
+        const resetPassResult = yield this.get('ajax').post('/session/reset-password', {
+          'dataType': 'json',
+          'data': {
+            'username': this.get('username')
+          }
+        });
+        notification.display({
+          'type': resetPassResult.status < 400 ? 'success' : 'error',
+          'message': resetPassResult.message,
+          'error': resetPassResult.message
+        });
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'registerAccount': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+
+      if (this.get('password') !== this.get('confirmPassword')) {
+        notification.display({
+          'type': 'error',
+          'error': 'The passwords do not match'
+        });
+        return;
+      }
+
+      notification.display({
+        'type': 'info',
+        'message': 'Registering your account...'
+      });
+
+      try {
+        const registerResult = yield this.get('ajax').post('/session/register-account', {
+          'dataType': 'json',
+          'data': {
+            'firstname': this.get('firstName'),
+            'lastname': this.get('lastName'),
+            'username': this.get('username'),
+            'mobileNumber': this.get('mobileNumber'),
+            'password': this.get('password')
+          }
+        });
+        notification.display({
+          'type': registerResult.status < 400 ? 'success' : 'error',
+          'message': registerResult.message,
+          'error': registerResult.message
+        });
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+
+    setDisplayForm(formName) {
+      this.set('displayForm', formName);
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/session/log-out", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    router: Ember.inject.service('router'),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    'doLogout': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+      notification.display({
+        'type': 'info',
+        'message': 'Logging you out...'
+      });
+
+      try {
+        const logoutResult = yield this.get('ajax').request('/session/logout', {
+          'method': 'GET'
+        });
+        notification.display({
+          'type': logoutResult.status < 400 ? 'success' : 'error',
+          'message': logoutResult.info.message,
+          'error': logoutResult.info.message
+        });
+        this.get('currentUser').one('userDataUpdated', () => {
+          this.get('router').transitionTo('index');
+        });
+        window.PlantWorksApp.trigger('userChanged');
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+
+    click() {
+      this.get('doLogout').perform();
+    }
+
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/components/transition-group", ["exports", "ember-css-transitions/components/transition-group"], function (_exports, _transitionGroup) {
   "use strict";
 
@@ -3671,6 +3953,152 @@
       return _component.default;
     }
   });
+});
+;define("plantworks/controllers/application", ["exports", "plantworks/framework/base-controller", "plantworks/config/environment"], function (_exports, _baseController, _environment) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    'intl': Ember.inject.service('intl'),
+    'notification': Ember.inject.service('integrated-notification'),
+    'realtimeData': Ember.inject.service('realtime-data'),
+    'modalData': null,
+    'showDialog': false,
+    'mainTitle': '',
+    'displayCurrentYear': false,
+    'startYear': _environment.default.plantworks.startYear,
+    'currentYear': _environment.default.plantworks.startYear,
+    'realtimeConnectivityLost': Ember.computed('intl.locale', function () {
+      return this.intl.t('realtime.connectivity_lost');
+    }),
+    'realtimeConnectivityLostWillReconnect': Ember.computed('intl.locale', function () {
+      return this.intl.t('realtime.connectivity_lost_with_reconnect');
+    }),
+    'multipleModalError': Ember.computed('intl.locale', function () {
+      return this.intl.t('modal.multiple_error');
+    }),
+    'defaultModalTitle': Ember.computed('intl.locale', function () {
+      return this.intl.t('modal.default_title');
+    }),
+    'defaultModalContent': Ember.computed('intl.locale', function () {
+      return this.intl.t('modal.default_content');
+    }),
+    'defaultModalOkText': Ember.computed('intl.locale', function () {
+      return this.intl.t('modal.default_ok_text');
+    }),
+    'defaultModalCancelText': Ember.computed('intl.locale', function () {
+      return this.intl.t('modal.default_cancel_text');
+    }),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('mainTitle', document.title);
+      const currentYear = new Date().getFullYear();
+      this.set('currentYear', currentYear);
+      this.set('displayCurrentYear', currentYear > this.get('startYear'));
+      this.get('realtimeData').on('websocket-data::display-status-message', this, this.onDisplayWebsocketStatusMessage);
+      this.get('realtimeData').on('websocket-close', this, this.onWebsocketClose);
+      this.get('realtimeData').on('websocket-disconnection', this, this.onWebsocketDisconnect);
+    },
+
+    destroy() {
+      this.get('realtimeData').off('websocket-disconnection', this, this.onWebsocketDisconnect);
+      this.get('realtimeData').off('websocket-close', this, this.onWebsocketClose);
+      this.get('realtimeData').off('websocket-data::display-status-message', this, this.onDisplayWebsocketStatusMessage);
+
+      this._super(...arguments);
+    },
+
+    onDisplayWebsocketStatusMessage(data) {
+      const notification = this.get('notification');
+      notification.display(data);
+    },
+
+    onWebsocketClose() {
+      const notification = this.get('notification');
+      notification.display(this.get('realtimeConnectivityLostWillReconnect'));
+    },
+
+    onWebsocketDisconnect() {
+      const notification = this.get('notification');
+      notification.display(this.get('realtimeConnectivityLost'));
+    },
+
+    displayModal(data) {
+      if (this.get('showDialog')) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': new Error(this.get('multipleModalError'))
+        });
+        return;
+      }
+
+      const defaultData = {
+        'title': this.get('defaultModalText'),
+        'content': this.get('defaultModalContent'),
+        'dialogClass': '',
+        'confirmButton': {
+          'text': this.get('defaultModalOkText'),
+          'icon': 'check',
+          'primary': true,
+          'raised': true,
+          'callback': null
+        },
+        'cancelButton': {
+          'text': this.get('defaultModalCancelText'),
+          'icon': 'cancel',
+          'warn': true,
+          'raised': true,
+          'callback': null
+        },
+        'actions': {}
+      };
+      const modalData = Object.assign({}, defaultData, data);
+      this.set('modalData', modalData);
+      this.set('showDialog', true);
+    },
+
+    closeDialog(proceed) {
+      if (proceed && this.get('modalData.confirmButton.callback')) {
+        this.get('modalData.confirmButton.callback')();
+      }
+
+      if (!proceed && this.get('modalData.cancelButton.callback')) {
+        this.get('modalData.cancelButton.callback')();
+      }
+
+      this.set('showDialog', false);
+      this.set('modalData', null);
+    },
+
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'actions': {
+      'controller-action': function (action, data) {
+        if (this.get('showDialog') && this.get('modalData') && this.get('modalData.actions')) {
+          const modalActions = this.get('modalData')['actions'][action];
+
+          if (modalActions) {
+            modalActions(data);
+            return;
+          }
+        }
+
+        if (this[action] && typeof this[action] === 'function') {
+          this[action](data);
+          return;
+        }
+
+        this.get('notification').display("TODO: Handle ".concat(action, " action with data: "), data);
+      }
+    }
+  });
+
+  _exports.default = _default;
 });
 ;define("plantworks/formats", ["exports"], function (_exports) {
   "use strict";
@@ -3715,6 +4143,168 @@
       }
     }
   };
+  _exports.default = _default;
+});
+;define("plantworks/framework/base-component", ["exports", "ember-lifeline", "ember-invoke-action", "ember-debug-logger"], function (_exports, _emberLifeline, _emberInvokeAction, _emberDebugLogger) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Component.extend(_emberLifeline.ContextBoundTasksMixin, _emberLifeline.ContextBoundEventListenersMixin, _emberLifeline.DisposableMixin, Ember.Evented, _emberInvokeAction.InvokeActionMixin, {
+    'ajax': Ember.inject.service('ajax'),
+    'store': Ember.inject.service('store'),
+    'currentUser': Ember.inject.service('current-user'),
+    'notification': Ember.inject.service('integrated-notification'),
+    'permissions': null,
+    'hasPermission': false,
+    'debug': (0, _emberDebugLogger.default)(),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', '*');
+      this.get('currentUser').on('userDataUpdated', this, 'updatePermissions');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'updatePermissions');
+
+      this._super(...arguments);
+    },
+
+    'onPermissionChanges': Ember.on('init', Ember.observer('permissions', function () {
+      this.updatePermissions();
+    })),
+
+    updatePermissions() {
+      const currentUser = this.get('currentUser');
+      this.set('hasPermission', currentUser.hasPermission(this.get('permissions')));
+    },
+
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'actions': {
+      'controller-action': function (action, data) {
+        if (this[action] && typeof this[action] === 'function') {
+          this[action](data);
+          return;
+        }
+
+        this.invokeAction('controller-action', action, data);
+      }
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/framework/base-controller", ["exports", "ember-invoke-action", "ember-debug-logger"], function (_exports, _emberInvokeAction, _emberDebugLogger) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Controller.extend(Ember.Evented, _emberInvokeAction.InvokeActionMixin, {
+    'ajax': Ember.inject.service('ajax'),
+    'currentUser': Ember.inject.service('current-user'),
+    'notification': Ember.inject.service('integrated-notification'),
+    'store': Ember.inject.service('store'),
+    'permissions': null,
+    'hasPermission': true,
+    'debug': (0, _emberDebugLogger.default)(),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', '*');
+      this.get('currentUser').on('userDataUpdated', this, 'updatePermissions');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'updatePermissions');
+
+      this._super(...arguments);
+    },
+
+    'onPermissionChanges': Ember.on('init', Ember.observer('permissions', function () {
+      this.updatePermissions();
+    })),
+
+    updatePermissions() {
+      const currentUser = this.get('currentUser');
+      this.set('hasPermission', currentUser.hasPermission(this.get('permissions')));
+    },
+
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'actions': {
+      'controller-action': function (action, data) {
+        if (this[action] && typeof this[action] === 'function') {
+          this[action](data);
+          return false;
+        }
+
+        this.get('target').send('controller-action', action, data);
+        return false;
+      }
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/framework/base-model", ["exports", "ember-data", "ember-moment/computeds/moment", "ember-debug-logger", "ember-moment/computeds/format", "ember-moment/computeds/locale"], function (_exports, _emberData, _moment2, _emberDebugLogger, _format, _locale) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _emberData.default.Model.extend({
+    'moment': Ember.inject.service('moment'),
+    'debug': (0, _emberDebugLogger.default)(),
+    'createdAt': _emberData.default.attr('date', {
+      defaultValue() {
+        return new Date();
+      }
+
+    }),
+    'updatedAt': _emberData.default.attr('date', {
+      defaultValue() {
+        return new Date();
+      }
+
+    }),
+    'formattedCreatedAt': (0, _format.default)((0, _locale.default)((0, _moment2.default)('createdAt'), 'moment.locale'), 'DD/MMM/YYYY hh:mm A'),
+    'formattedUpdatedAt': (0, _format.default)((0, _locale.default)((0, _moment2.default)('updatedAt'), 'moment.locale'), 'DD/MMM/YYYY hh:mm A')
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/framework/base-route", ["exports", "ember-debug-logger"], function (_exports, _emberDebugLogger) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Route.extend({
+    'currentUser': Ember.inject.service('current-user'),
+    'router': Ember.inject.service('router'),
+    'debug': (0, _emberDebugLogger.default)(),
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'actions': {
+      'controller-action': function (action, data) {
+        const controller = this.get('controller');
+        if (controller && controller[action] && typeof controller[action] === 'function') return this.get('controller').send('controller-action', action, data);
+        return true;
+      }
+    }
+  });
+
   _exports.default = _default;
 });
 ;define("plantworks/helpers/-paper-underscore", ["exports", "ember-paper/helpers/underscore"], function (_exports, _underscore) {
@@ -6877,6 +7467,55 @@
   };
   _exports.default = _default;
 });
+;define("plantworks/initializers/toastr", ["exports", "ember-toastr/initializers/toastr", "plantworks/config/environment"], function (_exports, _toastr, _environment) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const toastrOptions = {
+    closeButton: true,
+    debug: false,
+    newestOnTop: true,
+    progressBar: true,
+    positionClass: 'toast-top-right',
+    preventDuplicates: true,
+    onclick: null,
+    showDuration: '300',
+    hideDuration: '1000',
+    timeOut: '4000',
+    extendedTimeOut: '1000',
+    showEasing: 'swing',
+    hideEasing: 'linear',
+    showMethod: 'fadeIn',
+    hideMethod: 'fadeOut'
+  };
+  const config = _environment.default['ember-toastr'] || {
+    injectAs: 'toast',
+    toastrOptions: toastrOptions
+  };
+  var _default = {
+    name: 'ember-toastr',
+
+    initialize() {
+      // support 1.x and 2.x
+      var application = arguments[1] || arguments[0];
+
+      if (!config.toastrOptions) {
+        config.toastrOptions = toastrOptions;
+      }
+
+      if (!config.injectAs) {
+        config.injectAs = 'toast';
+      }
+
+      (0, _toastr.initialize)(application, config);
+    }
+
+  };
+  _exports.default = _default;
+});
 ;define("plantworks/instance-initializers/ember-data", ["exports", "ember-data/initialize-store-service"], function (_exports, _initializeStoreService) {
   "use strict";
 
@@ -7053,6 +7692,31 @@ export default Router;
 define("plantworks/router", [], function () {
   "use strict";
 });
+;define("plantworks/routes/application", ["exports", "plantworks/framework/base-route", "debug"], function (_exports, _baseRoute, _debug) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      if (window.developmentmode) _debug.default.enable('*');else _debug.default.disable();
+    },
+
+    // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
+    'actions': {
+      'controller-action': function (action, data) {
+        this.get('controller').send('controller-action', action, data);
+      }
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/services/ajax", ["exports", "ember-ajax/services/ajax"], function (_exports, _ajax) {
   "use strict";
 
@@ -7140,6 +7804,119 @@ define("plantworks/router", [], function () {
   var _default = _cookies.default;
   _exports.default = _default;
 });
+;define("plantworks/services/current-user", ["exports", "boolean-parser", "ember-concurrency"], function (_exports, _booleanParser, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Service.extend(Ember.Evented, {
+    'ajax': Ember.inject.service('ajax'),
+    'notification': Ember.inject.service('integrated-notification'),
+    'userData': null,
+    'onInit': (0, _emberConcurrency.task)(function* () {
+      const _fetchUserData = this.get('_fetchUserData');
+
+      yield _fetchUserData.perform();
+      window.PlantWorksApp.on('userChanged', this, this.onUserChanged);
+    }).on('init').drop(),
+
+    destroy() {
+      window.PlantWorksApp.off('userchanged', this, this.onUserChanged);
+
+      this._super(...arguments);
+    },
+
+    onUserChanged() {
+      const _fetchUserData = this.get('_fetchUserData');
+
+      _fetchUserData.perform();
+    },
+
+    isLoggedIn() {
+      return this.get('userData.loggedIn');
+    },
+
+    hasPermission(permission) {
+      if (!this.get('userData')) return false;
+      const userPermissionNames = this.get('userData.permissions') || [];
+      if (!userPermissionNames || !userPermissionNames.length) return false;
+      if (permission === '*') return true;
+      let parsedPermissions = (0, _booleanParser.parseBooleanQuery)(permission);
+      if (parsedPermissions.length === 1 && parsedPermissions[0].length === 1) parsedPermissions = permission;
+
+      if (!Array.isArray(parsedPermissions)) {
+        return userPermissionNames.includes(permission);
+      }
+
+      let doesUserHavePermission = false;
+      const memoizedPermissions = {};
+
+      for (let permIdx = 0; permIdx < parsedPermissions.length; permIdx++) {
+        if (doesUserHavePermission) break;
+        const permissionSet = parsedPermissions[permIdx];
+
+        if (permissionSet.length === 1) {
+          const permission = permissionSet[0];
+          if (memoizedPermissions[permission] === undefined) memoizedPermissions[permission] = userPermissionNames.includes(permission);
+          doesUserHavePermission = doesUserHavePermission || memoizedPermissions[permission];
+          continue;
+        }
+
+        let isPermissionSetActive = true;
+
+        for (let permSetIdx = 0; permSetIdx < permissionSet.length; permSetIdx++) {
+          if (!isPermissionSetActive) break;
+          const permission = permissionSet[permSetIdx];
+          if (memoizedPermissions[permission] === undefined) memoizedPermissions[permission] = userPermissionNames.includes(permission);
+          isPermissionSetActive = isPermissionSetActive && memoizedPermissions[permission];
+        }
+
+        doesUserHavePermission = doesUserHavePermission || isPermissionSetActive;
+      }
+
+      return doesUserHavePermission;
+    },
+
+    getUser() {
+      return this.get('userData');
+    },
+
+    '_fetchUserData': (0, _emberConcurrency.task)(function* () {
+      this.trigger('userDataUpdating');
+
+      try {
+        const userData = yield this.get('ajax').request('/session/user', {
+          'method': 'GET'
+        });
+        this.set('userData', Ember.Object.create(userData));
+
+        if (userData.loggedIn) {
+          window.plantworksUserId = userData['user_id'];
+          window.plantworksTenantId = userData['tenant_id'];
+        } else {
+          window.plantworksUserId = null;
+          window.plantworksTenantId = null;
+        }
+
+        this.trigger('userDataUpdated');
+      } catch (err) {
+        this.set('userData', null);
+        window.plantworksUserId = null;
+        window.plantworksTenantId = null;
+        this.trigger('userDataUpdated');
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/services/google-maps-api", ["exports", "ember-google-maps/services/google-maps-api"], function (_exports, _googleMapsApi) {
   "use strict";
 
@@ -7165,6 +7942,94 @@ define("plantworks/router", [], function () {
       return _headData.default;
     }
   });
+});
+;define("plantworks/services/integrated-notification", ["exports", "ember-debug-logger", "notifyjs"], function (_exports, _emberDebugLogger, _notifyjs) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Service.extend({
+    'toast': Ember.inject.service('toast'),
+    'notifyEnabled': false,
+    'debug': (0, _emberDebugLogger.default)('integrated-notification'),
+
+    init() {
+      this._super(...arguments);
+
+      if (!_notifyjs.default.needsPermission) {
+        this.set('notifyEnabled', true);
+        return;
+      }
+
+      if (!_notifyjs.default.isSupported()) {
+        this.set('notifyEnabled', false);
+        return;
+      }
+
+      const self = this;
+
+      _notifyjs.default.requestPermission(function () {
+        self.set('notifyEnabled', true);
+        return;
+      }, function () {
+        self.set('notifyEnabled', false);
+        return;
+      });
+    },
+
+    display(data) {
+      this.get('debug')(data);
+
+      if (this.get('notifyEnabled') && (data.type || 'info') === 'error') {
+        const thisNotification = new _notifyjs.default(data.title || (data.type ? data.type.capitalize() : ''), {
+          'body': data.type !== 'error' ? data.message || data : data.error.responseText || data.error.message || data.error,
+          'closeOnClick': true,
+          'timeout': 400
+        });
+        thisNotification.show();
+        return;
+      }
+
+      const toast = this.get('toast');
+      toast.clear();
+      const options = Object.assign({}, {
+        'positionClass': 'toast-bottom-right',
+        'preventDuplicates': true
+      }, data.options);
+      if (data.type === 'danger') data.type = 'error';
+
+      if (data.type !== 'error') {
+        toast[data.type ? data.type : 'info'](data.message || data, data.title || (data.type ? data.type.capitalize() : ''), options);
+        return;
+      }
+
+      if (typeof data.error === 'string') {
+        toast.error(data.error.replace(/\\n/g, '\n').split('\n').splice(0, 2).join('\n'), 'Error', options);
+        return;
+      }
+
+      if (data.error.responseText) {
+        toast.error(data.error.responseText.replace(/\\n/g, '\n').split('\n').splice(0, 2).join('\n'), 'Error', options);
+        return;
+      }
+
+      if (data.error.payload && data.error.payload.errors && data.error.payload.errors.length) {
+        data.error.payload.errors.forEach((dataError, idx) => {
+          if (!idx) return;
+          toast.error(dataError.detail, 'Error', options);
+        });
+        return;
+      }
+
+      toast.error(data.error.message, 'Error', options);
+    }
+
+  });
+
+  _exports.default = _default;
 });
 ;define("plantworks/services/intl", ["exports", "ember-intl/services/intl"], function (_exports, _intl) {
   "use strict";
@@ -7229,10 +8094,9 @@ define("plantworks/router", [], function () {
   }
 
   let defaults = {};
-  ['separator', 'prepend', 'replace'].forEach(function (key) {
-    if (_environment.default.pageTitle && _environment.default.pageTitle[key]) {
-      defaults["default".concat(capitalize(key))] = _environment.default.pageTitle[key];
-    }
+  ['separator', 'prepend', 'replace'].forEach(key => {
+    if (!_environment.default.pageTitle || _environment.default.pageTitle[key] === null || _environment.default.pageTitle[key] === undefined) return;
+    defaults["default".concat(capitalize(key))] = _environment.default.pageTitle[key];
   });
 
   var _default = _pageTitleList.default.extend(defaults);
@@ -7290,6 +8154,103 @@ define("plantworks/router", [], function () {
       return _passwordStrength.default;
     }
   });
+});
+;define("plantworks/services/realtime-data", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Service.extend(Ember.Evented, {
+    'boundStreamerOpen': null,
+    'boundStreamerClose': null,
+    'boundStreamerEnd': null,
+    'boundStreamerError': null,
+    'boundDataProcessor': null,
+    'boundUserUpdating': null,
+    'boundUserUpdated': null,
+    'connectOptions': null,
+    'currentUser': Ember.inject.service('current-user'),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('boundStreamerOpen', this.onStreamerOpen.bind(this));
+      this.set('boundStreamerClose', this.onStreamerClose.bind(this));
+      this.set('boundStreamerEnd', this.onStreamerEnd.bind(this));
+      this.set('boundStreamerError', this.onStreamerError.bind(this));
+      this.set('boundDataProcessor', this._websocketDataProcessor.bind(this));
+      this.set('boundUserUpdating', this._boundUserUpdating.bind(this));
+      this.set('boundUserUpdated', this._boundUserUpdated.bind(this));
+      this.set('connectOptions', {
+        'manual': true,
+        'strategy': 'online, timeout, disconnect',
+        'reconnect': {
+          'min': 1000,
+          'max': Infinity,
+          'retries': 25
+        }
+      });
+      const streamer = new window.Primus('/', this.get('connectOptions'));
+      streamer.on('open', this.get('boundStreamerOpen'));
+      streamer.on('close', this.get('boundStreamerClose'));
+      streamer.on('end', this.get('boundStreamerEnd'));
+      streamer.on('error', this.get('boundStreamerError'));
+      this.set('streamer', streamer);
+      this.get('streamer').open();
+      this.get('currentUser').on('userDataUpdating', this.get('boundUserUpdating'));
+      this.get('currentUser').on('userDataUpdated', this.get('boundUserUpdated'));
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdating', this.get('boundUserUpdating'));
+      this.get('currentUser').off('userDataUpdated', this.get('boundUserUpdated'));
+      this.get('streamer').off('error', this.get('boundStreamerError'));
+      this.get('streamer').off('end', this.get('boundStreamerEnd'));
+      this.get('streamer').off('close', this.get('boundStreamerClose'));
+      this.get('streamer').off('open', this.get('boundStreamerOpen'));
+      this.get('streamer').end();
+
+      this._super(...arguments);
+    },
+
+    onStreamerOpen() {
+      this.get('streamer').on('data', this.get('boundDataProcessor'));
+      this.trigger('websocket-open');
+    },
+
+    onStreamerClose() {
+      this.get('streamer').off('data', this.get('boundDataProcessor'));
+      this.trigger('websocket-close');
+    },
+
+    onStreamerEnd() {
+      this.get('streamer').off('data', this.get('boundDataProcessor'));
+      this.trigger('websocket-end');
+    },
+
+    onStreamerError() {
+      this.trigger('websocket-error');
+    },
+
+    _websocketDataProcessor(websocketData) {
+      this.trigger("websocket-data::".concat(websocketData.channel), websocketData.data);
+      this.trigger("data", websocketData.channel, websocketData.data);
+    },
+
+    _boundUserUpdating() {
+      this.get('streamer').end();
+    },
+
+    _boundUserUpdated() {
+      this.get('streamer').open();
+    }
+
+  });
+
+  _exports.default = _default;
 });
 ;define("plantworks/services/resize", ["exports", "ember-resize/services/resize"], function (_exports, _resize) {
   "use strict";
@@ -7399,6 +8360,19 @@ define("plantworks/router", [], function () {
     }
   });
 });
+;define("plantworks/services/toast", ["exports", "ember-toastr/services/toast"], function (_exports, _toast) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  Object.defineProperty(_exports, "default", {
+    enumerable: true,
+    get: function () {
+      return _toast.default;
+    }
+  });
+});
 ;define("plantworks/templates/application", ["exports"], function (_exports) {
   "use strict";
 
@@ -7408,8 +8382,8 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "mjJfe/9r",
-    "block": "{\"symbols\":[\"navbar\",\"nav\"],\"statements\":[[2,\" For the configurable Page Title \"],[0,\"\\n\"],[1,[21,\"head-layout\"],false],[0,\"\\n\"],[1,[27,\"page-title\",[[23,[\"mainTitle\"]]],null],false],[0,\"\\n\\n\"],[2,\" Customizable Header \"],[0,\"\\n\"],[7,\"header\"],[11,\"class\",\"fixed-top\"],[9],[0,\"\\n\"],[4,\"bs-navbar\",null,[[\"class\",\"position\",\"type\",\"backgroundColor\",\"collapsed\",\"fluid\"],[\"p-0 px-2 py-1\",\"sticky-top\",\"light\",\"plantworks\",false,true]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"navbar-header\"],[9],[0,\"\\n\"],[4,\"link-to\",[\"index\"],[[\"class\"],[\"navbar-brand\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"img\"],[11,\"src\",\"/img/logo.png\"],[12,\"alt\",[27,\"t\",[\"logo.alt\"],null]],[11,\"style\",\"max-height:2.5rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `navbar.content` to be a contextual component but found a string. Did you mean `(component navbar.content)`? ('plantworks/templates/application.hbs' @ L13:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"nav\"]],\"expected `navbar.nav` to be a contextual component but found a string. Did you mean `(component navbar.nav)`? ('plantworks/templates/application.hbs' @ L14:C6) \"],null]],[[\"id\",\"class\"],[\"plantworks-template-bhairavi-notification-area\",\"ml-auto nav-flex-icons white-text layout-row layout-align-end-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks/templates/application.hbs' @ L15:C7) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"logout\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[10],[0,\"\\n\\n\"],[7,\"main\"],[11,\"class\",\"bg-light main-shadow\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-left-column\"],[11,\"class\",\"layout-column layout-align-start-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-outlet\"],[11,\"class\",\"layout-row layout-align-center-start flex\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-right-column\"],[11,\"class\",\"layout-column layout-align-end-center flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" Customizable Footer \"],[0,\"\\n\"],[7,\"footer\"],[11,\"class\",\"page-footer fixed-bottom mt-2 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"t\",[\"footer.copyright\"],null],false],[0,\"© 2014 \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[1,[27,\"t\",[\"footer.erkn_name\"],null],false],[10]],\"parameters\":[]},null],[0,\". \"],[1,[27,\"t\",[\"footer.reserved_rights\"],null],false],[0,\".\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" The mandatory empty div elements for wormhole, paper, bootstrap, etc. \"],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-bootstrap-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-basic-dropdown-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-toast-fab-wormhole\"],[9],[10],[0,\"\\n\\n\\n\"],[2,\" Modal \"],[0,\"\\n\"],[4,\"liquid-if\",[[23,[\"showDialog\"]]],null,{\"statements\":[[4,\"paper-dialog\",null,[[\"class\",\"onClose\",\"parent\",\"origin\",\"clickOutsideToClose\",\"escapeToClose\"],[[23,[\"modalData\",\"dialogClass\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null],[23,[\"modalData\",\"parentElement\"]],[23,[\"modalData\",\"dialogOrigin\"]],false,false]],{\"statements\":[[4,\"paper-toolbar\",null,[[\"class\"],[\"stylish-color white-text\"]],{\"statements\":[[4,\"paper-toolbar-tools\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h2\"],[9],[1,[23,[\"modalData\",\"title\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"componentName\"]]],null,{\"statements\":[[4,\"paper-dialog-content\",null,[[\"class\"],[\"flex m-0 p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"component\",[[23,[\"modalData\",\"componentName\"]]],[[\"state\"],[[23,[\"modalData\",\"componentState\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-dialog-content\",null,null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[23,[\"modalData\",\"content\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"modalData\",\"confirmButton\"]],[23,[\"modalData\",\"cancelButton\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[21,\"paper-divider\"],false],[0,\"\\n\"],[4,\"paper-dialog-actions\",null,[[\"class\"],[\"layout-row layout-align-end-center\"]],{\"statements\":[[4,\"if\",[[23,[\"modalData\",\"cancelButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"cancelButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"cancelButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"confirmButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",true],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"confirmButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"confirmButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "J6iytA3S",
+    "block": "{\"symbols\":[\"navbar\",\"nav\"],\"statements\":[[2,\" For the configurable Page Title \"],[0,\"\\n\"],[1,[21,\"head-layout\"],false],[0,\"\\n\"],[1,[27,\"page-title\",[[23,[\"mainTitle\"]]],null],false],[0,\"\\n\\n\"],[2,\" Customizable Header \"],[0,\"\\n\"],[7,\"header\"],[11,\"class\",\"sticky-top\"],[9],[0,\"\\n\"],[4,\"bs-navbar\",null,[[\"class\",\"position\",\"type\",\"backgroundColor\",\"collapsed\",\"fluid\"],[\"p-0 px-2 py-1\",\"sticky-top\",\"light\",\"plantworks\",false,true]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"navbar-header\"],[9],[0,\"\\n\"],[4,\"link-to\",[\"index\"],[[\"class\"],[\"navbar-brand\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"img\"],[11,\"src\",\"/img/logo.png\"],[12,\"alt\",[27,\"t\",[\"logo.alt\"],null]],[11,\"style\",\"max-height:2.5rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `navbar.content` to be a contextual component but found a string. Did you mean `(component navbar.content)`? ('plantworks/templates/application.hbs' @ L13:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"nav\"]],\"expected `navbar.nav` to be a contextual component but found a string. Did you mean `(component navbar.nav)`? ('plantworks/templates/application.hbs' @ L14:C6) \"],null]],[[\"id\",\"class\"],[\"plantworks-template-bhairavi-notification-area\",\"ml-auto nav-flex-icons white-text layout-row layout-align-end-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"item\"]],\"expected `nav.item` to be a contextual component but found a string. Did you mean `(component nav.item)`? ('plantworks/templates/application.hbs' @ L15:C7) \"],null]],null,{\"statements\":[[1,[27,\"component\",[\"session/log-out\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[10],[0,\"\\n\\n\"],[7,\"main\"],[11,\"class\",\"bg-light main-shadow\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-first-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row\"],[11,\"class\",\"layout-row layout-align-space-between-start layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-left-column\"],[11,\"class\",\"layout-column layout-align-start-center flex-100 flex-gt-md-initial\"],[9],[0,\"\\n\"],[4,\"unless\",[[27,\"or\",[[27,\"media\",[\"isLg\"],null],[27,\"media\",[\"isXl\"],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"component\",[\"session/log-in\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-outlet\"],[11,\"class\",\"layout-row layout-align-center-start flex-100 flex-gt-md-grow\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-main-row-right-column\"],[11,\"class\",\"layout-column layout-align-start-center flex-100 flex-gt-md-initial\"],[9],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[27,\"media\",[\"isLg\"],null],[27,\"media\",[\"isXl\"],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[27,\"component\",[\"session/log-in\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\\n\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row\"],[11,\"class\",\"layout-row flex-initial\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-1\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-2\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[7,\"div\"],[11,\"id\",\"plantworks-webapp-server-template-bhairavi-bottom-row-position-3\"],[11,\"class\",\"flex-initial\"],[9],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\\n\"],[2,\" Customizable Footer \"],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[27,\"media\",[\"isLg\"],null],[27,\"media\",[\"isXl\"],null]],null]],null,{\"statements\":[[7,\"footer\"],[11,\"class\",\"page-footer fixed-bottom mt-2 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"t\",[\"footer.copyright\"],null],true],[0,\" \"],[1,[21,\"startYear\"],false],[0,\" \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[1,[27,\"t\",[\"footer.erkn_name\"],null],false],[10]],\"parameters\":[]},null],[0,\". \"],[1,[27,\"t\",[\"footer.reserved_rights\"],null],false],[0,\".\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[7,\"footer\"],[11,\"class\",\"page-footer mt-2 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"flex p-3 text-right\"],[9],[0,\"\\n\\t\\t\"],[1,[27,\"t\",[\"footer.copyright\"],null],true],[0,\" \"],[1,[21,\"startYear\"],false],[0,\" \"],[4,\"if\",[[23,[\"displayCurrentYear\"]]],null,{\"statements\":[[0,\"- \"],[1,[21,\"currentYear\"],false],[0,\" \"]],\"parameters\":[]},null],[4,\"link-to\",[\"index\"],null,{\"statements\":[[7,\"strong\"],[9],[1,[27,\"t\",[\"footer.erkn_name\"],null],false],[10]],\"parameters\":[]},null],[0,\". \"],[1,[27,\"t\",[\"footer.reserved_rights\"],null],false],[0,\".\\n\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\n\"],[2,\" The mandatory empty div elements for wormhole, paper, bootstrap, etc. \"],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-bootstrap-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"ember-basic-dropdown-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-wormhole\"],[9],[10],[0,\"\\n\"],[7,\"div\"],[11,\"id\",\"paper-toast-fab-wormhole\"],[9],[10],[0,\"\\n\\n\\n\"],[2,\" Modal \"],[0,\"\\n\"],[4,\"liquid-if\",[[23,[\"showDialog\"]]],null,{\"statements\":[[4,\"paper-dialog\",null,[[\"class\",\"onClose\",\"parent\",\"origin\",\"clickOutsideToClose\",\"escapeToClose\"],[[23,[\"modalData\",\"dialogClass\"]],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null],[23,[\"modalData\",\"parentElement\"]],[23,[\"modalData\",\"dialogOrigin\"]],false,false]],{\"statements\":[[4,\"paper-toolbar\",null,[[\"class\"],[\"stylish-color white-text\"]],{\"statements\":[[4,\"paper-toolbar-tools\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h2\"],[9],[1,[23,[\"modalData\",\"title\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"componentName\"]]],null,{\"statements\":[[4,\"paper-dialog-content\",null,[[\"class\"],[\"flex m-0 p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[27,\"component\",[[23,[\"modalData\",\"componentName\"]]],[[\"state\"],[[23,[\"modalData\",\"componentState\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-dialog-content\",null,null,{\"statements\":[[0,\"\\t\\t\\t\"],[1,[23,[\"modalData\",\"content\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[27,\"or\",[[23,[\"modalData\",\"confirmButton\"]],[23,[\"modalData\",\"cancelButton\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\"],[1,[21,\"paper-divider\"],false],[0,\"\\n\"],[4,\"paper-dialog-actions\",null,[[\"class\"],[\"layout-row layout-align-end-center\"]],{\"statements\":[[4,\"if\",[[23,[\"modalData\",\"cancelButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"cancelButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",false],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"cancelButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"cancelButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[23,[\"modalData\",\"confirmButton\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"accent\",\"warn\",\"raised\",\"onClick\"],[[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"primary\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"accent\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"warn\"]]],null]],null],[27,\"not\",[[27,\"not\",[[23,[\"modalData\",\"confirmButton\",\"raised\"]]],null]],null],[27,\"action\",[[22,0,[]],\"controller-action\",\"closeDialog\",true],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[[23,[\"modalData\",\"confirmButton\",\"icon\"]]],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[1,[23,[\"modalData\",\"confirmButton\",\"text\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/application.hbs"
     }
@@ -7455,6 +8429,42 @@ define("plantworks/router", [], function () {
       return _marker.default;
     }
   });
+});
+;define("plantworks/templates/components/session/log-in", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "apjFwGz1",
+    "block": "{\"symbols\":[\"card\",\"form\",\"header\",\"text\",\"form\",\"header\",\"text\",\"form\",\"header\",\"text\"],\"statements\":[[4,\"liquid-unless\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,null,{\"statements\":[[4,\"liquid-if\",[[27,\"eq\",[[23,[\"displayForm\"]],\"loginForm\"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/session/log-in.hbs' @ L4:C4) \"],null]],[[\"class\"],[\"orange lighten-3\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,9,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/session/log-in.hbs' @ L5:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,10,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/session/log-in.hbs' @ L6:C6) \"],null]],null,{\"statements\":[[1,[27,\"fa-icon\",[\"sign-in-alt\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"Login\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[10]},null]],\"parameters\":[9]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/session/log-in.hbs' @ L9:C4) \"],null]],null,{\"statements\":[[4,\"paper-form\",null,[[\"onSubmit\"],[[27,\"perform\",[[23,[\"doLogin\"]]],null]]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column flex-100\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L12:C5) \"],null]],[[\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"email\",\"Login / Username\",[23,[\"username\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"username\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L13:C5) \"],null]],[[\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"Password\",[23,[\"password\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"password\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Forgot Password\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"resetPasswordForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Register Account\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"registerForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,8,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/session/log-in.hbs' @ L20:C8) \"],null]],[[\"primary\",\"raised\",\"disabled\"],[true,true,[27,\"or\",[[22,8,[\"isInvalid\"]],[23,[\"doLogin\",\"isRunning\"]]],null]]],{\"statements\":[[4,\"liquid-if\",[[23,[\"doLogin\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"fa-icon\",[\"sign-in-alt\"],[[\"class\"],[\"mr-2\"]]],false],[7,\"span\"],[9],[0,\"Login\"],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[8]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"liquid-if\",[[27,\"eq\",[[23,[\"displayForm\"]],\"resetPasswordForm\"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/session/log-in.hbs' @ L35:C4) \"],null]],[[\"class\"],[\"amber lighten-3\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,6,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/session/log-in.hbs' @ L36:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,7,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/session/log-in.hbs' @ L37:C6) \"],null]],null,{\"statements\":[[1,[27,\"paper-icon\",[\"lock-outline\"],[[\"class\"],[\"mr-2 pb-1\"]]],false],[0,\"Reset Password\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[7]},null]],\"parameters\":[6]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/session/log-in.hbs' @ L40:C4) \"],null]],null,{\"statements\":[[4,\"paper-form\",null,[[\"onSubmit\"],[[27,\"perform\",[[23,[\"resetPassword\"]]],null]]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column flex-100\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L43:C5) \"],null]],[[\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"email\",\"Login / Username\",[23,[\"username\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"username\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Plant.Works Login\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"loginForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Register Account\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"registerForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,5,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/session/log-in.hbs' @ L50:C8) \"],null]],[[\"raised\",\"accent\",\"disabled\"],[true,true,[27,\"or\",[[22,5,[\"isInvalid\"]],[23,[\"resetPassword\",\"isRunning\"]]],null]]],{\"statements\":[[4,\"liquid-if\",[[23,[\"resetPassword\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"lock-outline\"],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[0,\"Reset\"],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[5]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"liquid-if\",[[27,\"eq\",[[23,[\"displayForm\"]],\"registerForm\"],null]],null,{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/session/log-in.hbs' @ L65:C4) \"],null]],[[\"class\"],[\"yellow lighten-3\"]],{\"statements\":[[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,3,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/session/log-in.hbs' @ L66:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,4,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/session/log-in.hbs' @ L67:C6) \"],null]],null,{\"statements\":[[1,[27,\"paper-icon\",[\"person-add\"],[[\"class\"],[\"mr-2 pb-1\"]]],false],[0,\"Create Account\"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[4]},null]],\"parameters\":[3]},null],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/session/log-in.hbs' @ L70:C4) \"],null]],null,{\"statements\":[[4,\"paper-form\",null,[[\"onSubmit\"],[[27,\"perform\",[[23,[\"registerAccount\"]]],null]]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column flex-100\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L74:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"text\",\"First Name\",[23,[\"firstName\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"firstName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L75:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"text\",\"Last Name\",[23,[\"lastName\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"lastName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L78:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"email\",\"Email\",[23,[\"username\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"username\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L79:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"text\",\"Mobile\",[23,[\"mobileNumber\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"mobileNumber\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L82:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"password\",\"Password\",[23,[\"password\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"password\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[27,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/session/log-in.hbs' @ L83:C6) \"],null]],[[\"class\",\"type\",\"label\",\"value\",\"onChange\",\"required\"],[\"flex-45\",\"password\",\"Confirm\",[23,[\"confirmPassword\"]],[27,\"action\",[[22,0,[]],[27,\"mut\",[[23,[\"confirmPassword\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Plant.Works Login\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"loginForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[9],[0,\"Reset Password\"],[3,\"action\",[[22,0,[]],\"controller-action\",\"setDisplayForm\",\"resetPasswordForm\"]],[10],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column\"],[9],[0,\"\\n\"],[4,\"component\",[[27,\"-assert-implicit-component-helper-argument\",[[22,2,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/session/log-in.hbs' @ L91:C8) \"],null]],[[\"raised\",\"accent\",\"disabled\"],[true,true,[27,\"or\",[[22,2,[\"isInvalid\"]],[23,[\"registerAccount\",\"isRunning\"]]],null]]],{\"statements\":[[4,\"liquid-if\",[[23,[\"registerAccount\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[27,\"paper-icon\",[\"person-add\"],[[\"class\"],[\"mr-1\"]]],false],[7,\"span\"],[9],[0,\"Register\"],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/session/log-in.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/session/log-out", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "8paFpRP3",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"liquid-if\",[[23,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[7,\"span\"],[11,\"style\",\"cursor:pointer;\"],[9],[1,[27,\"fa-icon\",[\"sign-out-alt\"],[[\"class\"],[\"h4 mb-0\"]]],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/session/log-out.hbs"
+    }
+  });
+
+  _exports.default = _default;
 });
 ;define("plantworks/templates/head", ["exports"], function (_exports) {
   "use strict";
@@ -7837,12 +8847,23 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
   var _default = {
     "footer": {
-      "copyright": "Copyright",
+      "copyright": "Copyright&copy;",
       "erkn_name": "EroNkan Technologies",
       "reserved_rights": "All Rights Reserved"
     },
     "logo": {
       "alt": "Plant.Works Logo"
+    },
+    "modal": {
+      "default_cancel_text": "Cancel",
+      "default_content": "Default content! Has to be overridden!!",
+      "default_ok_text": "Ok",
+      "default_title": "Plant.Works Modal",
+      "multiple_error": "Cannot display multiple modal dialogs!!"
+    },
+    "realtime": {
+      "connectivity_lost": "Realtime connectivity lost!",
+      "connectivity_lost_with_reconnect": "Realtime connectivity lost! Attempting to reconnect!!"
     }
   };
   _exports.default = _default;
@@ -7936,7 +8957,7 @@ define("plantworks/router", [], function () {
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+76fd98d1"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+9d81c603"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
