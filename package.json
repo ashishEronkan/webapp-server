@@ -157,9 +157,10 @@
 	},
 	"scripts": {
 		"build": "./node_modules/.bin/grunt",
-		"clean": "rm -rf docs && rm -rf buildresults && mkdir -p ./logs && touch ./logs/.gitkeep && touch ./logs/init.log && rm -f ./logs/*.log",
+		"clean": "rm -rf docs && rm -rf buildresults && mkdir -p ./logs && touch ./logs/.gitkeep && touch ./logs/init.log && rm -f ./logs/*.log && redis-cli flushall",
 		"debug": "mkdir -p ./logs && touch ./logs/.gitkeep && touch ./logs/init.log && rm -f ./logs/*.log && node --inspect-brk ./server/index.js",
 		"docs": "./node_modules/.bin/jsdoc --verbose --configure ./jsdoc.json",
+		"force-build": "./node_modules/.bin/grunt --force",
 		"lint": "./node_modules/.bin/eslint .",
 		"start": "mkdir -p ./logs && touch ./logs/.gitkeep && touch ./logs/init.log && rm -f ./logs/*.log && node ./server/index.js",
 		"dev-start": "mkdir -p ./logs && touch ./logs/.gitkeep && touch ./logs/init.log && rm -f ./logs/*.log && BLUEBIRD_DEBUG=1 DEBUG=* node ./server/index.js",
