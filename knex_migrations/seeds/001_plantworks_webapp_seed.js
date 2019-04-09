@@ -4,7 +4,7 @@ exports.seed = async function(knex) {
 	let bhairaviTmplId = null;
 
 	// Step 1: See if the seed file has already run. If yes, simply return
-	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
+	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND module_type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
 	if(parentId.rows.length) {
 		parentId = parentId.rows[0]['module_id'];
 	}
@@ -12,7 +12,7 @@ exports.seed = async function(knex) {
 		// Step 2: Insert the data for the "server" into the modules table
 		parentId = await knex('modules').insert({
 			'name': 'PlantWorksWebappServer',
-			'type': 'server',
+			'module_type': 'server',
 			'deploy': 'default',
 			'display_name': 'Plant.Works Web Application',
 			'description': 'The Plant.Works Web Application Module - the "Application Class" for the Web Application',
@@ -42,7 +42,7 @@ exports.seed = async function(knex) {
 		// Step 3: Insert the data for all the standard services that ship with the codebase into the modules table
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'ApiService',
 			'display_name': 'API Service',
@@ -58,7 +58,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'AuditService',
 			'display_name': 'Audit Service',
@@ -74,7 +74,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'AuthService',
 			'display_name': 'Authentication Service',
@@ -90,7 +90,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'AwsService',
 			'display_name': 'AWS Service',
@@ -106,7 +106,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'CacheService',
 			'display_name': 'Cache Service',
@@ -122,7 +122,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'CassandraService',
 			'display_name': 'Cassandra Service',
@@ -138,7 +138,7 @@ exports.seed = async function(knex) {
 
 		let configSrvcId = await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'ConfigurationService',
 			'display_name': 'Configuration Service',
@@ -157,7 +157,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': configSrvcId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'DatabaseConfigurationService',
 			'display_name': 'PostgreSQL Configuration Service',
@@ -173,7 +173,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': configSrvcId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'FileConfigurationService',
 			'display_name': 'File Configuration Service',
@@ -189,7 +189,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'DatabaseService',
 			'display_name': 'Database Service',
@@ -205,7 +205,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'LocalizationService',
 			'display_name': 'Localization Service',
@@ -221,7 +221,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'LoggerService',
 			'display_name': 'Logger Service',
@@ -237,7 +237,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'MailerService',
 			'display_name': 'Mailer Service',
@@ -253,7 +253,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'PubsubService',
 			'display_name': 'Publish/Subscribe Service',
@@ -269,7 +269,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'ShardingService',
 			'display_name': 'Sharding Service',
@@ -285,7 +285,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'WebserverService',
 			'display_name': 'Express Service',
@@ -301,7 +301,7 @@ exports.seed = async function(knex) {
 
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'service',
+			'module_type': 'service',
 			'deploy': 'admin',
 			'name': 'WebsocketService',
 			'display_name': 'Websocket Service',
@@ -317,7 +317,7 @@ exports.seed = async function(knex) {
 
 		bhairaviTmplId = await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'template',
+			'module_type': 'template',
 			'deploy': 'default',
 			'name': 'BhairaviTemplate',
 			'display_name': 'Bhairavi Template',
@@ -440,12 +440,12 @@ exports.seed = async function(knex) {
 		userId = userId.rows[0]['user_id'];
 	}
 
-	let userContactId = await knex.raw('SELECT user_contact_id FROM user_contacts WHERE user_id = ? AND type = ? AND contact = ?', [userId, 'mobile', '01234567890']);
+	let userContactId = await knex.raw('SELECT user_contact_id FROM user_contacts WHERE user_id = ? AND contact_type = ? AND contact = ?', [userId, 'mobile', '01234567890']);
 	if(!userContactId.rows.length) {
 		await knex('user_contacts').insert({
 			'user_id': userId,
 			'contact': '01234567890',
-			'type': 'mobile',
+			'contact_type': 'mobile',
 			'verified': true
 		});
 	}

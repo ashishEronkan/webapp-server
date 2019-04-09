@@ -1,18 +1,18 @@
 'use strict';
 
 exports.seed = async function(knex) {
-	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
+	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND module_type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
 	if(!parentId.rows.length)
 		return null;
 
 	parentId = parentId.rows[0]['module_id'];
 
-	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'SkuManager']);
+	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'SkuManager']);
 	if(componentId.rows.length) return null;
 
 	componentId = await knex('modules').insert({
 		'parent_module_id': parentId,
-		'type': 'feature',
+		'module_type': 'feature',
 		'deploy': 'custom',
 		'name': 'SkuManager',
 		'display_name': 'SKU Manager',
@@ -83,11 +83,11 @@ exports.seed = async function(knex) {
 
 	const SKUFeatureId = componentId;
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [SKUFeatureId, 'AttributeSets']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [SKUFeatureId, 'AttributeSets']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': SKUFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'AttributeSets',
 			'display_name': 'Attribute Sets',
@@ -102,11 +102,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [SKUFeatureId, 'Configuration']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [SKUFeatureId, 'Configuration']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': SKUFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'Configuration',
 			'display_name': 'Configuration',
@@ -121,11 +121,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [SKUFeatureId, 'Upload']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [SKUFeatureId, 'Upload']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': SKUFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'Upload',
 			'display_name': 'Upload',
@@ -140,11 +140,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [SKUFeatureId, 'Reports']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [SKUFeatureId, 'Reports']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': SKUFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'Reports',
 			'display_name': 'Reports',

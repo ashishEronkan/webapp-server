@@ -1,18 +1,18 @@
 'use strict';
 
 exports.seed = async function(knex) {
-	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
+	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND module_type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
 	if(!parentId.rows.length)
 		return null;
 
 	parentId = parentId.rows[0]['module_id'];
 
-	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'WarehouseManager']);
+	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'WarehouseManager']);
 	if(componentId.rows.length) return null;
 
 	componentId = await knex('modules').insert({
 		'parent_module_id': parentId,
-		'type': 'feature',
+		'module_type': 'feature',
 		'deploy': 'custom',
 		'name': 'WarehouseManager',
 		'display_name': 'Warehouse Manager',

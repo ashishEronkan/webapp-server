@@ -49,14 +49,14 @@ exports.up = async function(knex) {
 		await knex.schema.withSchema('public').createTable('user_contacts', function(contactsTbl) {
 			contactsTbl.uuid('user_id').notNullable().references('user_id').inTable('users').onDelete('CASCADE').onUpdate('CASCADE');
 			contactsTbl.uuid('user_contact_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
-			contactsTbl.specificType('type', 'public.contact_type').notNullable().defaultTo('other');
+			contactsTbl.specificType('contact_type', 'public.contact_type').notNullable().defaultTo('other');
 			contactsTbl.text('contact').notNullable();
 			contactsTbl.boolean('verified').notNullable().defaultTo(false);
 			contactsTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			contactsTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
 			contactsTbl.primary(['user_id', 'user_contact_id']);
-			contactsTbl.unique(['user_id', 'type', 'contact']);
+			contactsTbl.unique(['user_id', 'contact_type', 'contact']);
 		});
 	}
 };

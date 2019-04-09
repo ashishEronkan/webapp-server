@@ -18,7 +18,7 @@ exports.up = async function(knex) {
 		await knex.schema.withSchema('public').createTable('modules', (modTbl) => {
 			modTbl.uuid('module_id').notNullable().primary().defaultTo(knex.raw('uuid_generate_v4()'));
 			modTbl.uuid('parent_module_id').references('module_id').inTable('modules').onDelete('CASCADE').onUpdate('CASCADE');
-			modTbl.specificType('type', 'public.module_type').notNullable().defaultTo('feature');
+			modTbl.specificType('module_type', 'public.module_type').notNullable().defaultTo('feature');
 			modTbl.specificType('deploy', 'public.module_deploy_type').notNullable().defaultTo('admin');
 			modTbl.text('name').notNullable();
 			modTbl.text('display_name').notNullable();
@@ -30,7 +30,7 @@ exports.up = async function(knex) {
 			modTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			modTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			modTbl.unique(['parent_module_id', 'type', 'name']);
+			modTbl.unique(['parent_module_id', 'module_type', 'name']);
 		});
 	}
 
@@ -74,7 +74,7 @@ exports.up = async function(knex) {
 	// Step 6: Setup user-defined functions on the modules table for traversing the tree, etc.
 	await knex.schema.withSchema('public').raw(
 `CREATE OR REPLACE FUNCTION public.fn_get_module_ancestors (IN moduleid uuid)
-	RETURNS TABLE (level integer,  module_id uuid,  parent_module_id uuid,  name text,  type public.module_type, enabled boolean)
+	RETURNS TABLE (level integer,  module_id uuid,  parent_module_id uuid,  name text,  module_type public.module_type, enabled boolean)
 	LANGUAGE plpgsql
 	VOLATILE
 	CALLED ON NULL INPUT
@@ -89,7 +89,7 @@ BEGIN
 			A.module_id,
 			A.parent_module_id,
 			A.name,
-			A.type,
+			A.module_type,
 			A.enabled
 		FROM
 			modules A
@@ -101,7 +101,7 @@ BEGIN
 			B.module_id,
 			B.parent_module_id,
 			B.name,
-			B.type,
+			B.module_type,
 			B.enabled
 		FROM
 			q,
@@ -114,7 +114,7 @@ BEGIN
 		q.module_id,
 		q.parent_module_id,
 		q.name,
-		q.type,
+		q.module_type,
 		q.enabled
 	FROM
 		q
@@ -126,7 +126,7 @@ $$;`
 
 	await knex.schema.withSchema('public').raw(
 `CREATE OR REPLACE FUNCTION public.fn_get_module_descendants (IN moduleid uuid)
-	RETURNS TABLE (level integer,  module_id uuid,  parent_module_id uuid,  name text,  type public.module_type, enabled boolean)
+	RETURNS TABLE (level integer,  module_id uuid,  parent_module_id uuid,  name text,  module_type public.module_type, enabled boolean)
 	LANGUAGE plpgsql
 	VOLATILE
 	CALLED ON NULL INPUT
@@ -141,7 +141,7 @@ BEGIN
 			A.module_id,
 			A.parent_module_id,
 			A.name,
-			A.type,
+			A.module_type,
 			A.enabled
 		FROM
 			modules A
@@ -153,7 +153,7 @@ BEGIN
 			B.module_id,
 			B.parent_module_id,
 			B.name,
-			B.type,
+			B.module_type,
 			B.enabled
 		FROM
 			q,
@@ -166,7 +166,7 @@ BEGIN
 		q.module_id,
 		q.parent_module_id,
 		q.name,
-		q.type,
+		q.module_type,
 		q.enabled
 	FROM
 		q
@@ -234,7 +234,7 @@ BEGIN
 			RETURN NULL;
 		END IF;
 
-		IF OLD.type <> NEW.type
+		IF OLD.module_type <> NEW.module_type
 		THEN
 			RAISE SQLSTATE '2F003' USING MESSAGE = 'Module type is NOT mutable';
 			RETURN NULL;
@@ -242,35 +242,35 @@ BEGIN
 	END IF;
 
 	/* Rule #3: Servers cannot have parents */
-	IF NEW.type = 'server' AND NEW.parent_module_id IS NULL
+	IF NEW.module_type = 'server' AND NEW.parent_module_id IS NULL
 	THEN
 		RETURN NEW;
 	END IF;
 
-	IF NEW.type = 'server' AND NEW.parent_module_id IS NOT NULL
+	IF NEW.module_type = 'server' AND NEW.parent_module_id IS NOT NULL
 	THEN
 		RAISE SQLSTATE '2F003' USING MESSAGE = 'Server Modules cannot have parents' ;
 		RETURN NULL;
 	END IF;
 
 	/* Rule #4: All non-servers MUST have parents */
-	IF NEW.type <> 'server' AND NEW.parent_module_id IS NULL
+	IF NEW.module_type <> 'server' AND NEW.parent_module_id IS NULL
 	THEN
 		RAISE SQLSTATE '2F003' USING MESSAGE = 'Only Server Modules cannot have parents - all other module types must belong to a Server' ;
 		RETURN NULL;
 	END IF;
 
 	/* Rule #5: Modules cannot host other module types as parents - unless they are either Servers or Features */
-	IF parent_module_type <> 'server' AND parent_module_type <> 'feature' AND parent_module_type <> CAST(NEW.type AS TEXT)
+	IF parent_module_type <> 'server' AND parent_module_type <> 'feature' AND parent_module_type <> CAST(NEW.module_type AS TEXT)
 	THEN
-		RAISE SQLSTATE '2F003' USING MESSAGE = 'Sub-modules must be of the same type as the parent module - except in cases of servers and features' ;
+		RAISE SQLSTATE '2F003' USING MESSAGE = 'Sub-modules must be of the same module_type as the parent module - except in cases of servers and features' ;
 		RETURN NULL;
 	END IF;
 
 	/* Rule #6: Templates cannot have sub-modules */
 	parent_module_type := '';
 	SELECT
-		type
+		module_type
 	FROM
 		modules
 	WHERE
@@ -285,7 +285,7 @@ BEGIN
 	END IF;
 
 	/* Rule #7: Only Servers/ Features can have templates */
-	IF NEW.type = 'template' AND (parent_module_type <> 'server' AND parent_module_type <> 'feature')
+	IF NEW.module_type = 'template' AND (parent_module_type <> 'server' AND parent_module_type <> 'feature')
 	THEN
 		RAISE SQLSTATE '2F003' USING MESSAGE = 'Only servers or features can have templates';
 		RETURN NULL;
@@ -365,7 +365,7 @@ BEGIN
 		modules
 	WHERE
 		module_id = NEW.module_id AND
-		(type = 'feature' OR type = 'server')
+		(module_type = 'feature' OR module_type = 'server')
 	INTO
 		is_feature;
 
@@ -414,7 +414,7 @@ BEGIN
 		modules
 	WHERE
 		module_id = NEW.module_id AND
-		type = 'feature'
+		module_type = 'feature'
 	INTO
 		is_feature;
 

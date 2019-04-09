@@ -1,17 +1,17 @@
 'use strict';
 
 exports.seed = async function(knex) {
-	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
+	let parentId = await knex.raw(`SELECT module_id FROM modules WHERE name = ? AND module_type = 'server' AND parent_module_id IS NULL`, ['PlantWorksWebappServer']);
 	if(!parentId.rows.length)
 		return null;
 
 	parentId = parentId.rows[0]['module_id'];
 
-	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'Profile']);
+	let componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'Profile']);
 	if(!componentId.rows.length) {
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'Profile',
 			'display_name': 'Profile Manager',
@@ -26,11 +26,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'Dashboard']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'Dashboard']);
 	if(!componentId.rows.length) {
 		let dashboardFeatureId = await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'Dashboard',
 			'display_name': 'Dashboard',
@@ -49,11 +49,11 @@ exports.seed = async function(knex) {
 		await knex.raw(`UPDATE tenants_users SET default_application = ? WHERE user_id = (SELECT user_id FROM users WHERE email = 'root@plant.works')`, [dashboardFeatureId]);
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'ServerAdministration']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'ServerAdministration']);
 	if(!componentId.rows.length) {
 		await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'admin',
 			'name': 'ServerAdministration',
 			'display_name': 'Server Administration',
@@ -68,11 +68,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [parentId, 'TenantAdministration']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'TenantAdministration']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': parentId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'TenantAdministration',
 			'display_name': 'Tenant Administration',
@@ -118,11 +118,11 @@ exports.seed = async function(knex) {
 
 	const tenantAdminFeatureId = componentId;
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [tenantAdminFeatureId, 'FeatureManager']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [tenantAdminFeatureId, 'FeatureManager']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': tenantAdminFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'FeatureManager',
 			'display_name': 'Feature Manager',
@@ -164,11 +164,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [tenantAdminFeatureId, 'GroupManager']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [tenantAdminFeatureId, 'GroupManager']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': tenantAdminFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'GroupManager',
 			'display_name': 'Group & Permissions Manager',
@@ -210,11 +210,11 @@ exports.seed = async function(knex) {
 		});
 	}
 
-	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND type = 'feature'`, [tenantAdminFeatureId, 'UserManager']);
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [tenantAdminFeatureId, 'UserManager']);
 	if(!componentId.rows.length) {
 		componentId = await knex('modules').insert({
 			'parent_module_id': tenantAdminFeatureId,
-			'type': 'feature',
+			'module_type': 'feature',
 			'deploy': 'default',
 			'name': 'UserManager',
 			'display_name': 'User Manager',

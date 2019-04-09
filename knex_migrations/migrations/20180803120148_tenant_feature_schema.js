@@ -176,7 +176,7 @@ BEGIN
 			modules A
 		WHERE
 			A.module_id = base_tmpl_id AND
-			A.type = 'template'
+			A.module_type = 'template'
 		INTO
 			base_template,
 			base_tmpl_config;
@@ -231,7 +231,7 @@ BEGIN
 		modules
 	WHERE
 		module_id = NEW.module_id AND
-		(type = 'feature' OR type = 'server')
+		(module_type = 'feature' OR module_type = 'server')
 	INTO
 		is_feature;
 
@@ -279,7 +279,7 @@ BEGIN
 		modules
 	WHERE
 		module_id IN (SELECT module_id FROM fn_get_module_ancestors(NEW.module_id)) AND
-		type <> 'server' AND
+		module_type <> 'server' AND
 		deploy <> 'default'
 	INTO
 		is_admin_only;
@@ -322,7 +322,7 @@ $$;`
 DECLARE
 	is_admin_feature	INTEGER;
 BEGIN
-	IF NEW.type <> 'feature' AND NEW.type <> 'server'
+	IF NEW.module_type <> 'feature' AND NEW.module_type <> 'server'
 	THEN
 		RETURN NEW;
 	END IF;
@@ -334,12 +334,12 @@ BEGIN
 		modules
 	WHERE
 		module_id IN (SELECT module_id FROM fn_get_module_ancestors(NEW.module_id)) AND
-		type <> 'server' AND
+		module_type <> 'server' AND
 		deploy <> 'default'
 	INTO
 		is_admin_feature;
 
-	IF NEW.type = 'server' OR (NEW.type = 'feature' AND is_admin_feature = 0)
+	IF NEW.module_type = 'server' OR (NEW.module_type = 'feature' AND is_admin_feature = 0)
 	THEN
 		INSERT INTO tenants_features (
 			tenant_id,
@@ -382,10 +382,10 @@ $$;`
 	AS $$
 DECLARE
 	server_record	RECORD;
-	server_cursor 	CURSOR FOR SELECT module_id FROM modules WHERE parent_module_id IS NULL AND type = 'server';
+	server_cursor 	CURSOR FOR SELECT module_id FROM modules WHERE parent_module_id IS NULL AND module_type = 'server';
 
 	feature_record	RECORD;
-	feature_cursor	CURSOR (server_id UUID) FOR SELECT module_id FROM fn_get_module_descendants(server_id) WHERE level > 1 AND type = 'feature' ORDER BY level ASC;
+	feature_cursor	CURSOR (server_id UUID) FOR SELECT module_id FROM fn_get_module_descendants(server_id) WHERE level > 1 AND module_type = 'feature' ORDER BY level ASC;
 
 	is_admin_feature	INTEGER;
 BEGIN
@@ -415,7 +415,7 @@ BEGIN
 				modules
 			WHERE
 				module_id IN (SELECT module_id FROM fn_get_module_ancestors(feature_record.module_id)) AND
-				type <> 'server' AND
+				module_type <> 'server' AND
 				deploy <> 'default'
 			INTO
 				is_admin_feature;
@@ -551,7 +551,7 @@ BEGIN
 		modules
 	WHERE
 		module_id IN (SELECT module_id FROM fn_get_module_descendants(NEW.module_id) WHERE level = 2) AND
-		type = 'feature' AND
+		module_type = 'feature' AND
 		deploy = 'default';
 
 	RETURN NEW;
@@ -674,12 +674,12 @@ DECLARE
 BEGIN
 	is_server := 0;
 	SELECT
-		count(type)
+		count(module_type)
 	FROM
 		modules
 	WHERE
 		module_id = NEW.module_id AND
-		type = 'server'
+		module_type = 'server'
 	INTO
 		is_server;
 

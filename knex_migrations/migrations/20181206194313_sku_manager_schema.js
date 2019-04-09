@@ -14,7 +14,7 @@ exports.up = async function(knex) {
 			tenantSkuTbl.text('name').notNullable();
 			tenantSkuTbl.uuid('attribute_set_id');
 
-			tenantSkuTbl.specificType('type', 'public.tenant_sku_type').notNullable().defaultTo('sku');
+			tenantSkuTbl.specificType('sku_type', 'public.tenant_sku_type').notNullable().defaultTo('sku');
 			tenantSkuTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			tenantSkuTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
