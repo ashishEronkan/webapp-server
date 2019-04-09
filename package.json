@@ -134,7 +134,7 @@
 		"docdash": "^1.1.0",
 		"eslint": "^5.16.0",
 		"eslint-junit": "*",
-		"eslint-plugin-jsdoc": "^4.8.1",
+		"eslint-plugin-jsdoc": "^4.8.2",
 		"eslint-plugin-node": "*",
 		"eslint-plugin-security": "*",
 		"grunt": "^1.0.4",
@@ -150,7 +150,7 @@
 		"istanbul": "^1.1.0-alpha.1",
 		"jsdoc": "*",
 		"load-grunt-tasks": "*",
-		"mocha": "^6.1.1",
+		"mocha": "^6.1.2",
 		"mocha-junit-reporter": "^1.21.0",
 		"mocha-prepare": "*",
 		"redis-mock": "^0.43.0"
