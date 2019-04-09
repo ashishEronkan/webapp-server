@@ -48,7 +48,6 @@ class TenantAdministration extends PlantWorksBaseFeature {
 
 			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-			defaultDisplay['attributes']['description'] = `Edit Account Settings`;
 			defaultDisplay['attributes']['icon_type'] = 'mdi';
 			defaultDisplay['attributes']['icon_path'] = 'account-settings';
 

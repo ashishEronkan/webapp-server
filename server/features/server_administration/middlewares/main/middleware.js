@@ -200,7 +200,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const configSrvc = this.$dependencies.ConfigurationService;
 			const serverModuleId = await configSrvc.getModuleID(serverModule);
 
-			let query = `SELECT module_id AS id, COALESCE(CAST(parent_module_id AS text), '#') AS parent, display_name AS text FROM modules WHERE module_id IN (SELECT module_id FROM fn_get_module_descendants(?) WHERE (type = 'server' OR type = 'feature'))`;
+			let query = `SELECT module_id AS id, COALESCE(CAST(parent_module_id AS text), '#') AS parent, display_name AS text FROM modules WHERE module_id IN (SELECT module_id FROM fn_get_module_descendants(?) WHERE (module_type = 'server' OR module_type = 'feature'))`;
 			if(ctxt.state.tenant['sub_domain'] !== 'www') query += ` AND deploy <> 'admin'`;
 
 			const dbSrvc = this.$dependencies.DatabaseService;

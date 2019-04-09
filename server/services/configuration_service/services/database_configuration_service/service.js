@@ -417,12 +417,12 @@ class DatabaseConfigurationService extends PlantWorksBaseService {
 				relevantConfig[moduleType] = subModuleConfigs[moduleType];
 			});
 
-			if(filteredConfig.type === 'server') {
+			if(filteredConfig.module_type === 'server') {
 				tree['server'] = relevantConfig;
 			}
 			else {
-				if(!tree[`${filteredConfig.type}s`]) tree[`${filteredConfig.type}s`] = {};
-				tree[`${filteredConfig.type}s`][inflection.underscore(filteredConfig.name)] = relevantConfig;
+				if(!tree[`${filteredConfig.module_type}s`]) tree[`${filteredConfig.module_type}s`] = {};
+				tree[`${filteredConfig.module_type}s`][inflection.underscore(filteredConfig.name)] = relevantConfig;
 			}
 		});
 

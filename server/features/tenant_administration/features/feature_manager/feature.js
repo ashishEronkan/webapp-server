@@ -32,7 +32,7 @@ class FeatureManager extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof Dashboard
+	 * @memberof FeatureManager
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.

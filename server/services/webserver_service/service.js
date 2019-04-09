@@ -426,7 +426,7 @@ class WebserverService extends PlantWorksBaseService {
 
 				tenant['template'] = template;
 
-				const tenantFeatures = await dbSrvc.raw(`SELECT * FROM fn_get_module_descendants(?) WHERE type = 'feature' AND module_id IN (SELECT module_id FROM tenants_features WHERE tenant_id = ?)`, [parentModuleId, tenant.tenant_id]);
+				const tenantFeatures = await dbSrvc.raw(`SELECT * FROM fn_get_module_descendants(?) WHERE module_type = 'feature' AND module_id IN (SELECT module_id FROM tenants_features WHERE tenant_id = ?)`, [parentModuleId, tenant.tenant_id]);
 				tenant['features'] = this._setupTenantFeatureTree(tenantFeatures.rows, parentModuleId);
 
 				const cacheMulti = cacheSrvc.multi();

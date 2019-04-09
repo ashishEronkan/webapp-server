@@ -32,7 +32,7 @@ class UserManager extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof Dashboard
+	 * @memberof UserManager
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.

@@ -48,7 +48,6 @@ class SkuManager extends PlantWorksBaseFeature {
 
 			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-			defaultDisplay['attributes']['description'] = `Edit SKU Information`;
 			defaultDisplay['attributes']['icon_type'] = 'fa';
 			defaultDisplay['attributes']['icon_path'] = 'barcode';
 

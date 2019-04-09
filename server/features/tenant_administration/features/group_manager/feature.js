@@ -32,7 +32,7 @@ class GroupManager extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof Dashboard
+	 * @memberof GroupManager
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.

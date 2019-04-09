@@ -32,7 +32,7 @@ class AttributeSets extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof Dashboard
+	 * @memberof AttributeSets
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.

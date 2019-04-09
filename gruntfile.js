@@ -36,7 +36,7 @@ module.exports = function(grunt) {
 				'command': 'npm run-script docs'
 			},
 			'organize_build_results': {
-				'command': 'mkdir ./buildresults/mocha && mkdir ./buildresults/eslint && mkdir ./buildresults/istanbul && mkdir ./buildresults/performance && mv ./*.clinic-* ./buildresults/performance && mv ./buildresults/lint.xml ./buildresults/eslint/results.xml && mv ./buildresults/tests.xml ./buildresults/mocha/results.xml && mv ./buildresults/cobertura-coverage.xml ./buildresults/istanbul/results.xml && mv ./buildresults/lcov.info ./buildresults/istanbul/lcov.info'
+				'command': 'mkdir ./buildresults/mocha && mkdir ./buildresults/eslint && mkdir ./buildresults/istanbul && mkdir ./buildresults/performance && mv ./.clinic/*.clinic-* ./buildresults/performance && mv ./buildresults/lint.xml ./buildresults/eslint/results.xml && mv ./buildresults/tests.xml ./buildresults/mocha/results.xml && mv ./buildresults/cobertura-coverage.xml ./buildresults/istanbul/results.xml && mv ./buildresults/lcov.info ./buildresults/istanbul/lcov.info'
 				// 'command': 'mkdir ./buildresults/mocha && mkdir ./buildresults/eslint && mkdir ./buildresults/istanbul && mv ./buildresults/lint.xml ./buildresults/eslint/results.xml && mv ./buildresults/tests.xml ./buildresults/mocha/results.xml && mv ./buildresults/cobertura-coverage.xml ./buildresults/istanbul/results.xml && mv ./buildresults/lcov.info ./buildresults/istanbul/lcov.info'
 			},
 			'rename-docs': {

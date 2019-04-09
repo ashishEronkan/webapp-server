@@ -32,7 +32,7 @@ class Common extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof Dashboard
+	 * @memberof Common
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.

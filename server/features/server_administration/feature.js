@@ -44,7 +44,6 @@ class ServerAdministration extends PlantWorksBaseFeature {
 	async getDashboardDisplayDetails(ctxt) {
 		const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-		defaultDisplay['attributes']['description'] = `Edit Server Settings`;
 		defaultDisplay['attributes']['icon_type'] = 'mdi';
 		defaultDisplay['attributes']['icon_path'] = 'server';
 

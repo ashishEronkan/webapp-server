@@ -211,9 +211,8 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 
 			'attributes': {
 				'name': inflection.transform(this.name, ['tableize', 'singularize', 'titleize']),
-				'type': 'feature',
+				'module_type': 'feature',
 				'route': inflectedFeatureName,
-				'description': this.name,
 
 				// eslint-disable-next-line no-inline-comments
 				'icon_type': 'fa', // Other choices are paper, mdi, img, custom
