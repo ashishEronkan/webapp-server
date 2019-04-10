@@ -41,21 +41,8 @@ class SkuManager extends PlantWorksBaseFeature {
 	 *
 	 * @summary  Everyone logged-in gets access.
 	 */
-	async getDashboardDisplayDetails(ctxt) {
-		try {
-			const rbacChecker = this._rbac('sku-manager-attribute-set-read OR sku-manager-configuration-read OR sku-manager-upload OR sku-manager-report-execute');
-			await rbacChecker(ctxt);
-
-			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
-
-			defaultDisplay['attributes']['icon_type'] = 'fa';
-			defaultDisplay['attributes']['icon_path'] = 'barcode';
-
-			return defaultDisplay;
-		}
-		catch(err) {
-			return null;
-		}
+	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
 	}
 	// #endregion
 

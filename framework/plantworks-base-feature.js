@@ -212,6 +212,7 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 			'attributes': {
 				'name': inflection.transform(this.name, ['tableize', 'singularize', 'titleize']),
 				'module_type': 'feature',
+				'dashboard_category': 'administration',
 				'route': inflectedFeatureName,
 
 				// eslint-disable-next-line no-inline-comments

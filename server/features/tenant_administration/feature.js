@@ -41,21 +41,8 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	 *
 	 * @summary  Everyone logged-in gets access.
 	 */
-	async getDashboardDisplayDetails(ctxt) {
-		try {
-			const rbacChecker = this._rbac('tenant-administration-read');
-			await rbacChecker(ctxt);
-
-			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
-
-			defaultDisplay['attributes']['icon_type'] = 'mdi';
-			defaultDisplay['attributes']['icon_path'] = 'account-settings';
-
-			return defaultDisplay;
-		}
-		catch(err) {
-			return null;
-		}
+	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
 	}
 	// #endregion
 
