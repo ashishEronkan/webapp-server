@@ -8,7 +8,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<!-- Other Meta Stuff for seo/kicks -->
-	<meta name="description" content="">
+	<meta name="description" content="PLant.Works Industrial Internet of Things (IIoT) / Industry 4.0 Portal">
 
 	<!-- Title: Will change based on the actual slogan or whatever -->
 	<title><%- title %></title>
@@ -21,8 +21,13 @@
 	<link href="//fonts.googleapis.com/css?family=Keania+One" rel="stylesheet" type="text/css" media="all">
 	<link href="//fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" type="text/css" media="all">
 
-	<!-- Application styles -->
+	<!-- Vendor  styles -->
 	<link integrity="" rel="stylesheet" href="/css/vendor.css">
+
+	<!-- jquery plugin styles -->
+	<link href="//cdnjs.cloudflare.com/ajax/libs/croppie/2.6.4/croppie.min.css" rel="stylesheet" type="text/css" media="all">
+
+	<!-- Application Styles -->
 	<link integrity="" rel="stylesheet" href="/css/plantworks.css">
 
 	<!-- Miscellaneous client-side data -->
@@ -31,12 +36,15 @@
 	</script>
 </head>
 
-<body class="grey">
+<body class="grey overflow-none">
 	<!-- Ember stuff... -->
 	<script src="/js/vendor.js"></script>
 
 	<!-- Ember template compiler - for dynamic compilation of templates, whenever we require it... -->
 	<script type="application/javascript" src="/ember-template-compiler.js"></script>
+
+	<!-- jquery plugin stuff... -->
+	<script src="//cdnjs.cloudflare.com/ajax/libs/croppie/2.6.4/croppie.min.js"></script>
 
 	<!-- Setup global stuff, DEBUG flags and global error handlers -->
 	<script type="application/javascript">

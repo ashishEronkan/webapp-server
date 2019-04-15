@@ -1148,12 +1148,35 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
+    'dashboardCategories': null,
+
     init() {
       this._super(...arguments);
 
       this.set('permissions', 'registered');
-    }
+    },
 
+    'onModelChanged': Ember.observer('model', 'model.@each.dashboardCategory', function () {
+      if (!this.get('model')) {
+        if (this.get('dashboardCategories')) {
+          this.get('dashboardCategories').clear();
+          return;
+        }
+
+        this.set('dashboardCategories', Ember.ArrayProxy.create({
+          'content': Ember.A([])
+        }));
+        return;
+      }
+
+      const dashCats = new Set();
+      this.get('model').forEach(dashboardFeature => {
+        dashCats.add(dashboardFeature.get('dashboardCategory'));
+      });
+      this.set('dashboardCategories', Ember.ArrayProxy.create({
+        'content': Ember.A([...dashCats])
+      }));
+    })
   });
 
   _exports.default = _default;
@@ -8166,6 +8189,227 @@
   };
   _exports.default = _default;
 });
+;define("plantworks/initializers/tenant-administration/feature-manager/add-tenant-feature-to-feature", ["exports", "ember-data", "plantworks/models/server-administration/feature", "ember-concurrency"], function (_exports, _emberData, _feature, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _feature.default.reopen({
+      'tenantFeature': _emberData.default.belongsTo('tenant-administration/feature-manager/tenant-feature', {
+        'async': true,
+        'inverse': 'feature'
+      }),
+      'isTenantSubscribed': Ember.computed('tenantFeature', 'parent.isTenantSubscribed', {
+        get() {
+          return this.get('computeTenantSubscription').perform();
+        }
+
+      }),
+      'computeTenantSubscription': (0, _emberConcurrency.task)(function* () {
+        const isFeatureSubscribed = this.get('tenantFeature');
+        if (!isFeatureSubscribed) return false;
+        const parentModule = yield this.get('parent');
+        if (!parentModule) return true;
+        const isParentSubscribed = yield parentModule.get('isTenantSubscribed');
+        return isParentSubscribed;
+      }).keepLatest()
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/feature-manager/add-tenant-feature-to-tenant", ["exports", "ember-data", "plantworks/models/tenant-administration/tenant"], function (_exports, _emberData, _tenant) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenant.default.reopen({
+      'tenantFeatures': _emberData.default.hasMany('tenant-administration/feature-manager/tenant-feature', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-groups-to-feature-permission", ["exports", "ember-data", "plantworks/models/server-administration/feature-permission"], function (_exports, _emberData, _featurePermission) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _featurePermission.default.reopen({
+      'tenantGroupPermissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
+        'async': true,
+        'inverse': 'featurePermission'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-groups-to-tenant-user", ["exports", "ember-data", "plantworks/models/tenant-administration/user-manager/tenant-user"], function (_exports, _emberData, _tenantUser) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenantUser.default.reopen({
+      'tenantUserGroups': _emberData.default.hasMany('tenant-administration/group-manager/tenant-user-group', {
+        'async': true,
+        'inverse': 'tenantUser'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-groups-to-tenant", ["exports", "ember-data", "plantworks/models/tenant-administration/tenant"], function (_exports, _emberData, _tenant) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenant.default.reopen({
+      'tenantGroups': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-tenant-group-perm-to-feature", ["exports", "ember-data", "plantworks/models/server-administration/feature"], function (_exports, _emberData, _feature) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _feature.default.reopen({
+      'tenantGroupPermissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
+        'async': true,
+        'inverse': 'feature'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-tenant-group-perm-to-tenant", ["exports", "ember-data", "plantworks/models/tenant-administration/tenant"], function (_exports, _emberData, _tenant) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenant.default.reopen({
+      'tenantGroupPermissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/group-manager/add-tenant-user-groups-to-tenant", ["exports", "ember-data", "plantworks/models/tenant-administration/tenant"], function (_exports, _emberData, _tenant) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenant.default.reopen({
+      'tenantUserGroups': _emberData.default.hasMany('tenant-administration/group-manager/tenant-user-group', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
+;define("plantworks/initializers/tenant-administration/user-manager/add-tenant-users-to-tenant", ["exports", "plantworks/models/tenant-administration/tenant", "ember-data"], function (_exports, _tenant, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.initialize = initialize;
+  _exports.default = void 0;
+
+  function initialize() {
+    _tenant.default.reopen({
+      'tenantUsers': _emberData.default.hasMany('tenant-administration/user-manager/tenant-user', {
+        'async': true,
+        'inverse': 'tenant'
+      })
+    });
+  }
+
+  var _default = {
+    initialize
+  };
+  _exports.default = _default;
+});
 ;define("plantworks/initializers/toastr", ["exports", "ember-toastr/initializers/toastr", "plantworks/config/environment"], function (_exports, _toastr, _environment) {
   "use strict";
 
@@ -8398,16 +8642,16 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'user': _emberData.default.belongsTo('profile/user', {
-      'async': true,
-      'inverse': 'contacts'
-    }),
     'contactType': _emberData.default.attr('string', {
       'defaultValue': 'mobile'
     }),
     'contact': _emberData.default.attr('string'),
     'verified': _emberData.default.attr('boolean', {
       'defaultValue': false
+    }),
+    'user': _emberData.default.belongsTo('profile/user', {
+      'async': true,
+      'inverse': 'contacts'
     })
   });
 
@@ -8433,10 +8677,353 @@
       'async': true,
       'inverse': 'user'
     }),
-    'fullName': Ember.computed('firstName', 'lastName', {
-      'get': function () {
-        return this.get('firstName') + ' ' + this.get('lastName');
-      }
+    'fullName': Ember.computed('firstName', 'lastName', function () {
+      return this.get('firstName') + ' ' + this.get('lastName');
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/server-administration/feature-permission", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'feature': _emberData.default.belongsTo('server-administration/feature', {
+      'async': true,
+      'inverse': 'permissions'
+    }),
+    'i18n_name_tag': Ember.computed('name', 'moduleType', function () {
+      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".title");
+    }),
+    'i18n_description_tag': Ember.computed('name', 'moduleType', function () {
+      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".description");
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/server-administration/feature", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'moduleType': _emberData.default.attr('string'),
+    'deploy': _emberData.default.attr('string', {
+      'defaultValue': 'default'
+    }),
+    'parent': _emberData.default.belongsTo('server-administration/feature', {
+      'async': true,
+      'inverse': 'features'
+    }),
+    'features': _emberData.default.hasMany('server-administration/feature', {
+      'async': true,
+      'inverse': 'parent'
+    }),
+    'permissions': _emberData.default.hasMany('server-administration/feature-permission', {
+      'async': true,
+      'inverse': 'feature'
+    }),
+    'i18n_name_tag': Ember.computed('name', 'moduleType', function () {
+      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".title");
+    }),
+    'i18n_description_tag': Ember.computed('name', 'moduleType', function () {
+      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".description");
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/feature-manager/tenant-feature", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'tenantFeatures'
+    }),
+    'feature': _emberData.default.belongsTo('server-administration/feature', {
+      'async': true,
+      'inverse': 'tenantFeatures'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/group-manager/tenant-group-permission", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'tenantGroupPermissions'
+    }),
+    'tenantGroup': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
+      'async': true,
+      'inverse': 'permissions'
+    }),
+    'feature': _emberData.default.belongsTo('server-administration/feature', {
+      'async': true,
+      'inverse': 'tenantGroupPermissions'
+    }),
+    'featurePermission': _emberData.default.belongsTo('server-administration/feature-permission', {
+      'async': true,
+      'inverse': 'tenantGroupPermissions'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/group-manager/tenant-group", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'displayName': _emberData.default.attr('string'),
+    'description': _emberData.default.attr('string'),
+    'defaultForNewUser': _emberData.default.attr('boolean', {
+      'defaultValue': false
+    }),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'groups'
+    }),
+    'parent': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
+      'async': true,
+      'inverse': 'groups'
+    }),
+    'groups': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group', {
+      'async': true,
+      'inverse': 'parent'
+    }),
+    'tenantUserGroups': _emberData.default.hasMany('tenant-administration/group-manager/tenant-user-group', {
+      'async': true,
+      'inverse': 'tenantGroup'
+    }),
+    'permissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
+      'async': true,
+      'inverse': 'tenantGroup'
+    }),
+    'onDisplayNameChanged': Ember.observer('displayName', function () {
+      this.set('name', this.get('displayName').dasherize().toLowerCase());
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/group-manager/tenant-user-group", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'tenantUserGroups'
+    }),
+    'tenantGroup': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
+      'async': true,
+      'inverse': 'tenantUserGroups'
+    }),
+    'tenantUser': _emberData.default.belongsTo('tenant-administration/user-manager/tenant-user', {
+      'async': true,
+      'inverse': 'tenantUserGroups'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/tenant-location", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'intl': Ember.inject.service('intl'),
+    'name': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'line1': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'line2': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'line3': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'area': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'city': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'state': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'country': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'postalCode': _emberData.default.attr('string', {
+      'defaultValue': ''
+    }),
+    'latitude': _emberData.default.attr('number', {
+      'defaultValue': 0
+    }),
+    'longitude': _emberData.default.attr('number', {
+      'defaultValue': 0
+    }),
+    'timezoneId': _emberData.default.attr('string', {
+      'defaultValue': 'asia_kolkata'
+    }),
+    'timezoneName': _emberData.default.attr('string', {
+      'defaultValue': 'ist'
+    }),
+    'isPrimary': _emberData.default.attr('boolean', {
+      'defaultValue': false
+    }),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'tenantLocation'
+    }),
+    'i18n_timezone_id': Ember.computed('timezoneId', function () {
+      return this.intl.t("timezone_id.".concat(this.get('timezoneId')));
+    }),
+    'i18n_timezone_name': Ember.computed('timezoneName', function () {
+      return this.intl.t("timezone_name.".concat(this.get('timezoneName')));
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/tenant", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'subDomain': _emberData.default.attr('string'),
+    'tenantLocations': _emberData.default.hasMany('tenant-administration/tenant-location', {
+      'async': true,
+      'inverse': 'tenant'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/user-manager/tenant-user", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'accessStatus': _emberData.default.attr('string', {
+      'defaultValue': 'waiting'
+    }),
+    'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
+      'async': true,
+      'inverse': 'tenantUsers'
+    }),
+    'user': _emberData.default.belongsTo('tenant-administration/user-manager/user', {
+      'async': true,
+      'inverse': 'tenantUsers'
+    }),
+    'profileImgUrl': Ember.computed('user.profileImage', function () {
+      return "/tenant-administration/user-manager/get-image/".concat(this.get('id'), "/?random=").concat(window.moment().valueOf());
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/user-manager/user-contact", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'contactType': _emberData.default.attr('string', {
+      'defaultValue': 'mobile'
+    }),
+    'contact': _emberData.default.attr('string'),
+    'verified': _emberData.default.attr('boolean', {
+      'defaultValue': false
+    }),
+    'user': _emberData.default.belongsTo('tenant-administration/user-manager/user', {
+      'async': true,
+      'inverse': 'contacts'
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/tenant-administration/user-manager/user", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'firstName': _emberData.default.attr('string'),
+    'middleNames': _emberData.default.attr('string'),
+    'lastName': _emberData.default.attr('string'),
+    'nickname': _emberData.default.attr('string'),
+    'email': _emberData.default.attr('string'),
+    'password': _emberData.default.attr('string'),
+    'profileImage': _emberData.default.attr('string'),
+    'profileImageMetadata': _emberData.default.attr(),
+    'contacts': _emberData.default.hasMany('tenant-administration/user-manager/user-contact', {
+      'async': true,
+      'inverse': 'user'
+    }),
+    'tenantUsers': _emberData.default.hasMany('tenant-administration/user-manager/tenant-user', {
+      'async': true,
+      'inverse': 'user'
+    }),
+    'fullName': Ember.computed('firstName', 'lastName', function () {
+      return this.get('firstName') + ' ' + this.get('lastName');
     })
   });
 
@@ -9371,8 +9958,8 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Mf039eIa",
-    "block": "{\"symbols\":[\"card\",\"feature\",\"card\",\"header\",\"text\",\"card\",\"feature\",\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[29,\"and\",[[25,[\"hasPermission\"]],[25,[\"model\",\"length\"]]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80 flex-gt-lg-70\"],[9],[0,\"\\n\"],[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"dashboardCategory\",\"application\",[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L6:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L7:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,10,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"apps-box\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"dashboard_feature.main_component.application\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[10]},null]],\"parameters\":[9]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L14:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-space-around-center layout-wrap py-4\"]],{\"statements\":[[4,\"each\",[[25,[\"model\"]]],null,{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,7,[\"moduleType\"]],\"feature\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex flex-gt-xs-50 flex-gt-sm-33 flex-gt-md-25 flex-gt-lg-20\"]],{\"statements\":[[4,\"link-to\",[[24,7,[\"route\"]]],[[\"title\"],[[29,\"t\",[[24,7,[\"i18n_description_tag\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L19:C9) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,7,[\"iconType\"]],\"fa\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[[24,7,[\"iconPath\"]]],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,7,[\"iconType\"]],\"md\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[[24,7,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,7,[\"iconType\"]],\"mdi\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[[24,7,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,7,[\"iconType\"]],\"img\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,7,[\"iconPath\"]]],[12,\"alt\",[29,\"t\",[[24,7,[\"i18n_name_tag\"]]],null]],[11,\"style\",\"min-height:4rem; height:4rem; max-height:4rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,7,[\"iconType\"]],\"custom\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,7,[\"iconPath\"]],true],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-2\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[24,7,[\"i18n_name_tag\"]]],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[8]},null]],\"parameters\":[]},null]],\"parameters\":[7]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"dashboardCategory\",\"administration\",[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L54:C6) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L55:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L56:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"shield-plus\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"dashboard_feature.main_component.administration\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L62:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-space-around-center layout-wrap py-4\"]],{\"statements\":[[4,\"each\",[[25,[\"model\"]]],null,{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,2,[\"moduleType\"]],\"feature\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex flex-gt-xs-50 flex-gt-sm-33 flex-gt-md-25 flex-gt-lg-20\"]],{\"statements\":[[4,\"link-to\",[[24,2,[\"route\"]]],[[\"title\"],[[29,\"t\",[[24,2,[\"i18n_description_tag\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L67:C9) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,2,[\"iconType\"]],\"fa\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[[24,2,[\"iconPath\"]]],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,2,[\"iconType\"]],\"md\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[[24,2,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,2,[\"iconType\"]],\"mdi\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[[24,2,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,2,[\"iconType\"]],\"img\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,2,[\"iconPath\"]]],[12,\"alt\",[29,\"t\",[[24,2,[\"i18n_name_tag\"]]],null]],[11,\"style\",\"min-height:4rem; height:4rem; max-height:4rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,2,[\"iconType\"]],\"custom\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"iconPath\"]],true],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-2\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[24,2,[\"i18n_name_tag\"]]],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "aWGhOWkZ",
+    "block": "{\"symbols\":[\"dashCategory\",\"card\",\"feature\",\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[29,\"and\",[[25,[\"hasPermission\"]],[25,[\"model\",\"length\"]]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80 flex-gt-lg-70\"],[9],[0,\"\\n\"],[4,\"each\",[[25,[\"dashboardCategories\"]]],null,{\"statements\":[[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"dashboardCategory\",[24,1,[]],[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L7:C7) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L9:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"apps-box\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[29,\"concat\",[\"dashboard_feature.main_component.\",[24,1,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L15:C7) \"],null]],[[\"class\"],[\"layout-row layout-align-space-around-center layout-wrap py-4\"]],{\"statements\":[[4,\"each\",[[25,[\"model\"]]],null,{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"dashboardCategory\"]],[24,1,[]]],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex flex-gt-xs-50 flex-gt-sm-33 flex-gt-md-25 flex-gt-lg-20\"]],{\"statements\":[[4,\"link-to\",[[24,3,[\"route\"]]],[[\"title\"],[[29,\"t\",[[24,3,[\"i18n_description_tag\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L20:C10) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"fa\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"md\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"mdi\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"img\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,3,[\"iconPath\"]]],[12,\"alt\",[29,\"t\",[[24,3,[\"i18n_name_tag\"]]],null]],[11,\"style\",\"min-height:4rem; height:4rem; max-height:4rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"custom\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"iconPath\"]],true],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-2\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[24,3,[\"i18n_name_tag\"]]],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/dashboard/main-component.hbs"
     }
@@ -9446,8 +10033,8 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "3skWX4GJ",
-    "block": "{\"symbols\":[\"table\",\"body\",\"contact\",\"row\",\"row\",\"type\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\",\"selectable\"],[\"type\",\"asc\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L3:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L4:C5) \"],null]],[[\"sortProp\",\"class\"],[\"type\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"contacts\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.contact_type\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L8:C5) \"],null]],[[\"sortProp\",\"class\"],[\"contact\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"info\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.contact\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L12:C5) \"],null]],[[\"sortProp\",\"class\"],[\"verified\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"verified-user\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.verified_yn\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L16:C5) \"],null]],[[\"class\"],[\"px-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[29,\"perform\",[[25,[\"addContact\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[\"plus-circle\"],[[\"size\"],[\"2x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L22:C4) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[25,[\"model\",\"contacts\"]]],null]],null,{\"statements\":[[4,\"if\",[[24,3,[\"isNew\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L25:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L26:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-end-center\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"required\"],[\"flex m-0\",[24,3,[\"type\"]],[25,[\"contactTypes\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"type\"]]],null]],null],true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"titleize\",[[24,6,[]]],null],false],[0,\"\\n\"]],\"parameters\":[6]},null],[0,\"\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L33:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-end-center\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex m-0\",[24,3,[\"contact\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"contact\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L38:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-center\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-checkbox\",null,[[\"class\",\"value\",\"onChange\",\"disabled\"],[\"flex m-0\",false,null,true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L43:C8) \"],null]],[[\"class\"],[\"p-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"saveContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"deleteContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L54:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L55:C8) \"],null]],[[\"class\"],[\"p-0 px-3\"]],{\"statements\":[[1,[29,\"titleize\",[[24,3,[\"type\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L56:C8) \"],null]],[[\"class\"],[\"p-0 px-3\"]],{\"statements\":[[1,[24,3,[\"contact\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L57:C8) \"],null]],[[\"class\"],[\"p-0 px-3 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-checkbox\",null,[[\"class\",\"value\",\"onChange\",\"disabled\"],[\"flex m-0\",[24,3,[\"verified\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L60:C8) \"],null]],[[\"class\"],[\"p-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"deleteContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]}]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "ceF012vf",
+    "block": "{\"symbols\":[\"table\",\"body\",\"contact\",\"row\",\"row\",\"type\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\",\"selectable\"],[\"type\",\"asc\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L3:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L4:C5) \"],null]],[[\"sortProp\",\"class\"],[\"type\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"contacts\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.contact_type\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L8:C5) \"],null]],[[\"sortProp\",\"class\"],[\"contact\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"info\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.contact\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L12:C5) \"],null]],[[\"sortProp\",\"class\"],[\"verified\",\"px-0 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"verified-user\"],[[\"class\"],[\"mr-0 mt-1\"]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"profile_feature.contact_manager.verified_yn\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L16:C5) \"],null]],[[\"class\"],[\"px-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[29,\"perform\",[[25,[\"addContact\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[\"plus-circle\"],[[\"size\"],[\"2x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L22:C4) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[25,[\"model\",\"contacts\"]]],null]],null,{\"statements\":[[4,\"if\",[[24,3,[\"isNew\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L25:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L26:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-end-center\"],[9],[0,\"\\n\"],[4,\"paper-select\",null,[[\"class\",\"selected\",\"options\",\"onChange\",\"required\"],[\"flex m-0\",[24,3,[\"contactType\"]],[25,[\"contactTypes\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"contactType\"]]],null]],null],true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"titleize\",[[24,6,[]]],null],false],[0,\"\\n\"]],\"parameters\":[6]},null],[0,\"\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L33:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-end-center\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex m-0\",[24,3,[\"contact\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"contact\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L38:C8) \"],null]],[[\"class\"],[\"p-0 px-3 pt-3\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-center\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-checkbox\",null,[[\"class\",\"value\",\"onChange\",\"disabled\"],[\"flex m-0\",false,null,true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L43:C8) \"],null]],[[\"class\"],[\"p-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"saveContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"deleteContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L54:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L55:C8) \"],null]],[[\"class\"],[\"p-0 px-3\"]],{\"statements\":[[1,[29,\"titleize\",[[24,3,[\"contactType\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L56:C8) \"],null]],[[\"class\"],[\"p-0 px-3\"]],{\"statements\":[[1,[24,3,[\"contact\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L57:C8) \"],null]],[[\"class\"],[\"p-0 px-3 text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-checkbox\",null,[[\"class\",\"value\",\"onChange\",\"disabled\"],[\"flex m-0\",[24,3,[\"verified\"]],null,true]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/profile/contact-manager.hbs' @ L60:C8) \"],null]],[[\"class\"],[\"p-0 text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"class\",\"onClick\"],[true,true,\"m-0 p-0\",[29,\"perform\",[[25,[\"deleteContact\"]],[24,3,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]}]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/profile/contact-manager.hbs"
     }
@@ -9464,8 +10051,8 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "aHf9N06C",
-    "block": "{\"symbols\":[\"accordion\",\"accItem\",\"accItem\",\"accItem\",\"form\",\"card\",\"accItem\",\"form\",\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-center flex flex-gt-md-50 flex-gt-lg-40\"],[9],[0,\"\\n\"],[4,\"bs-accordion\",null,[[\"class\",\"selected\",\"onChange\"],[\"w-100\",[25,[\"selectedAccordionItem\"]],[29,\"perform\",[[25,[\"onChangeAccordionItem\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L5:C6) \"],null]],[[\"value\",\"title\"],[\"1\",[29,\"t\",[\"profile_feature.main_component.pane_basics\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" Profile Basics \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L7:C7) \"],null]],[[\"class\"],[\"bg-plantworks-component p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0 white-text\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_basics\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L10:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-form\",null,[[\"class\",\"onSubmit\"],[\"w-100\",[29,\"perform\",[[25,[\"save\"]]],null]]],{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/profile/main-component.hbs' @ L13:C9) \"],null]],[[\"class\"],[\"pt-4\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"id\",\"profile-basic-information-image\"],[11,\"class\",\"flex\"],[11,\"contenteditable\",\"true\"],[9],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45 flex-gt-lg-50\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L20:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_username\"],null],[25,[\"model\",\"email\"]],null,true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L23:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_fist_name\"],null],[25,[\"model\",\"firstName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"firstName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L26:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_middle_name\"],null],[25,[\"model\",\"middleNames\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"middleNames\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L29:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_last_name\"],null],[25,[\"model\",\"lastName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"lastName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/components/profile/main-component.hbs' @ L34:C9) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"warn\",\"disabled\",\"onClick\"],[true,true,[29,\"not\",[[29,\"or\",[[25,[\"model\",\"isDirty\"]],[25,[\"model\",\"content\",\"isDirty\"]]],null]],null],[29,\"perform\",[[25,[\"cancel\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/profile/main-component.hbs' @ L39:C10) \"],null]],[[\"raised\",\"primary\",\"disabled\"],[true,true,[29,\"or\",[[24,8,[\"isInvalid\"]],[29,\"not\",[[29,\"or\",[[25,[\"model\",\"isDirty\"]],[25,[\"model\",\"content\",\"isDirty\"]]],null]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_ok_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[9]},null]],\"parameters\":[8]},null]],\"parameters\":[]},null]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L48:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"2\",[29,\"t\",[\"profile_feature.main_component.pane_password\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" Password Change \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L50:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_password\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L53:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-form\",null,[[\"class\",\"onSubmit\"],[\"w-100\",[29,\"perform\",[[25,[\"changePassword\"]]],null]]],{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/profile/main-component.hbs' @ L56:C9) \"],null]],[[\"class\"],[\"pt-4\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L58:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_current_password\"],null],[25,[\"currentPassword\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"currentPassword\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L61:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_new_password\"],null],[25,[\"newPassword1\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"newPassword1\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L64:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_confirm_password\"],null],[25,[\"newPassword2\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"newPassword2\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/components/profile/main-component.hbs' @ L67:C9) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"warn\",\"disabled\",\"onClick\"],[true,true,[29,\"not\",[[29,\"or\",[[29,\"not-eq\",[[25,[\"currentPassword\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword1\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword2\"]],\"\"],null]],null]],null],[29,\"perform\",[[25,[\"cancelChangePassword\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/profile/main-component.hbs' @ L72:C10) \"],null]],[[\"raised\",\"primary\",\"disabled\"],[true,true,[29,\"or\",[[29,\"eq\",[[25,[\"newPassword1\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword1\"]],[25,[\"newPassword2\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L81:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"3\",[29,\"t\",[\"profile_feature.main_component.pane_contact_information\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" User contact Information \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L83:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_contact_information\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L86:C7) \"],null]],[[\"class\"],[\"p-2\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[\"profile/contact-manager\"],[[\"model\",\"controller-action\"],[[25,[\"model\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L90:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"4\",[29,\"t\",[\"profile_feature.main_component.pane_danger\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" User contact Information \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L92:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_danger\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L95:C7) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"raised\",\"onClick\"],[\"flex btn-danger\",true,[29,\"perform\",[[25,[\"deleteAccount\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-off\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_delete_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "nIfbfnmg",
+    "block": "{\"symbols\":[\"accordion\",\"accItem\",\"accItem\",\"accItem\",\"form\",\"card\",\"accItem\",\"form\",\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-center flex flex-gt-md-50 flex-gt-lg-40\"],[9],[0,\"\\n\"],[4,\"bs-accordion\",null,[[\"class\",\"selected\",\"onChange\"],[\"w-100\",[25,[\"selectedAccordionItem\"]],[29,\"perform\",[[25,[\"onChangeAccordionItem\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L5:C6) \"],null]],[[\"value\",\"title\"],[\"1\",[29,\"t\",[\"profile_feature.main_component.pane_basics\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" Profile Basics \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L7:C7) \"],null]],[[\"class\"],[\"bg-plantworks-component p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0 white-text\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_basics\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L10:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-form\",null,[[\"class\",\"onSubmit\"],[\"w-100\",[29,\"perform\",[[25,[\"save\"]]],null]]],{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/profile/main-component.hbs' @ L13:C9) \"],null]],[[\"class\"],[\"pt-4\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"id\",\"profile-basic-information-image\"],[11,\"class\",\"flex\"],[11,\"contenteditable\",\"true\"],[9],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45 flex-gt-lg-50\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L20:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_username\"],null],[25,[\"model\",\"email\"]],null,true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L23:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_first_name\"],null],[25,[\"model\",\"firstName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"firstName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L26:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_middle_name\"],null],[25,[\"model\",\"middleNames\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"middleNames\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L29:C12) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_last_name\"],null],[25,[\"model\",\"lastName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"lastName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/components/profile/main-component.hbs' @ L34:C9) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"warn\",\"disabled\",\"onClick\"],[true,true,[29,\"not\",[[29,\"or\",[[25,[\"model\",\"isDirty\"]],[25,[\"model\",\"content\",\"isDirty\"]]],null]],null],[29,\"perform\",[[25,[\"cancel\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/profile/main-component.hbs' @ L39:C10) \"],null]],[[\"raised\",\"primary\",\"disabled\"],[true,true,[29,\"or\",[[24,8,[\"isInvalid\"]],[29,\"not\",[[29,\"or\",[[25,[\"model\",\"isDirty\"]],[25,[\"model\",\"content\",\"isDirty\"]]],null]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[9]},null]],\"parameters\":[8]},null]],\"parameters\":[]},null]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L48:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"2\",[29,\"t\",[\"profile_feature.main_component.pane_password\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" Password Change \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L50:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_password\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L53:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-form\",null,[[\"class\",\"onSubmit\"],[\"w-100\",[29,\"perform\",[[25,[\"changePassword\"]]],null]]],{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/profile/main-component.hbs' @ L56:C9) \"],null]],[[\"class\"],[\"pt-4\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L58:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_current_password\"],null],[25,[\"currentPassword\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"currentPassword\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L61:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_new_password\"],null],[25,[\"newPassword1\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"newPassword1\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/profile/main-component.hbs' @ L64:C10) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"profile_feature.main_component.label_confirm_password\"],null],[25,[\"newPassword2\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"newPassword2\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/components/profile/main-component.hbs' @ L67:C9) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"raised\",\"warn\",\"disabled\",\"onClick\"],[true,true,[29,\"not\",[[29,\"or\",[[29,\"not-eq\",[[25,[\"currentPassword\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword1\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword2\"]],\"\"],null]],null]],null],[29,\"perform\",[[25,[\"cancelChangePassword\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"submit-button\"]],\"expected `form.submit-button` to be a contextual component but found a string. Did you mean `(component form.submit-button)`? ('plantworks/templates/components/profile/main-component.hbs' @ L72:C10) \"],null]],[[\"raised\",\"primary\",\"disabled\"],[true,true,[29,\"or\",[[29,\"eq\",[[25,[\"newPassword1\"]],\"\"],null],[29,\"not-eq\",[[25,[\"newPassword1\"]],[25,[\"newPassword2\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L81:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"3\",[29,\"t\",[\"profile_feature.main_component.pane_contact_information\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" User contact Information \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L83:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_contact_information\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L86:C7) \"],null]],[[\"class\"],[\"p-2\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[\"profile/contact-manager\"],[[\"model\",\"controller-action\"],[[25,[\"model\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/profile/main-component.hbs' @ L90:C6) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"4\",[29,\"t\",[\"profile_feature.main_component.pane_danger\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[2,\" User contact Information \"],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/profile/main-component.hbs' @ L92:C7) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"mb-0\"],[9],[1,[29,\"t\",[\"profile_feature.main_component.pane_danger\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/profile/main-component.hbs' @ L95:C7) \"],null]],[[\"class\"],[\"layout-row layout-align-start-stretch\"]],{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"raised\",\"onClick\"],[\"flex btn-danger\",true,[29,\"perform\",[[25,[\"deleteAccount\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-off\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_delete_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/profile/main-component.hbs"
     }
@@ -10050,6 +10637,12 @@ define("plantworks/router", [], function () {
       "description": "Tenant Administration Feature",
       "title": "Tenant Administration"
     },
+    "timezone_id": {
+      "asia_kolkata": "Asia/Kolkata"
+    },
+    "timezone_name": {
+      "ist": "India Standard Time (IST)"
+    },
     "warehouse_manager_feature": {
       "description": "Warehouse Manager Feature",
       "title": "Warehouse Manager"
@@ -10146,7 +10739,7 @@ define("plantworks/router", [], function () {
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+bde53e82"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+45bfecc3"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
