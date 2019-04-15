@@ -14,8 +14,6 @@ exports.seed = async function(knex) {
 			'module_type': 'component',
 			'deploy': 'default',
 			'name': 'Session',
-			'display_name': 'Session API',
-			'description': 'The Plant.Works Web Application Session API - exposes login/logout and similar operations',
 			'metadata': {
 				'author': 'Plant.Works',
 				'version': '2.4.3',
@@ -33,8 +31,6 @@ exports.seed = async function(knex) {
 			'module_type': 'component',
 			'deploy': 'default',
 			'name': 'Masterdata',
-			'display_name': 'Master Data API',
-			'description': 'The Plant.Works Web Application Masterdata API - exposes master data',
 			'metadata': {
 				'author': 'Plant.Works',
 				'version': '2.4.3',

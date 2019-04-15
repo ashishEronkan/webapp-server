@@ -170,10 +170,7 @@ class DatabaseConfigurationService extends PlantWorksBaseService {
 
 			const plantworksModulePath = this.$parent._getPathForModule(plantworksModule);
 			const cachedModule = this._getCachedModule(plantworksModulePath);
-			if(cachedModule) {
-				plantworksModule.displayName = cachedModule.displayName;
-				return cachedModule.configuration;
-			}
+			if(cachedModule) return cachedModule.configuration;
 
 			return {};
 		}
@@ -378,7 +375,7 @@ class DatabaseConfigurationService extends PlantWorksBaseService {
 			let moduleConfigs = null;
 
 			if(serverId.rows.length) {
-				moduleConfigs = await this.$database.queryAsync('SELECT A.*, B.display_name, B.configuration, B.enabled FROM fn_get_module_descendants($1) A INNER JOIN modules B ON (A.module_id = B.module_id)', [serverId.rows[0]['module_id']]);
+				moduleConfigs = await this.$database.queryAsync('SELECT A.*, B.name, B.configuration, B.enabled FROM fn_get_module_descendants($1) A INNER JOIN modules B ON (A.module_id = B.module_id)', [serverId.rows[0]['module_id']]);
 				moduleConfigs = moduleConfigs.rows;
 			}
 
@@ -407,7 +404,6 @@ class DatabaseConfigurationService extends PlantWorksBaseService {
 			const relevantConfig = {
 				'module_id': filteredConfig.module_id,
 				'name': filteredConfig.name,
-				'displayName': filteredConfig.display_name,
 				'configuration': filteredConfig.configuration,
 				'enabled': filteredConfig.enabled
 			};
@@ -447,7 +443,6 @@ class DatabaseConfigurationService extends PlantWorksBaseService {
 				cachedMap[currentPrefix] = {
 					'module_id': configTree[key]['module_id'],
 					'name': configTree[key]['name'],
-					'displayName': configTree[key]['display_name'],
 					'configuration': configTree[key]['configuration'],
 					'enabled': configTree[key]['enabled']
 				};

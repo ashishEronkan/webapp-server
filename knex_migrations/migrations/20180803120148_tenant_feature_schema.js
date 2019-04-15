@@ -23,20 +23,20 @@ exports.up = async function(knex) {
 			groupPermissionTbl.uuid('tenant_id').notNullable();
 			groupPermissionTbl.uuid('tenant_group_id').notNullable();
 
-			groupPermissionTbl.uuid('module_id').notNullable();
+			groupPermissionTbl.uuid('feature_id').notNullable();
 			groupPermissionTbl.uuid('feature_permission_id').notNullable();
 
 			groupPermissionTbl.uuid('tenant_group_permission_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			groupPermissionTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			groupPermissionTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
-			groupPermissionTbl.primary(['tenant_id', 'tenant_group_id', 'module_id', 'feature_permission_id']);
+			groupPermissionTbl.primary(['tenant_id', 'tenant_group_id', 'feature_id', 'feature_permission_id']);
 			groupPermissionTbl.unique(['tenant_group_permission_id']);
 
-			groupPermissionTbl.foreign(['module_id', 'feature_permission_id']).references(['module_id', 'feature_permission_id']).inTable('feature_permissions').onDelete('CASCADE').onUpdate('CASCADE');
+			groupPermissionTbl.foreign(['feature_id', 'feature_permission_id']).references(['module_id', 'feature_permission_id']).inTable('feature_permissions').onDelete('CASCADE').onUpdate('CASCADE');
 			groupPermissionTbl.foreign(['tenant_id', 'tenant_group_id']).references(['tenant_id', 'tenant_group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
 
-			groupPermissionTbl.foreign(['tenant_id', 'module_id']).references(['tenant_id', 'module_id']).inTable('tenants_features').onDelete('CASCADE').onUpdate('CASCADE');
+			groupPermissionTbl.foreign(['tenant_id', 'feature_id']).references(['tenant_id', 'module_id']).inTable('tenants_features').onDelete('CASCADE').onUpdate('CASCADE');
 		});
 	}
 
@@ -49,9 +49,7 @@ exports.up = async function(knex) {
 			tmplTbl.uuid('tenant_server_template_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			tmplTbl.uuid('base_template_id').notNullable();
 			tmplTbl.text('name').notNullable();
-			tmplTbl.text('display_name').notNullable();
 			tmplTbl.text('relative_path_to_index').notNullable().defaultTo('index.html');
-			tmplTbl.text('description');
 			tmplTbl.boolean('default').notNullable().defaultTo(false);
 			tmplTbl.jsonb('configuration').notNullable().defaultTo('{}');
 			tmplTbl.jsonb('configuration_schema').notNullable().defaultTo('{}');
@@ -72,7 +70,6 @@ exports.up = async function(knex) {
 			tmplPositionTbl.uuid('tenant_server_template_id').notNullable();
 			tmplPositionTbl.uuid('tenant_server_template_position_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			tmplPositionTbl.text('name').notNullable();
-			tmplPositionTbl.text('display_name').notNullable();
 			tmplPositionTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			tmplPositionTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
@@ -468,7 +465,7 @@ BEGIN
 		tenant_group_permissions (
 			tenant_id,
 			tenant_group_id,
-			module_id,
+			feature_id,
 			feature_permission_id
 		)
 	SELECT
@@ -513,13 +510,13 @@ BEGIN
 		tenant_group_permissions (
 			tenant_id,
 			tenant_group_id,
-			module_id,
+			feature_id,
 			feature_permission_id
 		)
 	SELECT
 		NEW.tenant_id,
 		admin_group_id,
-		NEW.module_id,
+		module_id,
 		feature_permission_id
 	FROM
 		feature_permissions

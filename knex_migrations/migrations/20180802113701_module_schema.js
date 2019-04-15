@@ -21,8 +21,6 @@ exports.up = async function(knex) {
 			modTbl.specificType('module_type', 'public.module_type').notNullable().defaultTo('feature');
 			modTbl.specificType('deploy', 'public.module_deploy_type').notNullable().defaultTo('admin');
 			modTbl.text('name').notNullable();
-			modTbl.text('display_name').notNullable();
-			modTbl.text('description').notNullable().defaultTo(`Another Plant.Works Module`);
 			modTbl.jsonb('metadata').notNullable().defaultTo('{}');
 			modTbl.jsonb('configuration').notNullable().defaultTo('{}');
 			modTbl.jsonb('configuration_schema').notNullable().defaultTo('{}');
@@ -41,9 +39,7 @@ exports.up = async function(knex) {
 			permTbl.uuid('module_id').notNullable().references('module_id').inTable('modules').onDelete('CASCADE').onUpdate('CASCADE');
 			permTbl.uuid('feature_permission_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			permTbl.text('name').notNullable();
-			permTbl.text('display_name').notNullable();
 			permTbl.jsonb('implies_permissions').notNullable().defaultTo('[]');
-			permTbl.text('description').notNullable().defaultTo('Another Random Permission');
 			permTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			permTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
@@ -59,10 +55,8 @@ exports.up = async function(knex) {
 			featureFrontendComponentTbl.uuid('module_id').notNullable().references('module_id').inTable('modules').onDelete('CASCADE').onUpdate('CASCADE');
 			featureFrontendComponentTbl.uuid('feature_frontend_component_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 			featureFrontendComponentTbl.text('name').notNullable();
-			featureFrontendComponentTbl.text('display_name').notNullable();
 			featureFrontendComponentTbl.jsonb('configuration_schema').notNullable().defaultTo('{}');
 			featureFrontendComponentTbl.jsonb('default_configuration').notNullable().defaultTo('{}');
-			featureFrontendComponentTbl.text('description').notNullable().defaultTo('A Random Ember Component');
 			featureFrontendComponentTbl.timestamp('created_at').notNullable().defaultTo(knex.fn.now());
 			featureFrontendComponentTbl.timestamp('updated_at').notNullable().defaultTo(knex.fn.now());
 
