@@ -177,7 +177,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const serverModuleId = await configSrvc.getModuleID(serverModule);
 
 			const dbSrvc = this.$dependencies.DatabaseService;
-			const tenantFeatures = await dbSrvc.knex.raw(`SELECT module_id AS id, COALESCE(CAST(parent_module_id AS text), '#') AS parent, display_name AS text FROM modules WHERE module_id IN (SELECT module_id FROM fn_get_module_descendants(?) WHERE (module_type = 'server' OR module_type = 'feature') AND module_id IN (SELECT module_id FROM tenants_features WHERE tenant_id = ?))`, [serverModuleId, ctxt.state.tenant.tenant_id]);
+			const tenantFeatures = await dbSrvc.knex.raw(`SELECT module_id AS id, COALESCE(CAST(parent_module_id AS text), '#') AS parent, name AS text FROM modules WHERE module_id IN (SELECT module_id FROM fn_get_module_descendants(?) WHERE (module_type = 'server' OR module_type = 'feature') AND module_id IN (SELECT module_id FROM tenants_features WHERE tenant_id = ?))`, [serverModuleId, ctxt.state.tenant.tenant_id]);
 
 			return tenantFeatures.rows;
 		}

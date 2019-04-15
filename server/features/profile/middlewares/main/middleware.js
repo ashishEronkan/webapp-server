@@ -163,7 +163,7 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			let profileData = await UserRecord.fetch({
-				'withRelated': [ctxt.query.include]
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['contacts']
 			});
 
 			profileData = this.$jsonApiMapper.map(profileData, 'profile/users', {
