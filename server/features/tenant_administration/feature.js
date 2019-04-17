@@ -42,7 +42,14 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	 * @summary  Everyone logged-in gets access.
 	 */
 	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
-		return null;
+		const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
+
+		defaultDisplay['attributes']['name'] = 'Pug';
+		defaultDisplay['attributes']['route'] = 'pug';
+		defaultDisplay['attributes']['icon_type'] = 'paper';
+		defaultDisplay['attributes']['icon_path'] = 'group';
+
+		return defaultDisplay;
 	}
 	// #endregion
 

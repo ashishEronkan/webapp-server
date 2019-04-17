@@ -50,13 +50,27 @@ class BhairaviTemplate extends PlantWorksBaseTemplate {
 		const dirPath = path.join(path.dirname(path.dirname(require.main.filename)), 'node_modules/ember-source/dist');
 		this.$router.use(serveStatic(dirPath));
 
+		if(!this.$statciServers) { // eslint-disable-line curly
+			this.$statciServers = {};
+		}
+
 		this.$router.get('*', async (ctxt, next) => {
 			let staticServer = null;
 			try {
 				const tenantTemplatePath = path.dirname(path.join(ctxt.state.tenant['template']['tenant_domain'], ctxt.state.tenant['template']['tmpl_name'], ctxt.state.tenant['template']['path_to_index']));
 				const tmplStaticAssetPath = path.join(path.dirname(path.dirname(require.main.filename)), 'tenant_templates', tenantTemplatePath);
 
-				staticServer = serveStatic(tmplStaticAssetPath);
+				// eslint-disable-next-line security/detect-object-injection
+				if(this.$statciServers[tmplStaticAssetPath]) {
+					// eslint-disable-next-line security/detect-object-injection
+					staticServer = this.$statciServers[tmplStaticAssetPath];
+				}
+				else {
+					staticServer = serveStatic(tmplStaticAssetPath);
+
+					// eslint-disable-next-line security/detect-object-injection
+					this.$statciServers[tmplStaticAssetPath] = staticServer;
+				}
 			}
 			catch(err) {
 				console.error(`${err.message}\n${err.stack}`);

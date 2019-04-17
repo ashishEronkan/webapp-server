@@ -128,61 +128,61 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 	// #endregion
 
 	// #region API - to be overriden by derived classes, only if required
-	/**
-	 * @async
-	 * @function
-	 * @instance
-	 * @memberof PlantWorksBaseFeature
-	 * @name     getClientsideAssets
-	 *
-	 * @param    {Object} ctxt - Koa context.
-	 * @param    {Object} tenantFeatures - Sub-features allowed for this Tenant.
-	 *
-	 * @returns  {Object} Containing the compiled Ember.js client-side assets (specifically the route map, but could be others, as well).
-	 *
-	 * @summary  Returns the route map that is used by the Ember.js Router on the browser.
-	 */
-	async getClientsideAssets(ctxt, tenantFeatures) {
-		const assets = this.EmberAssets;
-		if(!assets) return null;
+	// /**
+	//  * @async
+	//  * @function
+	//  * @instance
+	//  * @memberof PlantWorksBaseFeature
+	//  * @name     getClientsideAssets
+	//  *
+	//  * @param    {Object} ctxt - Koa context.
+	//  * @param    {Object} tenantFeatures - Sub-features allowed for this Tenant.
+	//  *
+	//  * @returns  {Object} Containing the compiled Ember.js client-side assets (specifically the route map, but could be others, as well).
+	//  *
+	//  * @summary  Returns the route map that is used by the Ember.js Router on the browser.
+	//  */
+	// async getClientsideAssets(ctxt, tenantFeatures) {
+	// 	const assets = this.EmberAssets;
+	// 	if(!assets) return null;
 
-		const inflection = require('inflection');
+	// 	const inflection = require('inflection');
 
-		const featureNames = Object.keys(tenantFeatures || {});
-		const clientsideAssets = {
-			'RouteMap': JSON.parse(JSON.stringify(assets['RouteMap']))
-		};
+	// 	const featureNames = Object.keys(tenantFeatures || {});
+	// 	const clientsideAssets = {
+	// 		'RouteMap': JSON.parse(JSON.stringify(assets['RouteMap']))
+	// 	};
 
-		for(let idx = 0; idx < featureNames.length; idx++) {
-			const featureName = featureNames[idx];
-			const feature = this.$features[featureName];
+	// 	for(let idx = 0; idx < featureNames.length; idx++) {
+	// 		const featureName = featureNames[idx];
+	// 		const feature = this.$features[featureName];
 
-			const featureClientsideAssets = await feature.getClientsideAssets(ctxt, tenantFeatures[featureName]);
-			if(!featureClientsideAssets) continue;
+	// 		const featureClientsideAssets = await feature.getClientsideAssets(ctxt, tenantFeatures[featureName]);
+	// 		if(!featureClientsideAssets) continue;
 
-			Object.keys(featureClientsideAssets).forEach((featureClientsideAssetName) => {
-				if(featureClientsideAssetName === 'RouteMap') {
-					const inflectedFeatureName = inflection.transform(featureName, ['foreign_key', 'dasherize']).replace('-id', '');
-					clientsideAssets['RouteMap'][inflectedFeatureName] = {
-						'path': `/${inflectedFeatureName}`,
-						'routes': featureClientsideAssets['RouteMap']
-					};
+	// 		Object.keys(featureClientsideAssets).forEach((featureClientsideAssetName) => {
+	// 			if(featureClientsideAssetName === 'RouteMap') {
+	// 				const inflectedFeatureName = inflection.transform(featureName, ['foreign_key', 'dasherize']).replace('-id', '');
+	// 				clientsideAssets['RouteMap'][inflectedFeatureName] = {
+	// 					'path': `/${inflectedFeatureName}`,
+	// 					'routes': featureClientsideAssets['RouteMap']
+	// 				};
 
-					return;
-				}
+	// 				return;
+	// 			}
 
-				if(!clientsideAssets[featureClientsideAssetName]) clientsideAssets[featureClientsideAssetName] = [];
-				clientsideAssets[featureClientsideAssetName].push(featureClientsideAssets[featureClientsideAssetName]);
-			});
-		}
+	// 			if(!clientsideAssets[featureClientsideAssetName]) clientsideAssets[featureClientsideAssetName] = [];
+	// 			clientsideAssets[featureClientsideAssetName].push(featureClientsideAssets[featureClientsideAssetName]);
+	// 		});
+	// 	}
 
-		Object.keys(clientsideAssets).forEach((clientsideAssetName) => {
-			if(clientsideAssetName === 'RouteMap') return;
-			clientsideAssets[clientsideAssetName] = clientsideAssets[clientsideAssetName].join('\n');
-		});
+	// 	Object.keys(clientsideAssets).forEach((clientsideAssetName) => {
+	// 		if(clientsideAssetName === 'RouteMap') return;
+	// 		clientsideAssets[clientsideAssetName] = clientsideAssets[clientsideAssetName].join('\n');
+	// 	});
 
-		return clientsideAssets;
-	}
+	// 	return clientsideAssets;
+	// }
 	// #endregion
 
 	// #region Protected methods - need to be overriden by derived classes

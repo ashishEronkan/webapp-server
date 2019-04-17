@@ -57,8 +57,8 @@ class Main extends PlantWorksBaseMiddleware {
 					'idAttribute': 'tenant_id',
 					'hasTimestamps': true,
 
-					'tenantLocation': function() {
-						return this.hasOne(self.$TenantLocationModel, 'tenant_id');
+					'tenantLocations': function() {
+						return this.hasMany(self.$TenantLocationModel, 'tenant_id');
 					}
 				})
 			});
@@ -160,33 +160,13 @@ class Main extends PlantWorksBaseMiddleware {
 				'tenant_id': ctxt.state.tenant.tenant_id
 			});
 
-			const related = ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : [{
-				'tenantLocation': function(qb) {
-					qb.where('is_primary', true);
-				}
-			}];
-
-			const tlIdx = related.indexOf('tenantLocation');
-			if(tlIdx >= 0)
-				related[tlIdx] = {
-					'tenantLocation': function(qb) {
-						qb.where('is_primary', true);
-					}
-				};
-			else
-				related.push({
-					'tenantLocation': function(qb) {
-						qb.where('is_primary', true);
-					}
-				});
-
 			let tenantData = await TenantRecord.fetch({
-				'withRelated': related
+				'withRelated': ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : ['tenantLocations']
 			});
 
-			tenantData = this.$jsonApiMapper.map(tenantData, 'tenant-administration/tenants', {
+			tenantData = this.$jsonApiMapper.map(tenantData, 'tenant-administration/tenant', {
 				'typeForModel': {
-					'tenantLocation': 'tenant-administration/tenant_locations'
+					'tenantLocation': 'tenant-administration/tenant_location'
 				},
 
 				'enableLinks': false
@@ -271,12 +251,12 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			let tenantLocationData = await TenantLocationRecord.fetch({
-				'withRelated': [ctxt.query.include]
+				'withRelated': ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : ['tenant']
 			});
 
-			tenantLocationData = this.$jsonApiMapper.map(tenantLocationData, 'tenant-administration/tenant_locations', {
+			tenantLocationData = this.$jsonApiMapper.map(tenantLocationData, 'tenant-administration/tenant_location', {
 				'typeForModel': {
-					'tenant': 'tenant-administration/tenants'
+					'tenant': 'tenant-administration/tenant'
 				},
 
 				'enableLinks': false
