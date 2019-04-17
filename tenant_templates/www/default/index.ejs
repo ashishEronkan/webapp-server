@@ -68,27 +68,6 @@
 
 	<!-- Setup the ember routes, and start the App -->
 	<script type="application/javascript">
-		define("plantworks/router", ["exports", "plantworks/config/environment"], function (_exports, _environment) {
-			"use strict";
-
-			Object.defineProperty(_exports, "__esModule", {
-				value: true
-			});
-
-			_exports.default = void 0;
-			const Router = Ember.Router.extend({
-				location: _environment.default.locationType,
-				rootURL: _environment.default.rootURL
-			});
-
-			Router.map(function () {
-				<%- RouteMap %>
-			});
-
-			var _default = Router;
-			_exports.default = _default;
-		});
-
 		window.PlantWorksApp = require('plantworks/app')['default'].create({
 			"LOG_RESOLVER": <%= developmentMode %>,
 

@@ -1181,7 +1181,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/components/dashboard/notification-area", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+;define("plantworks/components/dashboard/notification-area", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -1211,9 +1211,13 @@
       this._super(...arguments);
 
       this.set('permissions', 'registered');
-      this.set('userFeatures', this.get('store').peekAll('dashboard/feature'));
     },
 
+    'onInit': (0, _emberConcurrency.task)(function* () {
+      let featureData = this.get('store').peekAll('dashboard/feature');
+      if (!featureData.get('length')) featureData = yield this.get('store').findAll('dashboard/feature');
+      this.set('userFeatures', featureData);
+    }).drop().on('init'),
     'onDashBoardFeatureChange': Ember.observer('userFeatures.[]', function () {
       const features = this.get('userFeatures');
       if (!features.get('length')) return;
@@ -4822,6 +4826,279 @@
 
   _exports.default = _default;
 });
+;define("plantworks/controllers/pug", ["exports", "plantworks/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    'canViewGroupAdministrator': false,
+    'canViewUserAdministrator': false,
+    'hasSubModulePermissions': Ember.computed.or('canViewGroupAdministrator', 'canViewUserAdministrator'),
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'tenant-administration-read');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    changeSubFeature(subFeature) {
+      this.get('router').transitionTo("pug.".concat(subFeature));
+    },
+
+    'onPermissionChanged': Ember.on('init', Ember.observer('permissions', function () {
+      this.onUserDataUpdated();
+    })),
+
+    onUserDataUpdated() {
+      const currentUser = this.get('currentUser');
+      this.set('canViewGroupAdministrator', currentUser.hasPermission('group-manager-read'));
+      this.set('canViewUserAdministrator', currentUser.hasPermission('user-manager-read'));
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/controllers/pug/group-manager", ["exports", "plantworks/framework/base-controller", "ember-concurrency"], function (_exports, _baseController, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    'breadcrumbStack': null,
+    'selectedGroup': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'group-manager-read');
+    },
+
+    setSelectedGroup(groupModel) {
+      if (!groupModel) {
+        this.set('selectedGroup', null);
+        this.set('breadcrumbStack', null);
+        return;
+      }
+
+      if (groupModel.get('id') === this.get('selectedGroup.id')) return;
+      groupModel.reload({
+        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
+      }).then(reloadedModel => {
+        this.set('selectedGroup', reloadedModel);
+        this.get('setBreadcrumbHierarchy').perform();
+      }).catch(err => {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      });
+    },
+
+    'setBreadcrumbHierarchy': (0, _emberConcurrency.task)(function* () {
+      let currentGroup = this.get('selectedGroup');
+      const breadcrumbHierarchy = [];
+
+      while (currentGroup) {
+        if (currentGroup.get('displayName')) breadcrumbHierarchy.unshift(currentGroup);
+        currentGroup = yield currentGroup.get('parent');
+      }
+
+      this.set('breadcrumbStack', breadcrumbHierarchy);
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/controllers/pug/user-manager", ["exports", "plantworks/framework/base-controller", "ember-concurrency"], function (_exports, _baseController, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    'editable': false,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'user-manager-read');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    'onPermissionChanges': Ember.on('init', Ember.observer('permissions', function () {
+      this.onUserDataUpdated();
+    })),
+
+    onUserDataUpdated() {
+      const updatePerm = this.get('currentUser').hasPermission('user-manager-update');
+      this.set('editable', updatePerm);
+    },
+
+    'createUser': (0, _emberConcurrency.task)(function* () {
+      try {
+        const self = this;
+        const tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+        const user = this.get('store').createRecord('tenant-administration/user-manager/user', {
+          'firstName': 'New',
+          'lastName': 'User',
+          'email': "new.user@".concat(tenant.get('subDomain'), ".com")
+        });
+        const tenantUser = this.get('store').createRecord('tenant-administration/user-manager/tenant-user', {
+          'tenant': tenant,
+          'user': user
+        });
+        const modalData = {
+          'title': 'Create User Account',
+          'componentName': 'tenant-administration/user-manager/create-new-account',
+          'componentState': {
+            'tenantUser': tenantUser,
+            'model': user
+          },
+          'confirmButton': {
+            'text': 'Save',
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('doCreateAccount').perform(user, tenantUser);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              tenantUser.deleteRecord();
+              user.deleteRecord();
+            }
+          }
+        };
+        yield this.send('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'doCreateAccount': (0, _emberConcurrency.task)(function* (user, tenantUser) {
+      yield user.save();
+      yield tenantUser.save();
+      const defaultGroup = this.get('store').peekAll('tenant-administration/group-manager/tenant-group').filterBy('defaultForNewUser', true).objectAt(0);
+      if (defaultGroup) this.get('store').unloadRecord(defaultGroup);
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'doCreateAccountSucceeded': Ember.on('doCreateAccount:succeeded', function (taskInstance) {
+      const user = taskInstance.args[0];
+      this.get('notification').display({
+        'type': 'success',
+        'message': "".concat(user.get('firstName'), " ").concat(user.get('lastName'), " <").concat(user.get('email'), "> succesfully created")
+      });
+    }),
+    'doCreateAccountErrored': Ember.on('doCreateAccount:errored', function (taskInstance, err) {
+      const user = taskInstance.args[0];
+      const tenantUser = taskInstance.args[1];
+      tenantUser.destroyRecord();
+      user.destroyRecord();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'addUser': (0, _emberConcurrency.task)(function* () {
+      try {
+        const self = this;
+        const usersToBeAdded = Ember.ArrayProxy.create({
+          'content': Ember.A([])
+        });
+        const modalData = {
+          'title': 'Add Users',
+          'componentName': 'tenant-administration/user-manager/add-existing-accounts',
+          'componentState': {
+            'model': usersToBeAdded
+          },
+          'confirmButton': {
+            'text': 'Add Users',
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('doAddAccounts').perform(usersToBeAdded);
+            }
+          },
+          'cancelButton': {
+            'text': 'Cancel',
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': null
+          }
+        };
+        yield this.send('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'doAddAccounts': (0, _emberConcurrency.task)(function* (userList) {
+      const tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+
+      for (let idx = 0; idx < userList.get('length'); idx++) {
+        const user = userList.objectAt(idx);
+        let tenantUser = this.get('store').peekAll('tenant-administration/user-manager/tenant-user').filterBy('user.id', user.get('id')).objectAt(0);
+        if (tenantUser && !tenantUser.get('isNew')) continue;
+        if (!tenantUser) tenantUser = this.get('store').createRecord('tenant-administration/user-manager/tenant-user', {
+          'tenant': tenant,
+          'user': user
+        });
+        yield tenantUser.save();
+      }
+
+      const defaultGroup = this.get('store').peekAll('tenant-administration/group-manager/tenant-group').filterBy('defaultForNewUser', true).objectAt(0);
+      if (defaultGroup) this.get('store').unloadRecord(defaultGroup);
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'doAddAccountsSucceeded': Ember.on('doAddAccounts:succeeded', function (taskInstance) {
+      const userList = taskInstance.args[0];
+      this.get('notification').display({
+        'type': 'success',
+        'message': "".concat(userList.get('length'), " Users succesfully added")
+      });
+    }),
+    'doAddAccountsErrored': Ember.on('doAddAccounts:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/formats", ["exports"], function (_exports) {
   "use strict";
 
@@ -4933,6 +5210,7 @@
     'ajax': Ember.inject.service('ajax'),
     'currentUser': Ember.inject.service('current-user'),
     'notification': Ember.inject.service('integrated-notification'),
+    'router': Ember.inject.service('router'),
     'store': Ember.inject.service('store'),
     'permissions': null,
     'hasPermission': true,
@@ -9039,24 +9317,27 @@
   var _default = _emberResolver.default;
   _exports.default = _default;
 });
-;/*
-import EmberRouter from '@ember/routing/router';
-import config from './config/environment';
-
-const Router = EmberRouter.extend({
-    location: config.locationType,
-    rootURL: config.rootURL
-});
-
-Router.map(function() {
-  this.route('dashboard');
-  this.route('profile');
-});
-
-export default Router;
-*/
-define("plantworks/router", [], function () {
+;define("plantworks/router", ["exports", "plantworks/config/environment"], function (_exports, _environment) {
   "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+  const Router = Ember.Router.extend({
+    location: _environment.default.locationType,
+    rootURL: _environment.default.rootURL
+  });
+  Router.map(function () {
+    this.route('dashboard');
+    this.route('profile');
+    this.route('pug', function () {
+      this.route('group-manager');
+      this.route('user-manager');
+    });
+  });
+  var _default = Router;
+  _exports.default = _default;
 });
 ;define("plantworks/routes/application", ["exports", "plantworks/framework/base-route", "debug"], function (_exports, _baseRoute, _debug) {
   "use strict";
@@ -9247,6 +9528,150 @@ define("plantworks/router", [], function () {
       this.get('controller').set('model', profileData);
     }).keepLatest()
   });
+
+  _exports.default = _default;
+});
+;define("plantworks/routes/pug", ["exports", "plantworks/framework/base-route", "ember-lifeline", "ember-concurrency"], function (_exports, _baseRoute, _emberLifeline, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      if (!window.plantworksTenantId) return;
+      const tenantData = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (tenantData) return tenantData;
+      return this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+    },
+
+    redirect(model, transition) {
+      if (this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes("".concat(this.get('fullRouteName'), "."))) transition.abort();
+      if (transition.targetName === "".concat(this.get('fullRouteName'), ".index") || transition.targetName === this.get('fullRouteName')) (0, _emberLifeline.runTask)(this, this._redirectToSubRoute, 500);
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksUserId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('refreshTenantModel').perform();
+    },
+
+    'refreshTenantModel': (0, _emberConcurrency.task)(function* () {
+      let tenantData = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (!tenantData) tenantData = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+      this.get('controller').set('model', tenantData);
+    }).keepLatest(),
+
+    _redirectToSubRoute() {
+      if (!this.get('controller.hasSubModulePermissions')) {
+        return;
+      }
+
+      if (this.get('controller.canViewGroupAdministrator')) {
+        this.transitionTo("".concat(this.get('fullRouteName'), ".group-manager"));
+        return;
+      }
+
+      if (this.get('controller.canViewUserAdministrator')) {
+        this.transitionTo("".concat(this.get('fullRouteName'), ".user-manager"));
+        return;
+      }
+    }
+
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/routes/pug/group-manager", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-group');
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-user-group');
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-group-permission');
+        return;
+      }
+
+      let tenantModel = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (tenantModel) return tenantModel;
+      return this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+    },
+
+    onUserDataUpdated() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-group');
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-user-group');
+        this.get('store').unloadAll('tenant-administration/group-manager/tenant-group-permission');
+      }
+
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('refreshTenantGroupModel').perform();
+    },
+
+    'refreshTenantGroupModel': (0, _emberConcurrency.task)(function* () {
+      let tenantModel = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (!tenantModel) tenantModel = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+      this.get('controller').set('model', tenantModel);
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/routes/pug/user-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Route.extend({});
 
   _exports.default = _default;
 });
@@ -10186,6 +10611,60 @@ define("plantworks/router", [], function () {
 
   _exports.default = _default;
 });
+;define("plantworks/templates/pug", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "s4EnhX6F",
+    "block": "{\"symbols\":[\"dial\",\"actions\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-speed-dial\",null,[[\"class\",\"direction\",\"open\"],[\"bg-white\",\"right\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"trigger\"]],\"expected `dial.trigger` to be a contextual component but found a string. Did you mean `(component dial.trigger)`? ('plantworks/templates/pug.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"mini\",\"primary\"],[true,true]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"menu\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"actions\"]],\"expected `dial.actions` to be a contextual component but found a string. Did you mean `(component dial.actions)`? ('plantworks/templates/pug.hbs' @ L10:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L11:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"group-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"group\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L18:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"user-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[1,[29,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/pug.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/pug/group-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "hsEPnLL0",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.group_manager.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h5\"],[11,\"class\",\"my-2\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager.title\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch layout-wrap\"],[9],[0,\"\\n\"],[0,\"\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/pug/group-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/pug/user-manager", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "qV0bhXv7",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.user_manager.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center flex\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[1,[29,\"t\",[\"pug_feature.user_manager.title\"],null],false],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"primary\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"createUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.create_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"addUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.add_existing_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/pug/user-manager.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/themes/bootstrap3", ["exports", "ember-models-table/themes/bootstrap3"], function (_exports, _bootstrap) {
   "use strict";
 
@@ -10549,6 +11028,10 @@ define("plantworks/router", [], function () {
   _exports.default = void 0;
   var _default = {
     "application": "Application",
+    "bhairavi_template": {
+      "description": "PLant.Works Industrial Internet of Things (IIoT) / Industry 4.0 Portal",
+      "title": "Plant.Works Portal"
+    },
     "dashboard_feature": {
       "description": "Dashboard Feature",
       "main_component": {
@@ -10607,6 +11090,18 @@ define("plantworks/router", [], function () {
       },
       "title": "Profile"
     },
+    "pug_feature": {
+      "description": "Manages Users, Groups, and Permissions",
+      "group_manager": {
+        "title": "Group Manager"
+      },
+      "title": "Permissions, Users, and Groups",
+      "user_manager": {
+        "add_existing_user": "Add an existing User/Login",
+        "create_user": "Create a new User/Login",
+        "title": "User Manager"
+      }
+    },
     "realtime": {
       "connectivity_lost": "Realtime connectivity lost!",
       "connectivity_lost_with_reconnect": "Realtime connectivity lost! Attempting to reconnect!!"
@@ -10632,10 +11127,6 @@ define("plantworks/router", [], function () {
     "sku_manager_feature": {
       "description": "SKU Manager Feature",
       "title": "SKU Manager"
-    },
-    "tenant_administration_feature": {
-      "description": "Tenant Administration Feature",
-      "title": "Tenant Administration"
     },
     "timezone_id": {
       "asia_kolkata": "Asia/Kolkata"
@@ -10739,7 +11230,7 @@ define("plantworks/router", [], function () {
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+45bfecc3"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+0aa94640"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
