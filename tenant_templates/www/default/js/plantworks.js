@@ -1190,12 +1190,30 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
-    'intl': Ember.inject.service('intl'),
     'iconType': 'mdi',
     'icon': 'view-dashboard',
     'routeName': 'dashboard',
     'userFeatures': null,
-    'displayText': Ember.computed('intl.locale', function () {
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      if (!this.get('currentUser').isLoggedIn()) return;
+      this.get('_refreshDashboardFeatures').perform();
+    },
+
+    'displayText': Ember.computed('intl.locale', 'userFeatures.[]', function () {
       const features = this.get('userFeatures');
       if (!features.get('length')) return '';
 
@@ -1206,18 +1224,6 @@
 
       return this.intl.t('dashboard_feature.title');
     }),
-
-    init() {
-      this._super(...arguments);
-
-      this.set('permissions', 'registered');
-    },
-
-    'onInit': (0, _emberConcurrency.task)(function* () {
-      let featureData = this.get('store').peekAll('dashboard/feature');
-      if (!featureData.get('length')) featureData = yield this.get('store').findAll('dashboard/feature');
-      this.set('userFeatures', featureData);
-    }).drop().on('init'),
     'onDashBoardFeatureChange': Ember.observer('userFeatures.[]', function () {
       const features = this.get('userFeatures');
       if (!features.get('length')) return;
@@ -1227,12 +1233,24 @@
         this.set('iconType', onlyFeature.get('iconType'));
         this.set('icon', onlyFeature.get('iconPath'));
         this.set('routeName', onlyFeature.get('route'));
+        return;
       }
 
       this.set('iconType', 'mdi');
       this.set('icon', 'view-dashboard');
       this.set('routeName', 'dashboard');
-    })
+    }),
+    '_refreshDashboardFeatures': (0, _emberConcurrency.task)(function* () {
+      let features = this.get('store').peekAll('dashboard/feature');
+
+      if (features.get('length')) {
+        this.set('userFeatures', features);
+        return;
+      }
+
+      features = yield this.get('store').findAll('dashboard/feature');
+      this.set('userFeatures', features);
+    }).drop()
   });
 
   _exports.default = _default;
@@ -3967,7 +3985,6 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
-    'intl': Ember.inject.service('intl'),
     'contactTypes': null,
 
     init() {
@@ -4108,7 +4125,6 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
-    'intl': Ember.inject.service('intl'),
     'selectedAccordionItem': '1',
     '_profileImageElem': null,
     'currentPassword': '',
@@ -4375,6 +4391,903 @@
 
   _exports.default = _default;
 });
+;define("plantworks/components/pug/group-manager/main-component", ["exports", "plantworks/framework/base-component", "jquery", "ember-concurrency"], function (_exports, _baseComponent, _jquery, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'editable': false,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'group-manager-read');
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('group-manager-update');
+      this.set('editable', updatePerm);
+    }),
+    'ondidInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield (0, _jquery.default)('div.classic-tabs').css('margin-right', '-1px');
+      yield (0, _jquery.default)('div.classic-tabs > ul').addClass('tabs-grey');
+    }).keepLatest().on('didInsertElement'),
+    'saveGroup': (0, _emberConcurrency.task)(function* () {
+      this.get('selectedGroup').set('isProcessing', true);
+      const didDefaultForNewUserChange = this.get('selectedGroup').didChange('defaultForNewUser');
+      yield this.get('selectedGroup').save();
+      if (!didDefaultForNewUserChange) return;
+      const loadedGroups = this.get('store').peekAll('tenant-administration/group-manager/tenant-group');
+      let oldDefaultGroup = null;
+      loadedGroups.forEach(tenantGroup => {
+        if (tenantGroup.get('id') === this.get('selectedGroup.id')) return;
+        if (!tenantGroup.get('defaultForNewUser')) return;
+        oldDefaultGroup = tenantGroup;
+      });
+      if (oldDefaultGroup) yield oldDefaultGroup.reload();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'saveGroupSucceeded': Ember.on('saveGroup:succeeded', function () {
+      this.get('selectedGroup').set('isProcessing', false);
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('pug_feature.group_manager_feature.succesful_save', {
+          'htmlSafe': true,
+          'displayName': this.get('selectedGroup.displayName')
+        })
+      });
+    }),
+    'saveGroupErrored': Ember.on('saveGroup:errored', function (taskInstance, err) {
+      this.get('selectedGroup').set('isProcessing', false);
+      this.get('selectedGroup').rollback();
+      this.get('selectedGroup').reload();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'cancelGroup': (0, _emberConcurrency.task)(function* () {
+      yield this.get('selectedGroup').rollback();
+    }).drop(),
+    'deleteGroup': (0, _emberConcurrency.task)(function* () {
+      const modalData = {
+        'title': this.intl.t('pug_feature.group_manager_feature.label_delete_group'),
+        'content': this.intl.t('pug_feature.group_manager_feature.delete_group_message', {
+          'htmlSafe': true,
+          'displayName': this.get('selectedGroup.displayName')
+        }),
+        'confirmButton': {
+          'text': this.intl.t('modal.default_delete_text'),
+          'icon': 'delete',
+          'warn': true,
+          'raised': true,
+          'callback': () => {
+            this.get('_confirmedDeleteGroup').perform();
+          }
+        },
+        'cancelButton': {
+          'text': this.intl.t('modal.default_cancel_text'),
+          'icon': 'close',
+          'primary': true,
+          'raised': true
+        }
+      };
+      yield this.invokeAction('controller-action', 'displayModal', modalData);
+    }).drop(),
+    '_confirmedDeleteGroup': (0, _emberConcurrency.task)(function* () {
+      this.get('selectedGroup').set('isProcessing', true);
+      const parentGroup = yield this.get('selectedGroup.parent');
+      const groupSiblings = yield parentGroup.get('groups');
+      if (this.get('selectedGroup.isNew')) this.get('selectedGroup').deleteRecord();else yield this.get('selectedGroup').destroyRecord();
+      groupSiblings.removeObject(this.get('selectedGroup'));
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    '_confirmedDeleteGroupSucceeded': Ember.on('_confirmedDeleteGroup:succeeded', function () {
+      this.get('selectedGroup').set('isProcessing', false);
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('pug_feature.group_manager_feature.succesful_delete', {
+          'htmlSafe': true,
+          'displayName': this.get('selectedGroup.displayName')
+        })
+      });
+      const parentGroup = this.get('selectedGroup.parent');
+      this.invokeAction('controller-action', 'setSelectedGroup', parentGroup);
+    }),
+    '_confirmedDeleteGroupErrored': Ember.on('_confirmedDeleteGroup:errored', function (taskInstance, err) {
+      this.get('selectedGroup').set('isProcessing', false);
+      this.get('selectedGroup').rollback();
+      this.get('selectedGroup').reload();
+      const parentGroup = this.get('selectedGroup.parent');
+      const groupSiblings = parentGroup.get('groups');
+      groupSiblings.addObject(this.get('selectedGroup'));
+      this.invokeAction('controller-action', 'setSelectedGroup', this.get('selectedGroup'));
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/group-manager/permission-group-editor-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'editable': false,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'group-manager-read');
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('group-manager-update');
+      this.set('editable', updatePerm);
+    }),
+    'groupPermissionIdList': Ember.computed('selectedGroup', 'selectedGroup.permissions.[]', function () {
+      return this.get('_groupPermissionIdList').perform();
+    }),
+    '_groupPermissionIdList': (0, _emberConcurrency.task)(function* () {
+      const permissionList = yield this.get('selectedGroup.permissions');
+      return permissionList.mapBy('featurePermission.id');
+    }).keepLatest(),
+    'toggleGroupPermission': (0, _emberConcurrency.task)(function* (parentGroupPermission) {
+      const groupPermissions = yield this.get('selectedGroup.permissions');
+      const alreadyAdded = groupPermissions.filterBy('featurePermission.id', parentGroupPermission.get('featurePermission.id')).objectAt(0);
+
+      if (alreadyAdded) {
+        yield alreadyAdded.destroyRecord();
+        return;
+      }
+
+      const newGroupPermission = this.get('store').createRecord('tenant-administration/group-manager/tenant-group-permission', {
+        'tenantGroup': this.get('selectedGroup'),
+        'featurePermission': parentGroupPermission.get('featurePermission')
+      });
+      yield newGroupPermission.save();
+    }).enqueue().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'toggleGroupPermissionSucceeded': Ember.on('toggleGroupPermission:succeeded', function (taskInstance) {
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('permission_toggle_message', {
+          'htmlSafe': true,
+          'permissionDisplayName': taskInstance.args[0].get('featurePermission.displayName'),
+          'groupDisplayName': this.get('selectedGroup.displayName')
+        })
+      });
+    }),
+    'toggleGroupPermissionErrored': Ember.on('toggleGroupPermission:errored', function (taskInstance, err) {
+      const groupPermissions = this.get('selectedGroup.permissions');
+      let alreadyAdded = groupPermissions.filterBy('featurePermission.id', taskInstance.args[0].get('featurePermission.id')).objectAt(0);
+
+      if (!alreadyAdded) {
+        alreadyAdded = this.get('store').peekAll('tenant-administration/group-manager/tenant-group-permission').filterBy('group.id', this.get('selectedGroup.id')).filterBy('featurePermission.id', taskInstance.args[0].get('featurePermission.id')).objectAt(0);
+      }
+
+      if (alreadyAdded) alreadyAdded.rollback();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/group-manager/sub-group-editor-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'editable': false,
+    'observerInitialized': false,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'group-manager-read');
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('group-manager-update');
+      this.set('editable', updatePerm);
+    }),
+    '_initializeObservers': (0, _emberConcurrency.task)(function* () {
+      const newGroup = this.get('store').createRecord('tenant-administration/group-manager/tenant-group', {
+        'tenant': this.get('model'),
+        'parent': this.get('selectedGroup')
+      });
+      const displayName = this.intl.t('pug_feature.group_manager_feature.new_subgroup_name', {
+        'now': window.moment().valueOf()
+      });
+      newGroup.set('displayName', displayName);
+      newGroup.set('description', displayName);
+      const siblingGroups = yield this.get('selectedGroup.groups');
+      const tenantGroups = yield this.get('model.tenantGroups');
+      siblingGroups.addObject(newGroup);
+      tenantGroups.addObject(newGroup);
+      siblingGroups.removeObject(newGroup);
+      newGroup;
+      tenantGroups.removeObject(newGroup);
+      newGroup.deleteRecord();
+    }).drop(),
+    'changeDefaultForNewUser': (0, _emberConcurrency.task)(function* (subGroup) {
+      const loadedGroups = this.get('store').peekAll('tenant-administration/group-manager/tenant-group');
+      let oldDefaultGroup = null;
+      loadedGroups.forEach(tenantGroup => {
+        if (tenantGroup.get('id') === subGroup.get('id')) return;
+        if (!tenantGroup.get('defaultForNewUser')) return;
+        oldDefaultGroup = tenantGroup;
+      });
+      subGroup.set('defaultForNewUser', true);
+      yield subGroup.save();
+      if (oldDefaultGroup) yield oldDefaultGroup.reload();
+    }).keepLatest().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'changeDefaultForNewUserSucceeded': Ember.on('changeDefaultForNewUser:succeeded', function (taskInstance) {
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('pug_feature.group_manager_feature.succesful_save', {
+          'htmlSafe': true,
+          'displayName': taskInstance.args[0].get('displayName')
+        })
+      });
+    }),
+    'changeDefaultForNewUserErrored': Ember.on('changeDefaultForNewUser:errored', function (taskInstance, err) {
+      taskInstance.args[0].rollback();
+      taskInstance.args[0].reload();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'addGroup': (0, _emberConcurrency.task)(function* () {
+      if (!this.get('observerInitialized')) {
+        yield this.get('_initializeObservers').perform();
+        this.set('observerInitialized', true);
+      }
+
+      const newGroup = this.get('store').createRecord('tenant-administration/group-manager/tenant-group', {
+        'tenant': this.get('model'),
+        'parent': this.get('selectedGroup')
+      });
+      const displayName = this.intl.t('pug_feature.group_manager_feature.new_subgroup_name', {
+        'now': window.moment().valueOf()
+      });
+      newGroup.set('displayName', displayName);
+      newGroup.set('description', displayName);
+      const siblingGroups = yield this.get('selectedGroup.groups');
+      siblingGroups.addObject(newGroup);
+      const tenantGroups = yield this.get('model.tenantGroups');
+      tenantGroups.addObject(newGroup);
+    }).drop(),
+    'saveGroup': (0, _emberConcurrency.task)(function* (subGroup) {
+      yield subGroup.save();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'saveGroupSucceeded': Ember.on('saveGroup:succeeded', function (taskInstance) {
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('pug_feature.group_manager_feature.succesful_save', {
+          'htmlSafe': true,
+          'displayName': taskInstance.args[0].get('displayName')
+        })
+      });
+    }),
+    'saveGroupErrored': Ember.on('saveGroup:errored', function (taskInstance, err) {
+      const subGroup = taskInstance.args[0];
+      subGroup.rollback();
+      if (!subGroup.get('isNew')) subGroup.reload();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteGroup': (0, _emberConcurrency.task)(function* (subGroup) {
+      if (!this.get('observerInitialized')) {
+        yield this.get('_initializeObservers').perform();
+        this.set('observerInitialized', true);
+      }
+
+      const modalData = {
+        'title': this.intl.t('pug_feature.group_manager_feature.label_delete_group'),
+        'content': this.intl.t('pug_feature.group_manager_feature.delete_group_message', {
+          'htmlSafe': true,
+          'displayName': subGroup.get('displayName')
+        }),
+        'confirmButton': {
+          'text': this.intl.t('modal.default_delete_text'),
+          'icon': 'delete',
+          'warn': true,
+          'raised': true,
+          'callback': () => {
+            this.get('_confirmedDeleteGroup').perform(subGroup);
+          }
+        },
+        'cancelButton': {
+          'text': this.intl.t('modal.default_cancel_text'),
+          'icon': 'close',
+          'primary': true,
+          'raised': true
+        }
+      };
+      yield this.invokeAction('controller-action', 'displayModal', modalData);
+    }).drop(),
+    '_confirmedDeleteGroup': (0, _emberConcurrency.task)(function* (subGroup) {
+      const parentGroup = yield subGroup.get('parent');
+      const groupSiblings = yield parentGroup.get('groups');
+      groupSiblings.removeObject(subGroup);
+      const tenantGroups = yield this.get('model.tenantGroups');
+      tenantGroups.removeObject(subGroup);
+      if (subGroup.get('isNew')) subGroup.deleteRecord();else yield subGroup.destroyRecord();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    '_confirmedDeleteGroupSucceeded': Ember.on('_confirmedDeleteGroup:succeeded', function (taskInstance) {
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('pug_feature.group_manager_feature.succesful_delete', {
+          'htmlSafe': true,
+          'displayName': taskInstance.args[0].get('displayName')
+        })
+      });
+    }),
+    '_confirmedDeleteGroupErrored': Ember.on('_confirmedDeleteGroup:errored', function (taskInstance, err) {
+      const subGroup = taskInstance.args[0];
+      subGroup.rollback();
+      subGroup.reload();
+      const parentGroup = subGroup.get('parent');
+      const groupSiblings = parentGroup.get('groups');
+      groupSiblings.addObject(subGroup);
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/group-manager/tree-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'group-manager-read');
+    },
+
+    didInsertElement() {
+      this._super(...arguments);
+
+      const moduTree = this.$('div#tenant-administration-group-manager-tree-container').jstree({
+        'core': {
+          'check_callback': function (operation) {
+            return operation !== 'move_node';
+          },
+          'multiple': false,
+          'themes': {
+            'name': 'default',
+            'icons': false,
+            'dots': false,
+            'responsive': true
+          },
+          'data': {
+            'url': '/tenant-administration/group-manager/tree',
+            'dataType': 'json',
+            'data': function (node) {
+              return {
+                'id': node.id
+              };
+            }
+          }
+        },
+        'plugins': ['sort', 'unique']
+      });
+      moduTree.on('ready.jstree', () => {
+        const rootNodeId = this.$('div#tenant-administration-group-manager-tree-container > ul > li:first-child').attr('id');
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', rootNodeId);
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('activate_node', rootNodeId, false, false);
+      });
+      moduTree.on('activate_node.jstree', (event, data) => {
+        this.get('onActivateNode').perform(data.node);
+      });
+    },
+
+    willDestroyElement() {
+      this.invokeAction('controller-action', 'setSelectedGroup', null);
+      this.$('div#tenant-administration-group-manager-tree-container').jstree('destroy', true);
+
+      this._super(...arguments);
+    },
+
+    'onActivateNode': (0, _emberConcurrency.task)(function* (treeNode) {
+      const tenantGroup = this.get('store').peekRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
+      if (tenantGroup) return;
+      yield this.get('store').findRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
+    }).keepLatest().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'onActivateNodeSucceeded': Ember.on('onActivateNode:succeeded', function (taskInstance) {
+      const treeNode = taskInstance.args[0];
+      let tenantGroup = this.get('selectedGroup');
+      if (tenantGroup && tenantGroup.get('id') === treeNode.id) return;
+      this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', treeNode.id);
+      tenantGroup = this.get('store').peekRecord('tenant-administration/group-manager/tenant-group', treeNode.id);
+      this.invokeAction('controller-action', 'setSelectedGroup', tenantGroup);
+    }),
+    'onActivateNodeErrored': Ember.on('onActivateNode:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'onSelectedGroupChanged': Ember.observer('selectedGroup', function () {
+      if (!this.get('selectedGroup')) return;
+      if (this.$('div#tenant-administration-group-manager-tree-container').jstree('get_selected')[0] === this.get('selectedGroup.id')) return;
+      const treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.id'));
+
+      if (treeNode) {
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('activate_node', this.get('selectedGroup.id'), false, false);
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', this.get('selectedGroup.id'));
+        return;
+      }
+
+      const parentNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.parent.id'));
+      this.$('div#tenant-administration-group-manager-tree-container').one('refresh_node.jstree', () => {
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('activate_node', this.get('selectedGroup.id'), false, false);
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('open_node', this.get('selectedGroup.id'));
+      });
+      this.$('div#tenant-administration-group-manager-tree-container').jstree('refresh_node', parentNode);
+    }),
+    'onSelectedGroupNameChanged': Ember.observer('selectedGroup.displayName', function () {
+      const treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.id'));
+      this.$('div#tenant-administration-group-manager-tree-container').jstree('rename_node', treeNode, this.get('selectedGroup.displayName'));
+    }),
+    'onSelectedGroupDestroyed': Ember.observer('selectedGroup.isDeleted', 'selectedGroup.hasDirtyAttributes', function () {
+      Ember.run.once(this, 'processGroupDeletion');
+    }),
+    'processGroupDeletion': function () {
+      if (this.get('selectedGroup.isDeleted')) {
+        if (this.get('selectedGroup.hasDirtyAttributes')) return;
+        const treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.id'));
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('delete_node', treeNode);
+      } else {
+        const treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.id'));
+        if (treeNode) return;
+        const parentNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', this.get('selectedGroup.parent.id'));
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('refresh_node', parentNode);
+      }
+    },
+    'onTenantGroupNameChanged': Ember.observer('model.tenantGroups.@each.displayName', function () {
+      this.get('_updateChildGroupText').perform();
+    }),
+    '_updateChildGroupText': (0, _emberConcurrency.task)(function* () {
+      const tenantGroups = yield this.get('selectedGroup.groups');
+      if (!tenantGroups) return;
+      tenantGroups.forEach(subGroup => {
+        const treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', subGroup.get('id'));
+        if (!treeNode) return;
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('rename_node', treeNode, subGroup.get('displayName'));
+      });
+    }).enqueue(),
+    'onTenantGroupsChanged': Ember.observer('model.tenantGroups.@each.isNew', 'model.tenantGroups.@each.isDeleted', function () {
+      Ember.run.once(this, () => {
+        // console.log(`Firing observer for 'model.tenantGroups.@each.isNew' OR 'model.tenantGroups.@each.isDeleted'`);
+        this.get('_updateGroupTree').perform();
+      });
+    }),
+    '_updateGroupTree': (0, _emberConcurrency.task)(function* () {
+      const tenantGroups = yield this.get('selectedGroup.groups');
+      if (tenantGroups) tenantGroups.forEach(subGroup => {
+        let treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_node', subGroup.get('id'));
+
+        if (subGroup.get('isNew') && !treeNode) {
+          treeNode = this.$('div#tenant-administration-group-manager-tree-container').jstree('create_node', subGroup.get('parent.id'), {
+            'id': subGroup.get('id'),
+            'text': subGroup.get('displayName')
+          });
+        }
+      });
+      const selectedTreeNodeId = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_selected')[0];
+      const selectedTreeNodeChildren = this.$('div#tenant-administration-group-manager-tree-container').jstree('get_children_dom', selectedTreeNodeId);
+
+      for (let idx = 0; idx < selectedTreeNodeChildren.length; idx++) {
+        const tenantGroup = this.get('store').peekRecord('tenant-administration/group-manager/tenant-group', window.$(selectedTreeNodeChildren[idx]).attr('id'));
+        if (tenantGroup && !tenantGroup.get('isDeleted')) continue;
+        this.$('div#tenant-administration-group-manager-tree-container').jstree('delete_node', window.$(selectedTreeNodeChildren[idx]).attr('id'));
+      }
+    }).enqueue()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/group-manager/user-group-editor-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.Component.extend({});
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/user-manager/add-existing-accounts", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'selectedUser': null,
+    'searchUserByEmail': (0, _emberConcurrency.task)(function* (term) {
+      yield (0, _emberConcurrency.timeout)(750);
+      return this.get('ajax').request("/tenant-administration/user-manager/searchUsers?email=".concat(term));
+    }),
+    'onSelectedUserChanged': Ember.observer('selectedUser', function () {
+      this.get('_addSelectedUser').perform();
+    }),
+    '_addSelectedUser': (0, _emberConcurrency.task)(function* () {
+      if (!this.get('selectedUser')) return;
+      const isDuplicate = this.get('state.model').filterBy('user_id', this.get('selectedUser.id')).get('length');
+
+      if (isDuplicate) {
+        this.set('selectedUser', null);
+        return;
+      }
+
+      let userModel = this.get('store').peekRecord('tenant-administration/user-manager/user', this.get('selectedUser.id'));
+      if (!userModel) userModel = yield this.get('store').findRecord('tenant-administration/user-manager/user', this.get('selectedUser.id'));
+      this.get('state.model').addObject(userModel);
+      this.set('selectedUser', null);
+    }).enqueue(),
+    'deleteUser': (0, _emberConcurrency.task)(function* (user) {
+      const model = yield this.get('state.model');
+      model.removeObject(user);
+    }).enqueue()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/user-manager/create-new-account", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({});
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/user-manager/edit-account", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'registered');
+    },
+
+    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      try {
+        this.set('_profileImageElem', this.$('div#tenant-administration-user-manager-edit-account-image'));
+        const profileImageElem = this.get('_profileImageElem'),
+              croppieDimensions = profileImageElem.width() < profileImageElem.height() ? profileImageElem.width() : profileImageElem.height();
+        profileImageElem.croppie({
+          'boundary': {
+            'width': croppieDimensions,
+            'height': croppieDimensions
+          },
+          'viewport': {
+            'width': croppieDimensions,
+            'height': croppieDimensions,
+            'type': 'circle'
+          },
+          'showZoomer': true,
+          'useCanvas': true,
+          'update': this.get('_processCroppieUpdate').bind(this)
+        });
+        yield (0, _emberConcurrency.timeout)(500);
+        yield profileImageElem.croppie('bind', {
+          'url': "/tenant-administration/user-manager/get-image/".concat(this.get('state.tenantUser.id'), "?_random=").concat(window.moment().valueOf()),
+          'orientation': 1
+        }); // Add an event handler for catching dropped images
+
+        document.getElementById('tenant-administration-user-manager-edit-account-image').addEventListener('drop', this._processDroppedImage.bind(this));
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      } finally {
+        this.set('_enableCroppieUpdates', true);
+      }
+    }).drop().on('didInsertElement'),
+    'onWillDestroyElement': (0, _emberConcurrency.task)(function* () {
+      document.getElementById('tenant-administration-user-manager-edit-account-image').removeEventListener('drop', this._processDroppedImage.bind(this));
+      yield this.get('_profileImageElem').croppie('destroy');
+    }).drop().on('willDestroyElement'),
+
+    _processDroppedImage(event) {
+      event.stopPropagation();
+      event.preventDefault();
+      const imageFile = event.dataTransfer.files[0];
+      if (!imageFile.type.match('image.*')) return;
+      const imageReader = new FileReader();
+      const profileImageElem = this.get('_profileImageElem');
+
+      imageReader.onload = imageData => {
+        profileImageElem.croppie('bind', {
+          'url': imageData.target.result,
+          'orientation': 1
+        });
+      };
+
+      imageReader.readAsDataURL(imageFile);
+    },
+
+    _processCroppieUpdate() {
+      if (!this.get('_enableCroppieUpdates')) return;
+
+      if (this.get('_profileImageUploadTimeout')) {
+        this.cancelTask(this.get('_profileImageUploadTimeout'));
+        this.set('_profileImageUploadTimeout', null);
+      }
+
+      this.set('_profileImageUploadTimeout', this.runTask(() => {
+        this.get('_uploadProfileImage').perform();
+      }, 10000));
+    },
+
+    '_uploadProfileImage': (0, _emberConcurrency.task)(function* () {
+      try {
+        this.set('_enableCroppieUpdates', false);
+        const profileImageElem = this.get('_profileImageElem');
+        const metadata = profileImageElem.croppie('get');
+        const imageData = yield profileImageElem.croppie('result', {
+          'type': 'base64',
+          'circle': true
+        });
+        yield this.get('ajax').post("/tenant-administration/user-manager/upload-image/".concat(this.get('state.tenantUser.id')), {
+          'dataType': 'json',
+          'data': {
+            'image': imageData,
+            'metadata': metadata
+          }
+        });
+        window.PlantWorksApp.trigger('userChanged');
+        yield this.get('state.model').reload();
+        yield profileImageElem.croppie('bind', {
+          'url': "/tenant-administration/user-manager/get-image/".concat(this.get('state.tenantUser.id'), "?_random=").concat(window.moment().valueOf()),
+          'orientation': 1
+        });
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      } finally {
+        this.set('_enableCroppieUpdates', true);
+        this.set('_profileImageUploadTimeout', null);
+      }
+    }).keepLatest().retryable(window.PlantWorksApp.get('backoffPolicy'))
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/user-manager/main-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  /* eslint-disable ember/no-on-calls-in-components */
+  var _default = _baseComponent.default.extend({
+    'selectedAccordionItem': '1',
+    'editable': false,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'user-manager-read');
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('user-manager-update');
+      this.set('editable', updatePerm);
+    }),
+    'resetPassword': (0, _emberConcurrency.task)(function* (tenantUser) {
+      try {
+        const self = this;
+        const user = yield tenantUser.get('user');
+        const componentState = {
+          'tenantUser': tenantUser,
+          'model': user,
+          'generateRandomPassword': false,
+          'newPassword': ''
+        };
+        const modalData = {
+          'title': this.intl.t('pug_feature.user_manager_feature.reset_password'),
+          'componentName': 'pug/user-manager/reset-password',
+          'componentState': componentState,
+          'confirmButton': {
+            'text': this.intl.t('modal.default_change_text'),
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('doResetPassword').perform(componentState);
+            }
+          },
+          'cancelButton': {
+            'text': this.intl.t('modal.default_cancel_text'),
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'doResetPassword': (0, _emberConcurrency.task)(function* (componentState) {
+      try {
+        componentState.tenantUser.set('operationIsRunning', true);
+        yield this.get('ajax').post('/tenant-administration/user-manager/resetPassword', {
+          'dataType': 'json',
+          'data': {
+            'user': componentState.model.get('id'),
+            'password': componentState.newPassword,
+            'generate': componentState.generateRandomPassword
+          }
+        });
+      } catch (err) {
+        throw err;
+      } finally {
+        componentState.tenantUser.set('operationIsRunning', false);
+      }
+    }).enqueue().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'editAccount': (0, _emberConcurrency.task)(function* (tenantUser) {
+      try {
+        const self = this;
+        const user = yield tenantUser.get('user');
+        const modalData = {
+          'title': this.intl.t('pug_feature.user_manager_feature.edit_user'),
+          'dialogClass': 'flex-100  flex-gt-md-50 flex-gt-xl-30',
+          'componentName': 'pug/user-manager/edit-account',
+          'componentState': {
+            'tenantUser': tenantUser,
+            'model': user
+          },
+          'confirmButton': {
+            'text': this.intl.t('modal.default_save_text'),
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('doUpdateAccount').perform(user);
+            }
+          },
+          'cancelButton': {
+            'text': this.intl.t('modal.default_cancel_text'),
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              user.rollback();
+            }
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'doUpdateAccount': (0, _emberConcurrency.task)(function* (user) {
+      yield user.save();
+    }).enqueue().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'doUpdateAccountSucceeded': Ember.on('doUpdateAccount:succeeded', function (taskInstance) {
+      const user = taskInstance.args[0];
+      const loggedInUser = this.get('currentUser').getUser();
+      if (loggedInUser['user_id'] !== user.get('id')) return;
+      window.PlantWorksApp.trigger('userChanged');
+    }),
+    'doUpdateAccountErrored': Ember.on('doUpdateAccount:errored', function (taskInstance, err) {
+      const user = taskInstance.args[0];
+      user.rollback();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'changeAccountStatus': (0, _emberConcurrency.task)(function* (tenantUser, newStatus) {
+      const oldStatus = tenantUser.get('accessStatus');
+      tenantUser.set('operationIsRunning', true);
+      tenantUser.set('accessStatus', newStatus);
+      yield tenantUser.save();
+      const remainingUsersWithOldStatus = this.get('model').filterBy('accessStatus', oldStatus).get('length');
+      if (remainingUsersWithOldStatus) return;
+      yield this.get('onChangeAccordionItem').perform(undefined);
+    }).enqueue().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'changeAccountStatusSucceeded': Ember.on('changeAccountStatus:succeeded', function (taskInstance) {
+      const tenantUser = taskInstance.args[0];
+      tenantUser.set('operationIsRunning', false);
+    }),
+    'changeAccountStatusErrored': Ember.on('changeAccountStatus:errored', function (taskInstance, err) {
+      const tenantUser = taskInstance.args[0];
+      tenantUser.rollback();
+      tenantUser.set('operationIsRunning', false);
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'onChangeAccordionItem': (0, _emberConcurrency.task)(function* (newSelectedItem) {
+      this.set('selectedAccordionItem', newSelectedItem);
+      yield (0, _emberConcurrency.timeout)(10);
+      if (!newSelectedItem) this.set('selectedAccordionItem', '1');
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/pug/user-manager/reset-password", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'user-manager-update');
+    },
+
+    'onGeneratePasswordChange': Ember.observer('state.generateRandomPassword', function () {
+      this.set('state.newPassword', '');
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/components/session/log-in", ["exports", "plantworks/framework/base-component", "plantworks/config/environment", "ember-computed-style", "ember-concurrency"], function (_exports, _baseComponent, _environment, _emberComputedStyle, _emberConcurrency) {
   "use strict";
 
@@ -4384,7 +5297,6 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
-    'intl': Ember.inject.service('intl'),
     'router': Ember.inject.service('router'),
     'attributeBindings': ['style'],
     //eslint-disable-line ember/avoid-leaking-state-in-ember-objects
@@ -4543,7 +5455,6 @@
   _exports.default = void 0;
 
   var _default = _baseComponent.default.extend({
-    'intl': Ember.inject.service('intl'),
     'router': Ember.inject.service('router'),
 
     init() {
@@ -4622,7 +5533,6 @@
   _exports.default = void 0;
 
   var _default = _baseController.default.extend({
-    'intl': Ember.inject.service('intl'),
     'media': Ember.inject.service('media'),
     'notification': Ember.inject.service('integrated-notification'),
     'realtimeData': Ember.inject.service('realtime-data'),
@@ -4896,9 +5806,7 @@
       }
 
       if (groupModel.get('id') === this.get('selectedGroup.id')) return;
-      groupModel.reload({
-        'include': 'tenant, parent, groups, tenantUserGroups, permissions, permissions.tenant, permissions.tenantGroup, permissions.featurePermission'
-      }).then(reloadedModel => {
+      groupModel.reload().then(reloadedModel => {
         this.set('selectedGroup', reloadedModel);
         this.get('setBreadcrumbHierarchy').perform();
       }).catch(err => {
@@ -4962,23 +5870,23 @@
         const self = this;
         const tenant = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
         const user = this.get('store').createRecord('tenant-administration/user-manager/user', {
-          'firstName': 'New',
-          'lastName': 'User',
-          'email': "new.user@".concat(tenant.get('subDomain'), ".com")
+          'firstName': this.intl.t('general.new'),
+          'lastName': this.intl.t('general.user'),
+          'email': "".concat(this.intl.t('general.new'), ".").concat(this.intl.t('general.user'), "@").concat(tenant.get('subDomain'), ".com")
         });
         const tenantUser = this.get('store').createRecord('tenant-administration/user-manager/tenant-user', {
           'tenant': tenant,
           'user': user
         });
         const modalData = {
-          'title': 'Create User Account',
-          'componentName': 'tenant-administration/user-manager/create-new-account',
+          'title': this.intl.t('pug_feature.user_manager_feature.create_user'),
+          'componentName': 'pug/user-manager/create-new-account',
           'componentState': {
             'tenantUser': tenantUser,
             'model': user
           },
           'confirmButton': {
-            'text': 'Save',
+            'text': this.intl.t('modal.default_save_text'),
             'icon': 'check',
             'primary': true,
             'raised': true,
@@ -4987,7 +5895,7 @@
             }
           },
           'cancelButton': {
-            'text': 'Cancel',
+            'text': this.intl.t('modal.default_cancel_text'),
             'icon': 'cancel',
             'warn': true,
             'raised': true,
@@ -5015,7 +5923,7 @@
       const user = taskInstance.args[0];
       this.get('notification').display({
         'type': 'success',
-        'message': "".concat(user.get('firstName'), " ").concat(user.get('lastName'), " <").concat(user.get('email'), "> succesfully created")
+        'message': "".concat(user.get('fullName'), " <").concat(user.get('email'), "> ").concat(this.intl.t('pug_feature.user_manager_feature.succesful_create'))
       });
     }),
     'doCreateAccountErrored': Ember.on('doCreateAccount:errored', function (taskInstance, err) {
@@ -5035,13 +5943,13 @@
           'content': Ember.A([])
         });
         const modalData = {
-          'title': 'Add Users',
-          'componentName': 'tenant-administration/user-manager/add-existing-accounts',
+          'title': this.intl.t('pug_feature.user_manager_feature.add_existing_user'),
+          'componentName': 'pug/user-manager/add-existing-accounts',
           'componentState': {
             'model': usersToBeAdded
           },
           'confirmButton': {
-            'text': 'Add Users',
+            'text': this.intl.t('modal.default_add_text'),
             'icon': 'check',
             'primary': true,
             'raised': true,
@@ -5050,7 +5958,7 @@
             }
           },
           'cancelButton': {
-            'text': 'Cancel',
+            'text': this.intl.t('modal.default_cancel_text'),
             'icon': 'cancel',
             'warn': true,
             'raised': true,
@@ -5084,9 +5992,12 @@
     }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
     'doAddAccountsSucceeded': Ember.on('doAddAccounts:succeeded', function (taskInstance) {
       const userList = taskInstance.args[0];
+      if (!userList.get('length')) return;
       this.get('notification').display({
         'type': 'success',
-        'message': "".concat(userList.get('length'), " Users succesfully added")
+        'message': this.intl.t('pug_feature.user_manager_feature.succesful_add', {
+          'numAccounts': userList.get('length')
+        })
       });
     }),
     'doAddAccountsErrored': Ember.on('doAddAccounts:errored', function (taskInstance, err) {
@@ -5154,12 +6065,13 @@
 
   var _default = Ember.Component.extend(_emberLifeline.ContextBoundTasksMixin, _emberLifeline.ContextBoundEventListenersMixin, _emberLifeline.DisposableMixin, Ember.Evented, _emberInvokeAction.InvokeActionMixin, {
     'ajax': Ember.inject.service('ajax'),
+    'intl': Ember.inject.service('intl'),
     'store': Ember.inject.service('store'),
     'currentUser': Ember.inject.service('current-user'),
     'notification': Ember.inject.service('integrated-notification'),
+    'debug': (0, _emberDebugLogger.default)(),
     'permissions': null,
     'hasPermission': false,
-    'debug': (0, _emberDebugLogger.default)(),
 
     init() {
       this._super(...arguments);
@@ -5208,13 +6120,14 @@
 
   var _default = Ember.Controller.extend(Ember.Evented, _emberInvokeAction.InvokeActionMixin, {
     'ajax': Ember.inject.service('ajax'),
-    'currentUser': Ember.inject.service('current-user'),
-    'notification': Ember.inject.service('integrated-notification'),
+    'intl': Ember.inject.service('intl'),
     'router': Ember.inject.service('router'),
     'store': Ember.inject.service('store'),
+    'debug': (0, _emberDebugLogger.default)(),
+    'currentUser': Ember.inject.service('current-user'),
+    'notification': Ember.inject.service('integrated-notification'),
     'permissions': null,
     'hasPermission': true,
-    'debug': (0, _emberDebugLogger.default)(),
 
     init() {
       this._super(...arguments);
@@ -5263,6 +6176,7 @@
   _exports.default = void 0;
 
   var _default = _emberData.default.Model.extend({
+    'intl': Ember.inject.service('intl'),
     'moment': Ember.inject.service('moment'),
     'debug': (0, _emberDebugLogger.default)(),
     'createdAt': _emberData.default.attr('date', {
@@ -5292,8 +6206,9 @@
   _exports.default = void 0;
 
   var _default = Ember.Route.extend({
-    'currentUser': Ember.inject.service('current-user'),
+    'intl': Ember.inject.service('intl'),
     'router': Ember.inject.service('router'),
+    'currentUser': Ember.inject.service('current-user'),
     'debug': (0, _emberDebugLogger.default)(),
     // eslint-disable-next-line ember/avoid-leaking-state-in-ember-objects
     'actions': {
@@ -8962,7 +9877,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/models/server-administration/feature-permission", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+;define("plantworks/models/server-administration/feature-permission", ["exports", "plantworks/framework/base-model", "ember-data", "ember-concurrency"], function (_exports, _baseModel, _emberData, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -8976,17 +9891,23 @@
       'async': true,
       'inverse': 'permissions'
     }),
-    'i18n_name_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".title");
+    'i18n_tag': Ember.computed('name', function () {
+      return this.get('_computeI18nTag').perform();
     }),
-    'i18n_description_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".description");
-    })
+    '_computeI18nTag': (0, _emberConcurrency.task)(function* () {
+      const parentChain = [];
+      parentChain.push('permission');
+      parentChain.push("".concat(this.get('name').replace(/ /g, '_').replace(/-/g, '_').toLowerCase()));
+      const parentModule = yield this.get('feature');
+      const parentI18nTag = yield parentModule.get('i18n_tag');
+      if (parentI18nTag && parentI18nTag !== '') parentChain.unshift(parentI18nTag);
+      return parentChain.join('.');
+    }).keepLatest()
   });
 
   _exports.default = _default;
 });
-;define("plantworks/models/server-administration/feature", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+;define("plantworks/models/server-administration/feature", ["exports", "plantworks/framework/base-model", "ember-data", "ember-concurrency"], function (_exports, _baseModel, _emberData, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -9012,12 +9933,21 @@
       'async': true,
       'inverse': 'feature'
     }),
-    'i18n_name_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".title");
+    'i18n_tag': Ember.computed('name', 'moduleType', function () {
+      return this.get('_computeI18nTag').perform();
     }),
-    'i18n_description_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".description");
-    })
+    '_computeI18nTag': (0, _emberConcurrency.task)(function* () {
+      const parentChain = [];
+      if (this.get('moduleType') !== 'server') parentChain.push("".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase()));
+      const parentModule = yield this.get('parent');
+
+      if (parentModule && parentModule.get('moduleType') !== 'server') {
+        const parentTag = yield parentModule.get('i18n_tag');
+        if (parentTag && parentTag !== '') parentChain.unshift(parentTag);
+      }
+
+      return parentChain.length ? parentChain.join('.') : null;
+    }).keepLatest()
   });
 
   _exports.default = _default;
@@ -9089,7 +10019,7 @@
     }),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
-      'inverse': 'groups'
+      'inverse': 'tenantGroups'
     }),
     'parent': _emberData.default.belongsTo('tenant-administration/group-manager/tenant-group', {
       'async': true,
@@ -9106,6 +10036,14 @@
     'permissions': _emberData.default.hasMany('tenant-administration/group-manager/tenant-group-permission', {
       'async': true,
       'inverse': 'tenantGroup'
+    }),
+    'isProtected': Ember.computed('defaultForNewUser', 'groups.@each.isProtected', function () {
+      let isDefaultForNewUser = this.get('defaultForNewUser');
+      if (isDefaultForNewUser) return isDefaultForNewUser;
+      this.get('groups').forEach(subGroup => {
+        isDefaultForNewUser = isDefaultForNewUser || subGroup.get('isProtected');
+      });
+      return isDefaultForNewUser;
     }),
     'onDisplayNameChanged': Ember.observer('displayName', function () {
       this.set('name', this.get('displayName').dasherize().toLowerCase());
@@ -9148,7 +10086,6 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'intl': Ember.inject.service('intl'),
     'name': _emberData.default.attr('string', {
       'defaultValue': ''
     }),
@@ -9196,10 +10133,10 @@
       'inverse': 'tenantLocation'
     }),
     'i18n_timezone_id': Ember.computed('timezoneId', function () {
-      return this.intl.t("timezone_id.".concat(this.get('timezoneId')));
+      return this.intl.t("timezone.id.".concat(this.get('timezoneId')));
     }),
     'i18n_timezone_name': Ember.computed('timezoneName', function () {
-      return this.intl.t("timezone_name.".concat(this.get('timezoneName')));
+      return this.intl.t("timezone.name.".concat(this.get('timezoneName')));
     })
   });
 
@@ -9348,8 +10285,6 @@
   _exports.default = void 0;
 
   var _default = _baseRoute.default.extend({
-    'intl': Ember.inject.service('intl'),
-
     init() {
       this._super(...arguments);
 
@@ -9663,7 +10598,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/routes/pug/user-manager", ["exports"], function (_exports) {
+;define("plantworks/routes/pug/user-manager", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -9671,7 +10606,56 @@
   });
   _exports.default = void 0;
 
-  var _default = Ember.Route.extend({});
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/user-manager/tenant-user');
+        this.get('store').unloadAll('tenant-administration/user-manager/user');
+        this.get('store').unloadAll('tenant-administration/user-manager/user-contact');
+        return;
+      }
+
+      const tenantUserData = this.get('store').peekAll('tenant-administration/user-manager/tenant-user');
+      if (tenantUserData.get('length')) return tenantUserData;
+      return this.get('store').findAll('tenant-administration/user-manager/tenant-user');
+    },
+
+    onUserDataUpdated() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/user-manager/tenant-user');
+        this.get('store').unloadAll('tenant-administration/user-manager/user');
+        this.get('store').unloadAll('tenant-administration/user-manager/user-contact');
+      }
+
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksTenantId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('refreshTenantUserModel').perform();
+    },
+
+    'refreshTenantUserModel': (0, _emberConcurrency.task)(function* () {
+      let tenantUserData = this.get('store').peekAll('tenant-administration/user-manager/tenant-user');
+      if (!tenantUserData.get('length')) tenantUserData = yield this.get('store').findAll('tenant-administration/user-manager/tenant-user');
+      this.get('controller').set('model', tenantUserData);
+    }).keepLatest()
+  });
 
   _exports.default = _default;
 });
@@ -10503,6 +11487,186 @@
 
   _exports.default = _default;
 });
+;define("plantworks/templates/components/pug/group-manager/main-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "+ZH3oQDO",
+    "block": "{\"symbols\":[\"card\",\"tab\",\"parentCrumb\",\"idx\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/group-manager/main-component.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 layout-column layout-align-start-stretch\"]],{\"statements\":[[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[11,\"style\",\"font-size:0.95rem;\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-center layout-wrap\"],[9],[0,\"\\n\"],[4,\"each\",[[25,[\"breadcrumbStack\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"if\",[[24,4,[]]],null,{\"statements\":[[0,\"  >  \"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,4,[]],[29,\"sub\",[[25,[\"breadcrumbStack\",\"length\"]],1],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"span\"],[11,\"style\",\"line-height:2rem;\"],[9],[1,[24,3,[\"displayName\"]],false],[10],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"a\"],[11,\"href\",\"#\"],[11,\"style\",\"line-height:2rem;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"displayName\"]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[3,\"action\",[[24,0,[]],\"controller-action\",\"setSelectedGroup\",[24,3,[]]]],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[3,4]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"],[4,\"if\",[[29,\"and\",[[25,[\"editable\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-end-center\"],[9],[0,\"\\n\"],[4,\"liquid-if\",[[25,[\"selectedGroup\",\"isProcessing\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"disabled\",\"onClick\"],[true,null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"onClick\",\"disabled\",\"bubbles\"],[true,true,[29,\"perform\",[[25,[\"saveGroup\"]]],null],[29,\"not\",[[25,[\"selectedGroup\",\"hasDirtyAttributes\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"accent\",\"raised\",\"onClick\",\"disabled\",\"bubbles\"],[true,true,[29,\"perform\",[[25,[\"cancelGroup\"]]],null],[29,\"not\",[[25,[\"selectedGroup\",\"hasDirtyAttributes\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"unless\",[[29,\"await\",[[25,[\"selectedGroup\",\"isProtected\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"raised\",\"onClick\",\"bubbles\"],[true,true,[29,\"perform\",[[25,[\"deleteGroup\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_delete_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"mx-3 pt-4 pb-2 layout-row layout-align-start-space-between\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\",\"minLength\"],[\"text\",\"flex\",[29,\"t\",[\"pug_feature.group_manager_feature.label_name\"],null],[25,[\"selectedGroup\",\"displayName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"selectedGroup\",\"displayName\"]]],null]],null],[29,\"not\",[[29,\"and\",[[25,[\"editable\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null]],null],\"3\"]]],false],[0,\"\\n\\n\"],[4,\"paper-switch\",null,[[\"value\",\"onChange\",\"disabled\"],[[25,[\"selectedGroup\",\"defaultForNewUser\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"selectedGroup\",\"defaultForNewUser\"]]],null]],null],[29,\"or\",[[25,[\"selectedGroup\",\"defaultForNewUser\"]],[29,\"not\",[[29,\"and\",[[25,[\"editable\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null]],null]],null]]],{\"statements\":[[4,\"liquid-if\",[[25,[\"selectedGroup\",\"defaultForNewUser\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_default_group\"],null],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_non_default_group\"],null],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\n\\t\\t\"],[4,\"paper-subheader\",null,null,{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_description\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"mx-3 pt-2 pb-4 layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"textarea\",\"block\",\"class\",\"value\",\"onChange\",\"passThru\",\"disabled\"],[true,true,\"flex\",[25,[\"selectedGroup\",\"description\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"selectedGroup\",\"description\"]]],null]],null],[29,\"hash\",null,[[\"rows\",\"maxRows\"],[3,3]]],[29,\"not\",[[29,\"and\",[[25,[\"editable\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\n\"],[4,\"bs-tab\",null,[[\"class\"],[\"classic-tabs\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks/templates/components/pug/group-manager/main-component.hbs' @ L84:C6) \"],null]],[[\"title\"],[[29,\"t\",[\"pug_feature.group_manager_feature.label_group_children\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"component\",[\"pug/group-manager/sub-group-editor-component\"],[[\"model\",\"selectedGroup\",\"controller-action\"],[[25,[\"model\"]],[25,[\"selectedGroup\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks/templates/components/pug/group-manager/main-component.hbs' @ L88:C6) \"],null]],[[\"title\"],[[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permissions\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"component\",[\"pug/group-manager/permission-group-editor-component\"],[[\"model\",\"selectedGroup\",\"controller-action\"],[[25,[\"model\"]],[25,[\"selectedGroup\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"pane\"]],\"expected `tab.pane` to be a contextual component but found a string. Did you mean `(component tab.pane)`? ('plantworks/templates/components/pug/group-manager/main-component.hbs' @ L92:C6) \"],null]],[[\"title\"],[[29,\"t\",[\"pug_feature.group_manager_feature.label_group_users\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"component\",[\"pug/group-manager/user-group-editor-component\"],[[\"model\",\"selectedGroup\",\"controller-action\"],[[25,[\"model\"]],[25,[\"selectedGroup\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/group-manager/main-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/group-manager/permission-group-editor-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "h6sCwb7k",
+    "block": "{\"symbols\":[\"table\",\"body\",\"groupPermission\",\"row\",\"groupPermission\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"class\",\"flex\"],[11,\"style\",\"font-size:1.25rem;\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permissions\"],null],false],[10],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"style\",\"visibility:hidden;\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"disabled\",\"onClick\",\"bubbles\"],[true,null,false]],{\"statements\":[[0,\"\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\",\"selectable\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],\"asc\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L14:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L15:C5) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"onChange\"],[true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L18:C5) \"],null]],[[\"sortProp\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null]]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L19:C5) \"],null]],[[\"sortProp\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null]]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_description\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L21:C4) \"],null]],null,{\"statements\":[[4,\"if\",[[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\",\"permissions\"]]],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"log\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L25:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L26:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[[29,\"not\",[[25,[\"editable\"]]],null],[29,\"get\",[[29,\"intersect\",[[29,\"await\",[[25,[\"groupPermissionIdList\"]]],null],[29,\"array\",[[29,\"await\",[[24,5,[\"featurePermission\",\"id\"]]],null]],null]],null],\"length\"],null],[29,\"perform\",[[25,[\"toggleGroupPermission\"]],[24,5,[]]],null]]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L29:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L30:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"permissions\"]]],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"log\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L36:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L37:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[true,true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L40:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L41:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[]}]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/group-manager/sub-group-editor-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "PqkD7VKj",
+    "block": "{\"symbols\":[\"table\",\"body\",\"subGroup\",\"row\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"class\",\"flex\"],[11,\"style\",\"font-size:1.25rem;\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_children\"],null],false],[10],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"onClick\",\"bubbles\"],[true,true,[29,\"perform\",[[25,[\"addGroup\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_add_group\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"displayName\",\"asc\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L15:C4) \"],null]],null,{\"statements\":[[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L16:C5) \"],null]],[[\"sortProp\"],[\"displayName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L17:C5) \"],null]],null,{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_description\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L18:C5) \"],null]],null,{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_is_default_group\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L20:C6) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[6]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L23:C4) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"groups\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[24,3,[\"isNew\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L26:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L27:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"minLength\"],[\"text\",\"mb-0\",[24,3,[\"displayName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"displayName\"]]],null]],null],\"3\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L37:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"minLength\"],[\"text\",\"mb-0\",[24,3,[\"description\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[24,3,[\"description\"]]],null]],null],\"3\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L47:C8) \"],null]],[[\"class\"],[\"text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L52:C8) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\",\"bubbles\"],[true,[29,\"t\",[\"pug_feature.group_manager_feature.label_save_group\"],null],[29,\"perform\",[[25,[\"saveGroup\"]],[24,3,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\",\"bubbles\"],[true,[29,\"t\",[\"pug_feature.group_manager_feature.label_delete_group\"],null],[29,\"perform\",[[25,[\"deleteGroup\"]],[24,3,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L64:C7) \"],null]],[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"setSelectedGroup\",[24,3,[]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L65:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"displayName\"]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L69:C8) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"description\"]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L73:C8) \"],null]],[[\"class\"],[\"text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-checkbox\",null,[[\"class\",\"value\",\"onChange\",\"disabled\",\"bubbles\"],[\"flex m-0\",[24,3,[\"defaultForNewUser\"]],[29,\"perform\",[[25,[\"changeDefaultForNewUser\"]],[24,3,[]]],null],[29,\"or\",[[24,3,[\"defaultForNewUser\"]],[29,\"not\",[[29,\"and\",[[25,[\"editable\"]],[29,\"await\",[[24,3,[\"parent\"]]],null]],null]],null]],null],false]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs' @ L84:C8) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"unless\",[[24,3,[\"isProtected\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\",\"bubbles\"],[true,[29,\"t\",[\"pug_feature.group_manager_feature.label_delete_group\"],null],[29,\"perform\",[[25,[\"deleteGroup\"]],[24,3,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]}]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/group-manager/sub-group-editor-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/group-manager/tree-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "u7baJJ/Z",
+    "block": "{\"symbols\":[\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/group-manager/tree-component.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 pt-1 layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"id\",\"tenant-administration-group-manager-tree-container\"],[11,\"class\",\"p-2\"],[9],[0,\"\\n\\t\\t\\t \\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/group-manager/tree-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/group-manager/user-group-editor-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "j5BX0u5E",
+    "block": "{\"symbols\":[\"&default\"],\"statements\":[[15,1]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/group-manager/user-group-editor-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/user-manager/add-existing-accounts", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "279e7U9b",
+    "block": "{\"symbols\":[\"card\",\"table\",\"body\",\"user\",\"row\",\"head\",\"user\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L2:C4) \"],null]],null,{\"statements\":[[4,\"power-select\",null,[[\"placeholder\",\"search\",\"selected\",\"onchange\"],[[29,\"t\",[\"pug_feature.user_manager_feature.search_user\"],null],[29,\"perform\",[[25,[\"searchUserByEmail\"]]],null],[25,[\"selectedUser\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"selectedUser\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[24,7,[\"first_name\"]],false],[0,\" \"],[1,[24,7,[\"last_name\"]],false],[0,\" <\"],[1,[24,7,[\"email\"]],false],[0,\">\\n\"]],\"parameters\":[7]},null]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L13:C4) \"],null]],[[\"class\"],[\"mt-2 p-0\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"state.model.email\",\"asc\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L15:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L16:C7) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L17:C7) \"],null]],[[\"sortProp\"],[\"state.model.email\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L18:C7) \"],null]],[[\"sortProp\"],[\"state.model.firstName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L19:C7) \"],null]],[[\"sortProp\"],[\"state.model.middleNames\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L20:C7) \"],null]],[[\"sortProp\"],[\"state.model.lastName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L21:C7) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L23:C6) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,2,[\"sortDesc\"]],[25,[\"state\",\"model\"]]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L25:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L26:C9) \"],null]],[[\"class\"],[\"text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,4,[\"profileImage\"]]],[12,\"alt\",[24,4,[\"fullName\"]]],[11,\"style\",\"max-width:4rem; max-height:2rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L29:C9) \"],null]],null,{\"statements\":[[1,[24,4,[\"email\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L30:C9) \"],null]],null,{\"statements\":[[1,[24,4,[\"firstName\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L31:C9) \"],null]],null,{\"statements\":[[1,[24,4,[\"middleNames\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L32:C9) \"],null]],null,{\"statements\":[[1,[24,4,[\"lastName\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs' @ L33:C9) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\",\"bubbles\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.delete_user\"],null],[29,\"perform\",[[25,[\"deleteUser\"]],[24,4,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/user-manager/add-existing-accounts.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/user-manager/create-new-account", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "YnEhSZPw",
+    "block": "{\"symbols\":[\"card\",\"form\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"mt-4 pb-0\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex\"],[9],[0,\"\\n\"],[4,\"paper-form\",null,[[\"class\"],[\"w-100\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L6:C7) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],[25,[\"state\",\"model\",\"email\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"email\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L9:C7) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],[25,[\"state\",\"model\",\"firstName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"firstName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L12:C7) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],[25,[\"state\",\"model\",\"middleNames\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"middleNames\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L15:C7) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],[25,[\"state\",\"model\",\"lastName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"lastName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/create-new-account.hbs' @ L18:C7) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"password\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_new_password\"],null],[25,[\"state\",\"model\",\"password\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"password\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[2]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/user-manager/create-new-account.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/user-manager/edit-account", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "p2KmFEPs",
+    "block": "{\"symbols\":[\"card\",\"form\"],\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/user-manager/edit-account.hbs' @ L2:C4) \"],null]],[[\"class\"],[\"mt-4 pb-0\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between layout-wrap\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"id\",\"tenant-administration-user-manager-edit-account-image\"],[11,\"class\",\"flex\"],[11,\"contenteditable\",\"true\"],[9],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex-100 flex-gt-md-45 flex-gt-lg-50\"],[9],[0,\"\\n\"],[4,\"paper-form\",null,[[\"class\"],[\"w-100\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/edit-account.hbs' @ L10:C8) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],[25,[\"state\",\"model\",\"email\"]],null,true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/edit-account.hbs' @ L13:C8) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],[25,[\"state\",\"model\",\"firstName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"firstName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/edit-account.hbs' @ L16:C8) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],[25,[\"state\",\"model\",\"middleNames\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"middleNames\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"input\"]],\"expected `form.input` to be a contextual component but found a string. Did you mean `(component form.input)`? ('plantworks/templates/components/pug/user-manager/edit-account.hbs' @ L19:C8) \"],null]],[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"required\"],[\"text\",\"flex-100\",[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],[25,[\"state\",\"model\",\"lastName\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"lastName\"]]],null]],null],true]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[2]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/user-manager/edit-account.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/user-manager/main-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "+F/xkIhq",
+    "block": "{\"symbols\":[\"accordion\",\"accItem\",\"table\",\"body\",\"tenantUser\",\"row\",\"head\",\"accItem\",\"table\",\"body\",\"tenantUser\",\"row\",\"head\",\"accItem\",\"table\",\"body\",\"tenantUser\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"bs-accordion\",null,[[\"class\",\"selected\",\"onChange\"],[\"w-100\",[25,[\"selectedAccordionItem\"]],[29,\"perform\",[[25,[\"onChangeAccordionItem\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L3:C4) \"],null]],[[\"value\",\"title\"],[\"1\",[29,\"t\",[\"pug_feature.user_manager_feature.label_current_users\"],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,14,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L4:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_current_users\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,14,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L7:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"user.email\",\"asc\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,15,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L9:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L10:C8) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L11:C8) \"],null]],[[\"sortProp\"],[\"user.email\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L12:C8) \"],null]],[[\"sortProp\"],[\"user.firstName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L13:C8) \"],null]],[[\"sortProp\"],[\"user.middleNames\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L14:C8) \"],null]],[[\"sortProp\"],[\"user.lastName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,19,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L16:C9) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[19]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,15,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L19:C7) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,15,[\"sortDesc\"]],[29,\"filter-by\",[\"accessStatus\",\"authorized\",[25,[\"model\"]]],null]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,16,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L21:C9) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L22:C10) \"],null]],[[\"class\"],[\"text-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,17,[\"profileImgUrl\"]]],[12,\"alt\",[24,17,[\"user\",\"fullName\"]]],[11,\"style\",\"max-width:4rem; max-height:2rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L25:C10) \"],null]],null,{\"statements\":[[1,[24,17,[\"user\",\"email\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L26:C10) \"],null]],null,{\"statements\":[[1,[24,17,[\"user\",\"firstName\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L27:C10) \"],null]],null,{\"statements\":[[1,[24,17,[\"user\",\"middleNames\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L28:C10) \"],null]],null,{\"statements\":[[1,[24,17,[\"user\",\"lastName\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,18,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L30:C10) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[24,17,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.reset_password\"],null],[29,\"perform\",[[25,[\"resetPassword\"]],[24,17,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"lock-reset\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.edit_user\"],null],[29,\"perform\",[[25,[\"editAccount\"]],[24,17,[]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"iconButton\",\"title\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.clone_user\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-switch\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.deauthorize_user\"],null],[29,\"perform\",[[25,[\"changeAccountStatus\"]],[24,17,[]],\"disabled\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-remove\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[18]},null]],\"parameters\":[17]},null]],\"parameters\":[16]},null]],\"parameters\":[15]},null]],\"parameters\":[]},null]],\"parameters\":[14]},null],[0,\"\\n\"],[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"accessStatus\",\"waiting\",[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L61:C4) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"2\",[29,\"t\",[\"pug_feature.user_manager_feature.label_awaiting_authorization\"],null]]],{\"statements\":[[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L62:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_awaiting_authorization\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,8,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L63:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"user.email\",\"asc\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L65:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,13,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L66:C8) \"],null]],[[\"sortProp\"],[\"user.email\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,13,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L67:C8) \"],null]],[[\"sortProp\"],[\"user.firstName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,13,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L68:C8) \"],null]],[[\"sortProp\"],[\"user.middleNames\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,13,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L69:C8) \"],null]],[[\"sortProp\"],[\"user.lastName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,13,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L71:C9) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[13]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,9,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L74:C7) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,9,[\"sortDesc\"]],[29,\"filter-by\",[\"accessStatus\",\"waiting\",[25,[\"model\"]]],null]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,10,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L76:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,12,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L77:C10) \"],null]],null,{\"statements\":[[1,[24,11,[\"user\",\"email\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,12,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L78:C10) \"],null]],null,{\"statements\":[[1,[24,11,[\"user\",\"firstName\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,12,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L79:C10) \"],null]],null,{\"statements\":[[1,[24,11,[\"user\",\"middleNames\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,12,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L80:C10) \"],null]],null,{\"statements\":[[1,[24,11,[\"user\",\"lastName\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,12,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L82:C10) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[24,11,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,\"Authorize Account\",[29,\"perform\",[[25,[\"changeAccountStatus\"]],[24,11,[]],\"authorized\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-check\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,\"De-authorize Account\",[29,\"perform\",[[25,[\"changeAccountStatus\"]],[24,11,[]],\"disabled\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-remove\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[12]},null]],\"parameters\":[11]},null]],\"parameters\":[10]},null]],\"parameters\":[9]},null]],\"parameters\":[]},null]],\"parameters\":[8]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"accessStatus\",\"disabled\",[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"item\"]],\"expected `accordion.item` to be a contextual component but found a string. Did you mean `(component accordion.item)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L107:C4) \"],null]],[[\"class\",\"value\",\"title\"],[\"mt-2\",\"3\",[29,\"t\",[\"pug_feature.user_manager_feature.label_deauthorized_users\"],null]]],{\"statements\":[[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"title\"]],\"expected `accItem.title` to be a contextual component but found a string. Did you mean `(component accItem.title)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L108:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_deauthorized_users\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"body\"]],\"expected `accItem.body` to be a contextual component but found a string. Did you mean `(component accItem.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L109:C5) \"],null]],[[\"class\"],[\"p-0\"]],{\"statements\":[[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\"],[\"user.email\",\"asc\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L111:C7) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L112:C8) \"],null]],[[\"sortProp\"],[\"user.email\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_username\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L113:C8) \"],null]],[[\"sortProp\"],[\"user.firstName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_first_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L114:C8) \"],null]],[[\"sortProp\"],[\"user.middleNames\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_middle_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L115:C8) \"],null]],[[\"sortProp\"],[\"user.lastName\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_last_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L117:C9) \"],null]],null,{\"statements\":[[0,\" \"]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L120:C7) \"],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,3,[\"sortDesc\"]],[29,\"filter-by\",[\"accessStatus\",\"disabled\",[25,[\"model\"]]],null]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L122:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L123:C10) \"],null]],null,{\"statements\":[[1,[24,5,[\"user\",\"email\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L124:C10) \"],null]],null,{\"statements\":[[1,[24,5,[\"user\",\"firstName\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L125:C10) \"],null]],null,{\"statements\":[[1,[24,5,[\"user\",\"middleNames\"]],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L126:C10) \"],null]],null,{\"statements\":[[1,[24,5,[\"user\",\"lastName\"]],false]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/user-manager/main-component.hbs' @ L128:C10) \"],null]],[[\"class\"],[\"text-right\"]],{\"statements\":[[4,\"liquid-if\",[[24,5,[\"operationIsRunning\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[null]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"title\",\"onClick\"],[true,[29,\"t\",[\"pug_feature.user_manager_feature.label_reauthorize_user\"],null],[29,\"perform\",[[25,[\"changeAccountStatus\"]],[24,5,[]],\"authorized\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account-check\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/user-manager/main-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/pug/user-manager/reset-password", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "Qrbb7EvH",
+    "block": "{\"symbols\":[\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 mt-2 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/pug/user-manager/reset-password.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"flex layout-column layout-align-start-stretch\"]],{\"statements\":[[4,\"paper-checkbox\",null,[[\"value\",\"onChange\"],[[25,[\"state\",\"generateRandomPassword\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"generateRandomPassword\"]]],null]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.label_generate_password\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"label\",\"value\",\"onChange\",\"disabled\"],[\"password\",[29,\"t\",[\"pug_feature.user_manager_feature.label_new_password\"],null],[25,[\"state\",\"newPassword\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"newPassword\"]]],null]],null],[25,[\"state\",\"generateRandomPassword\"]]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/pug/user-manager/reset-password.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/templates/components/session/log-in", ["exports"], function (_exports) {
   "use strict";
 
@@ -10620,8 +11784,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "s4EnhX6F",
-    "block": "{\"symbols\":[\"dial\",\"actions\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-speed-dial\",null,[[\"class\",\"direction\",\"open\"],[\"bg-white\",\"right\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"trigger\"]],\"expected `dial.trigger` to be a contextual component but found a string. Did you mean `(component dial.trigger)`? ('plantworks/templates/pug.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"mini\",\"primary\"],[true,true]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"menu\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"actions\"]],\"expected `dial.actions` to be a contextual component but found a string. Did you mean `(component dial.actions)`? ('plantworks/templates/pug.hbs' @ L10:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L11:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"group-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"group\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L18:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"user-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[1,[29,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "gN23DlJ1",
+    "block": "{\"symbols\":[\"dial\",\"actions\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-speed-dial\",null,[[\"class\",\"direction\",\"open\"],[\"bg-white\",\"right\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"trigger\"]],\"expected `dial.trigger` to be a contextual component but found a string. Did you mean `(component dial.trigger)`? ('plantworks/templates/pug.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"mini\",\"primary\"],[true,true]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"menu\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"actions\"]],\"expected `dial.actions` to be a contextual component but found a string. Did you mean `(component dial.actions)`? ('plantworks/templates/pug.hbs' @ L10:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L11:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"group-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"group\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager_feature.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"action\"]],\"expected `actions.action` to be a contextual component but found a string. Did you mean `(component actions.action)`? ('plantworks/templates/pug.hbs' @ L18:C6) \"],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"onClick\"],[[29,\"action\",[[24,0,[]],\"controller-action\",\"changeSubFeature\",\"user-manager\"],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.title\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[1,[29,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/pug.hbs"
     }
@@ -10638,8 +11802,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "hsEPnLL0",
-    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.group_manager.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"h5\"],[11,\"class\",\"my-2\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager.title\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-stretch layout-wrap\"],[9],[0,\"\\n\"],[0,\"\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "3jy7NGFb",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.group_manager_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center flex\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"group\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.group_manager_feature.title\"],null],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"primary\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,null,false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"bg-white layout-row layout-align-start-stretch layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[1,[29,\"component\",[\"pug/group-manager/tree-component\"],[[\"class\",\"model\",\"selectedGroup\",\"controller-action\"],[\"flex-100 flex-gt-sm-25 flex-gt-lg-20 layout-row layout-align-start-stretch\",[25,[\"model\"]],[25,[\"selectedGroup\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\\t\\t\"],[1,[29,\"component\",[\"pug/group-manager/main-component\"],[[\"class\",\"model\",\"selectedGroup\",\"breadcrumbStack\",\"controller-action\"],[\"flex-100 flex-gt-sm-75 flex-gt-lg-80 layout-row layout-align-start-stretch\",[25,[\"model\"]],[25,[\"selectedGroup\"]],[25,[\"breadcrumbStack\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/pug/group-manager.hbs"
     }
@@ -10656,8 +11820,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "qV0bhXv7",
-    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.user_manager.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center flex\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[1,[29,\"t\",[\"pug_feature.user_manager.title\"],null],false],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"primary\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"createUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.create_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"addUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager.add_existing_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "NpGEUfJM",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"pug_feature.user_manager_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center flex\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"account\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.title\"],null],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"],[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"primary\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"createUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.create_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,[29,\"perform\",[[25,[\"addUser\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"add\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"pug_feature.user_manager_feature.add_existing_user\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"primary\",\"raised\",\"onClick\",\"bubbles\"],[\"m-0 py-0\",true,false,null,false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[1,[29,\"component\",[\"pug/user-manager/main-component\"],[[\"model\",\"controller-action\"],[[25,[\"model\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/pug/user-manager.hbs"
     }
@@ -11029,7 +12193,7 @@
   var _default = {
     "application": "Application",
     "bhairavi_template": {
-      "description": "PLant.Works Industrial Internet of Things (IIoT) / Industry 4.0 Portal",
+      "description": "Plant.Works Industrial Internet of Things (IIoT) / Industry 4.0 Portal",
       "title": "Plant.Works Portal"
     },
     "dashboard_feature": {
@@ -11044,17 +12208,41 @@
       "erkn_name": "EroNkan Technologies",
       "reserved_rights": "All Rights Reserved"
     },
+    "general": {
+      "new": "New",
+      "user": "User"
+    },
     "logo": {
       "alt": "Plant.Works Logo"
     },
     "modal": {
+      "default_add_text": "Add",
       "default_cancel_text": "Cancel",
+      "default_change_text": "Change",
       "default_content": "Default content! Has to be overridden!!",
       "default_delete_text": "Delete",
       "default_ok_text": "Ok",
       "default_save_text": "Save",
       "default_title": "Plant.Works Modal",
       "multiple_error": "Cannot display multiple modal dialogs!!"
+    },
+    "permission": {
+      "administrator": {
+        "description": "The permission for all tenant administrators",
+        "name": "Administrator"
+      },
+      "public": {
+        "description": "The only permission available to the portal visitors",
+        "name": "Public"
+      },
+      "registered": {
+        "description": "The default permission available to all logged-in users",
+        "name": "Registered"
+      },
+      "super_administrator": {
+        "description": "All permissions on the portal",
+        "name": "Super Administrator"
+      }
     },
     "profile_feature": {
       "contact_manager": {
@@ -11079,7 +12267,7 @@
         "label_last_name": "Last Name / Surname",
         "label_middle_name": "Middle Name(s)",
         "label_new_password": "New Password",
-        "label_username": "Email / Username",
+        "label_username": "Username / Login",
         "pane_basics": "Basics",
         "pane_contact_information": "Manage Contact Information",
         "pane_danger": "Danger Zone",
@@ -11092,13 +12280,52 @@
     },
     "pug_feature": {
       "description": "Manages Users, Groups, and Permissions",
-      "group_manager": {
+      "group_manager_feature": {
+        "delete_group_message": "Are you sure you want to delete the <strong>{displayName}</strong> group?",
+        "label_add_group": "Add Group",
+        "label_default_group": "Default Group",
+        "label_delete_group": "Delete Group",
+        "label_description": "Description",
+        "label_group_children": "Sub-Groups",
+        "label_group_permission_description": "Permission Description",
+        "label_group_permission_name": "Permission Name",
+        "label_group_permissions": "Permissions",
+        "label_group_users": "Members",
+        "label_is_default_group": "Default (Y/N)",
+        "label_name": "Group Name",
+        "label_non_default_group": "Non-default Group",
+        "label_save_group": "Save Group",
+        "new_subgroup_name": "Child Group {now}",
+        "permission_toggle_message": "<strong>{permissionDisplayName}</strong> permission successfully modified in <strong>{groupDisplayName}</strong>",
+        "succesful_delete": "<strong>{displayName}</strong> succesfully deleted",
+        "succesful_save": "<strong>{displayName}</strong> succesfully saved",
         "title": "Group Manager"
       },
       "title": "Permissions, Users, and Groups",
-      "user_manager": {
-        "add_existing_user": "Add an existing User/Login",
-        "create_user": "Create a new User/Login",
+      "user_manager_feature": {
+        "add_existing_user": "Add User",
+        "authorize_user": "Authorize User",
+        "clone_user": "Clone User",
+        "create_user": "Create User",
+        "deauthorize_user": "De-authorize User",
+        "delete_user": "Delete User",
+        "edit_user": "Edit User",
+        "label_awaiting_authorization": "Awaiting Authorization",
+        "label_confirm_password": "Re-enter New Password",
+        "label_current_password": "Current Password",
+        "label_current_users": "Current Users",
+        "label_deauthorized_users": "De-authorized Users",
+        "label_first_name": "First / Given Name",
+        "label_generate_password": "Generate Password",
+        "label_last_name": "Last Name / Surname",
+        "label_middle_name": "Middle Name(s)",
+        "label_new_password": "New Password",
+        "label_reauthorize_user": "Re-authorize User",
+        "label_username": "Username / Login",
+        "reset_password": "Reset Password",
+        "search_user": "Search using Username / Login",
+        "succesful_add": "{numAccounts, plural, =0 {No Users} =1 {One User} other {# Users}} succesfully added",
+        "succesful_create": "account created succesfully",
         "title": "User Manager"
       }
     },
@@ -11128,11 +12355,13 @@
       "description": "SKU Manager Feature",
       "title": "SKU Manager"
     },
-    "timezone_id": {
-      "asia_kolkata": "Asia/Kolkata"
-    },
-    "timezone_name": {
-      "ist": "India Standard Time (IST)"
+    "timezone": {
+      "id": {
+        "asia_kolkata": "Asia/Kolkata"
+      },
+      "name": {
+        "ist": "India Standard Time (IST)"
+      }
     },
     "warehouse_manager_feature": {
       "description": "Warehouse Manager Feature",
@@ -11230,7 +12459,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+0aa94640"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+7e9f2ca1"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
