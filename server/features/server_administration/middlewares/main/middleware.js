@@ -48,7 +48,7 @@ class Main extends PlantWorksBaseMiddleware {
 			const dbSrvc = this.$dependencies.DatabaseService;
 			const self = this; // eslint-disable-line consistent-this
 
-			Object.defineProperty(this, '$ModuleModel', {
+			Object.defineProperty(this, '$FeatureModel', {
 				'__proto__': null,
 				'configurable': true,
 
@@ -58,11 +58,11 @@ class Main extends PlantWorksBaseMiddleware {
 					'hasTimestamps': true,
 
 					'parent': function() {
-						return this.belongsTo(self.$ModuleModel, 'parent_module_id');
+						return this.belongsTo(self.$FeatureModel, 'parent_module_id');
 					},
 
 					'modules': function() {
-						return this.hasMany(self.$ModuleModel, 'parent_module_id');
+						return this.hasMany(self.$FeatureModel, 'parent_module_id');
 					},
 
 					'permissions': function() {
@@ -84,8 +84,8 @@ class Main extends PlantWorksBaseMiddleware {
 					'idAttribute': 'feature_permission_id',
 					'hasTimestamps': true,
 
-					'module': function() {
-						return this.belongsTo(self.$ModuleModel, 'module_id');
+					'feature': function() {
+						return this.belongsTo(self.$FeatureModel, 'module_id');
 					}
 				})
 			});
@@ -119,7 +119,7 @@ class Main extends PlantWorksBaseMiddleware {
 					},
 
 					'feature': function() {
-						return this.belongsTo(self.$ModuleModel, 'module_id');
+						return this.belongsTo(self.$FeatureModel, 'module_id');
 					}
 				})
 			});
@@ -145,8 +145,10 @@ class Main extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
+			delete this.$TenantFeatureModel;
+			delete this.$TenantModel;
 			delete this.$FeaturePermissionModel;
-			delete this.$ModuleModel;
+			delete this.$FeatureModel;
 
 			await super._teardown();
 			return null;
@@ -215,7 +217,7 @@ class Main extends PlantWorksBaseMiddleware {
 
 	async _getModule(ctxt) {
 		try {
-			const ModuleRecord = new this.$ModuleModel({
+			const ModuleRecord = new this.$FeatureModel({
 				'module_id': ctxt.params.feature_id
 			});
 
@@ -253,12 +255,12 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			let modulePermissionData = await ModulePermissionRecord.fetch({
-				'withRelated': ['module']
+				'withRelated': ['feature']
 			});
 
-			modulePermissionData = this.$jsonApiMapper.map(modulePermissionData, 'server_administration/feature-permissions', {
+			modulePermissionData = this.$jsonApiMapper.map(modulePermissionData, 'server_administration/feature-permission', {
 				'typeForModel': {
-					'module': 'server_administration/features'
+					'feature': 'server_administration/feature'
 				},
 
 				'enableLinks': false

@@ -61,8 +61,27 @@ class Main extends PlantWorksBaseMiddleware {
 						return this.hasMany(self.$TenantUserModel, 'tenant_id');
 					},
 
-					'groups': function() {
+					'tenantGroups': function() {
 						return this.hasMany(self.$TenantGroupModel, 'tenant_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$TenantFeatureModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'tenants_features',
+					'idAttribute': 'tenant_feature_id',
+					'hasTimestamps': true,
+
+					'tenant': function() {
+						return this.belongsTo(self.$TenantModel, 'tenant_id');
+					},
+
+					'feature': function() {
+						return this.belongsTo(self.$FeatureModel, 'module_id');
 					}
 				})
 			});
@@ -113,6 +132,10 @@ class Main extends PlantWorksBaseMiddleware {
 
 					'tenantGroup': function() {
 						return this.belongsTo(self.$TenantGroupModel, 'tenant_group_id', 'tenant_group_id');
+					},
+
+					'feature': function() {
+						return this.belongsTo(self.$FeatureModel, 'feature_id');
 					},
 
 					'featurePermission': function() {
@@ -191,8 +214,39 @@ class Main extends PlantWorksBaseMiddleware {
 					'idAttribute': 'feature_permission_id',
 					'hasTimestamps': true,
 
-					'groupPermissions': function() {
+					'feature': function() {
+						return this.belongsTo(self.$FeatureModel, 'module_id');
+					},
+
+					'tenantGroupPermissions': function() {
 						return this.hasMany(self.$TenantGroupPermissionModel, 'feature_permission_id', 'feature_permission_id');
+					}
+				})
+			});
+
+			Object.defineProperty(this, '$FeatureModel', {
+				'__proto__': null,
+				'configurable': true,
+
+				'value': dbSrvc.Model.extend({
+					'tableName': 'modules',
+					'idAttribute': 'module_id',
+					'hasTimestamps': true,
+
+					'parent': function() {
+						return this.belongsTo(self.$FeatureModel, 'parent_module_id');
+					},
+
+					'modules': function() {
+						return this.hasMany(self.$FeatureModel, 'parent_module_id');
+					},
+
+					'permissions': function() {
+						return this.hasMany(self.$FeaturePermissionModel, 'module_id');
+					},
+
+					'tenant_features': function() {
+						return this.hasMany(self.$TenantFeatureModel, 'module_id');
 					}
 				})
 			});
@@ -218,7 +272,14 @@ class Main extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
+			delete this.$FeatureModel;
+			delete this.$FeaturePermissionModel;
+			delete this.$UserModel;
+			delete this.$TenantUserModel;
+			delete this.$TenantUserGroupModel;
+			delete this.$TenantGroupPermissionModel;
 			delete this.$TenantGroupModel;
+			delete this.$TenantFeatureModel;
 			delete this.$TenantModel;
 
 			await super._teardown();
@@ -326,7 +387,7 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			let tenantGroupData = await TenantGroupRecord.fetch({
-				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((incl) => { return incl.trim(); }) : ['tenant', 'parent', 'groups', 'permissions', 'tenantUserGroups', 'permissions.tenant', 'permissions.tenantGroup', 'permissions.featurePermission']
+				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((incl) => { return incl.trim(); }) : ['tenant', 'parent', 'groups', 'permissions', 'tenantUserGroups', 'permissions.tenant', 'permissions.tenantGroup', 'permissions.feature', 'permissions.featurePermission']
 			});
 
 			tenantGroupData = this.$jsonApiMapper.map(tenantGroupData, 'tenant-administration/group-manager/tenant-group', {
@@ -335,6 +396,7 @@ class Main extends PlantWorksBaseMiddleware {
 					'parent': 'tenant-administration/group-manager/tenant-group',
 					'groups': 'tenant-administration/group-manager/tenant-group',
 					'permissions': 'tenant-administration/group-manager/tenant-group-permission',
+					'feature': 'server-administration/feature',
 					'featurePermission': 'server-administration/feature-permission',
 					'tenantGroup': 'tenant-administration/group-manager/tenant-group',
 					'tenantUserGroups': 'tenant-administration/group-manager/tenant-user-group'
@@ -586,9 +648,9 @@ class Main extends PlantWorksBaseMiddleware {
 			// const self = this; // eslint-disable-line consistent-this
 			let tenantGroupPermissionData = await TenantGroupPermissionRecord.fetch({
 				'withRelated': [
-					'tenant', 'featurePermission',
+					'tenant', 'feature', 'featurePermission',
 					{
-						'group': function(qb) {
+						'tenantGroup': function(qb) {
 							qb.where('tenant_id', '=', ctxt.state.tenant.tenant_id);
 						}
 					}
@@ -598,7 +660,8 @@ class Main extends PlantWorksBaseMiddleware {
 			tenantGroupPermissionData = this.$jsonApiMapper.map(tenantGroupPermissionData, 'tenant-administration/group-manager/tenant-group-permission', {
 				'typeForModel': {
 					'tenant': 'tenant-administration/tenant',
-					'group': 'tenant-administration/group-manager/tenant-group',
+					'tenantGroup': 'tenant-administration/group-manager/tenant-group',
+					'feature': 'server-administration/feature',
 					'featurePermission': 'server-administration/feature-permission'
 				},
 
