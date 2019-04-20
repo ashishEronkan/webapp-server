@@ -100,7 +100,7 @@
 		"network-address": "*",
 		"node-mocks-http": "1.7.0",
 		"nodejs-projecthoneypot": "*",
-		"nodemailer": "^6.1.0",
+		"nodemailer": "^6.1.1",
 		"nodemailer-smtp-transport": "*",
 		"on-finished": "*",
 		"os-locale": "*",
