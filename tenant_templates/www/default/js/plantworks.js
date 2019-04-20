@@ -4559,9 +4559,9 @@
     'toggleGroupPermissionSucceeded': Ember.on('toggleGroupPermission:succeeded', function (taskInstance) {
       this.get('notification').display({
         'type': 'success',
-        'message': this.intl.t('permission_toggle_message', {
+        'message': this.intl.t('pug_feature.group_manager_feature.permission_toggle_message', {
           'htmlSafe': true,
-          'permissionDisplayName': taskInstance.args[0].get('featurePermission.displayName'),
+          'permissionDisplayName': taskInstance.args[0].get('featurePermission.i18n_name'),
           'groupDisplayName': this.get('selectedGroup.displayName')
         })
       });
@@ -9891,13 +9891,27 @@
       'async': true,
       'inverse': 'permissions'
     }),
+    'i18n_name': Ember.computed('i18n_tag', function () {
+      return this.get('_computeI18nName').perform();
+    }),
+    'i18n_desc': Ember.computed('i18n_tag', function () {
+      return this.get('_computeI18nDesc').perform();
+    }),
     'i18n_tag': Ember.computed('name', function () {
       return this.get('_computeI18nTag').perform();
     }),
+    '_computeI18nName': (0, _emberConcurrency.task)(function* () {
+      const tag = yield this.get('i18n_tag');
+      return this.intl.t("".concat(tag, ".name"));
+    }).keepLatest(),
+    '_computeI18nDesc': (0, _emberConcurrency.task)(function* () {
+      const tag = yield this.get('i18n_tag');
+      return this.intl.t("".concat(tag, ".description"));
+    }).keepLatest(),
     '_computeI18nTag': (0, _emberConcurrency.task)(function* () {
       const parentChain = [];
       parentChain.push('permission');
-      parentChain.push("".concat(this.get('name').replace(/ /g, '_').replace(/-/g, '_').toLowerCase()));
+      parentChain.push("".concat(Ember.String.underscore(this.get('name') || '').toLowerCase()));
       const parentModule = yield this.get('feature');
       const parentI18nTag = yield parentModule.get('i18n_tag');
       if (parentI18nTag && parentI18nTag !== '') parentChain.unshift(parentI18nTag);
@@ -9938,7 +9952,11 @@
     }),
     '_computeI18nTag': (0, _emberConcurrency.task)(function* () {
       const parentChain = [];
-      if (this.get('moduleType') !== 'server') parentChain.push("".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase()));
+
+      if (this.get('moduleType') !== 'server') {
+        parentChain.push("".concat(Ember.String.underscore(this.get('name') || '').toLowerCase(), "_").concat(Ember.String.underscore(this.get('moduleType') || '').toLowerCase()));
+      }
+
       const parentModule = yield this.get('parent');
 
       if (parentModule && parentModule.get('moduleType') !== 'server') {
@@ -11514,8 +11532,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "h6sCwb7k",
-    "block": "{\"symbols\":[\"table\",\"body\",\"groupPermission\",\"row\",\"groupPermission\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"class\",\"flex\"],[11,\"style\",\"font-size:1.25rem;\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permissions\"],null],false],[10],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"style\",\"visibility:hidden;\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"disabled\",\"onClick\",\"bubbles\"],[true,null,false]],{\"statements\":[[0,\"\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\",\"selectable\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],\"asc\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L14:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L15:C5) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"onChange\"],[true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L18:C5) \"],null]],[[\"sortProp\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null]]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L19:C5) \"],null]],[[\"sortProp\"],[[29,\"t\",[[29,\"concat\",[[29,\"await\",[[25,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null]]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_description\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L21:C4) \"],null]],null,{\"statements\":[[4,\"if\",[[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\",\"permissions\"]]],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"log\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L25:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L26:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[[29,\"not\",[[25,[\"editable\"]]],null],[29,\"get\",[[29,\"intersect\",[[29,\"await\",[[25,[\"groupPermissionIdList\"]]],null],[29,\"array\",[[29,\"await\",[[24,5,[\"featurePermission\",\"id\"]]],null]],null]],null],\"length\"],null],[29,\"perform\",[[25,[\"toggleGroupPermission\"]],[24,5,[]]],null]]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L29:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L30:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"permissions\"]]],null]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"log\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false],[0,\"\\n\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L36:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L37:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[true,true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L40:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".name\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L41:C8) \"],null]],null,{\"statements\":[[1,[29,\"t\",[[29,\"concat\",[[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_tag\"]]],null],\".description\"],null]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[]}]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "85l3TBqn",
+    "block": "{\"symbols\":[\"table\",\"body\",\"groupPermission\",\"row\",\"groupPermission\",\"row\",\"head\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center\"],[9],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"class\",\"flex\"],[11,\"style\",\"font-size:1.25rem;\"],[9],[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permissions\"],null],false],[10],[0,\"\\n\\t\\t\"],[7,\"span\"],[11,\"style\",\"visibility:hidden;\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"disabled\",\"onClick\",\"bubbles\"],[true,null,false]],{\"statements\":[[0,\"\\t\\t\\t \\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-data-table\",null,[[\"sortProp\",\"sortDir\",\"selectable\"],[\"featurePermission.i18n_name\",\"asc\",true]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"head\"]],\"expected `table.head` to be a contextual component but found a string. Did you mean `(component table.head)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L14:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L15:C5) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"onChange\"],[true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L18:C5) \"],null]],[[\"sortProp\"],[\"featurePermission.i18n_name\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_name\"],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,7,[\"column\"]],\"expected `head.column` to be a contextual component but found a string. Did you mean `(component head.column)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L19:C5) \"],null]],[[\"sortProp\"],[\"featurePermission.i18n_desc\"]],{\"statements\":[[1,[29,\"t\",[\"pug_feature.group_manager_feature.label_group_permission_description\"],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[7]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"body\"]],\"expected `table.body` to be a contextual component but found a string. Did you mean `(component table.body)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L21:C4) \"],null]],null,{\"statements\":[[4,\"if\",[[29,\"await\",[[25,[\"selectedGroup\",\"parent\"]]],null]],null,{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"parent\",\"permissions\"]]],null]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L24:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L25:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[[29,\"not\",[[25,[\"editable\"]]],null],[29,\"get\",[[29,\"intersect\",[[29,\"await\",[[25,[\"groupPermissionIdList\"]]],null],[29,\"array\",[[29,\"await\",[[24,5,[\"featurePermission\",\"id\"]]],null]],null]],null],\"length\"],null],[29,\"perform\",[[25,[\"toggleGroupPermission\"]],[24,5,[]]],null]]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L28:C8) \"],null]],null,{\"statements\":[[1,[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_name\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L29:C8) \"],null]],null,{\"statements\":[[1,[29,\"await\",[[24,5,[\"featurePermission\",\"i18n_desc\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[6]},null]],\"parameters\":[5]},null]],\"parameters\":[]},{\"statements\":[[4,\"each\",[[29,\"sort-by\",[[24,1,[\"sortDesc\"]],[29,\"await\",[[25,[\"selectedGroup\",\"permissions\"]]],null]],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"row\"]],\"expected `body.row` to be a contextual component but found a string. Did you mean `(component body.row)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L34:C7) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L35:C8) \"],null]],[[\"checkbox\"],[true]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[4,\"paper-checkbox\",null,[[\"disabled\",\"value\",\"onChange\"],[true,true,null]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L38:C8) \"],null]],null,{\"statements\":[[1,[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_name\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\"],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"cell\"]],\"expected `row.cell` to be a contextual component but found a string. Did you mean `(component row.cell)`? ('plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs' @ L39:C8) \"],null]],null,{\"statements\":[[1,[29,\"await\",[[24,3,[\"featurePermission\",\"i18n_desc\"]]],null],false]],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[4]},null]],\"parameters\":[3]},null]],\"parameters\":[]}]],\"parameters\":[2]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/pug/group-manager/permission-group-editor-component.hbs"
     }
@@ -12353,7 +12371,93 @@
     },
     "sku_manager_feature": {
       "description": "SKU Manager Feature",
+      "permission": {
+        "sku_manager_all": {
+          "description": "Superset implying all permissions defined by the SKU Manager",
+          "name": "All SKU Manager Permissions"
+        },
+        "sku_manager_configuration_read": {
+          "description": "Readonly Permissions for the SKU Manager Configuration Module",
+          "name": "SKU Configuration Readonly"
+        },
+        "sku_manager_configuration_update": {
+          "description": "Update/Modify Permissions for the SKU Manager Configuration Module",
+          "name": "SKU Configuration Update"
+        },
+        "sku_manager_report_execute": {
+          "description": "Execute Permissions for the SKU Manager Reports",
+          "name": "SKU Execute Reports"
+        },
+        "sku_manager_upload": {
+          "description": "Upload Permissions for the SKU Manager",
+          "name": "SKU Upload"
+        }
+      },
       "title": "SKU Manager"
+    },
+    "tenant_administration_feature": {
+      "feature_manager_feature": {
+        "permission": {
+          "feature_manager_all": {
+            "description": "Superset implying all permissions defined by the Feature Manager",
+            "name": "All Feature Manager Permissions"
+          },
+          "feature_manager_read": {
+            "description": "Readonly permissions for the Feature Manager",
+            "name": "Readonly Feature Permissions"
+          },
+          "feature_manager_update": {
+            "description": "Modify/Update permissions for the Feature Manager",
+            "name": "Update Feature Permissions"
+          }
+        }
+      },
+      "group_manager_feature": {
+        "permission": {
+          "group_manager_all": {
+            "description": "Superset implying all permissions defined by the Group Manager",
+            "name": "All Group Manager Permissions"
+          },
+          "group_manager_read": {
+            "description": "Readonly permissions for the Group Manager",
+            "name": "Readonly Group Permissions"
+          },
+          "group_manager_update": {
+            "description": "Modify/Update permissions for the Group Manager",
+            "name": "Update Group Permissions"
+          }
+        }
+      },
+      "permission": {
+        "tenant_administration_all": {
+          "description": "Superset implying all permissions defined by the Tenant Manager",
+          "name": "All Tenant Administration Permissions"
+        },
+        "tenant_administration_read": {
+          "description": "Readonly permissions for the Tenant Manager",
+          "name": "Readonly Tenant Administration Permissions"
+        },
+        "tenant_administration_update": {
+          "description": "Modify/Update permissions for the Tenant Manager",
+          "name": "Update Tenant Administration Permissions"
+        }
+      },
+      "user_manager_feature": {
+        "permission": {
+          "user_manager_all": {
+            "description": "Superset implying all permissions defined by the User Manager",
+            "name": "All User Manager Permissions"
+          },
+          "user_manager_read": {
+            "description": "Readonly permissions for the User Manager",
+            "name": "Readonly User Permissions"
+          },
+          "user_manager_update": {
+            "description": "Update permissions for the User Manager",
+            "name": "Update User Permissions"
+          }
+        }
+      }
     },
     "timezone": {
       "id": {
@@ -12365,6 +12469,52 @@
     },
     "warehouse_manager_feature": {
       "description": "Warehouse Manager Feature",
+      "permission": {
+        "warehouse_manager_administrator": {
+          "description": "Superset implying all permissions defined by the Warehouse Manager, except Super Administrative privileges",
+          "name": "Warehouse Administrator"
+        },
+        "warehouse_manager_configuration_read": {
+          "description": "Readonly Permissions for the Warehouse Manager Configuration Module",
+          "name": "Warehouse Configuration Readonly"
+        },
+        "warehouse_manager_configuration_update": {
+          "description": "Update/Modify Permissions for the Warehouse Manager Configuration Module",
+          "name": "Warehouse Configuration Update"
+        },
+        "warehouse_manager_generate_advice_read": {
+          "description": "Readonly Permissions for the Geneate Advice Warehouse Manager Module",
+          "name": "Warehouse Generate Advice Readonly"
+        },
+        "warehouse_manager_generate_advice_update": {
+          "description": "Modify/Update Permissions for the Geneate Advice Warehouse Manager Module",
+          "name": "Warehouse Generate Advice Update"
+        },
+        "warehouse_manager_receiving_read": {
+          "description": "Readonly Permissions for the Receiving section of the Warehouse Manager Module",
+          "name": "Warehouse Receiving section Readonly"
+        },
+        "warehouse_manager_receiving_update": {
+          "description": "Modify/Update Permissions for the Receiving section of the Warehouse Manager Module",
+          "name": "Warehouse Receiving section Update"
+        },
+        "warehouse_manager_report_execute": {
+          "description": "Execute Permissions for the Warehouse Manager Reports",
+          "name": "Warehouse Execute Reports"
+        },
+        "warehouse_manager_shipping_read": {
+          "description": "Readonly Permissions for the Shipping/Dispatch section of the Warehouse Manager Module",
+          "name": "Warehouse Shipping section Readonly"
+        },
+        "warehouse_manager_shipping_update": {
+          "description": "Modify/Update Permissions for the Shipping/Dispatch section of the Warehouse Manager Module",
+          "name": "Warehouse Shipping section Update"
+        },
+        "warehouse_manager_super_administrator": {
+          "description": "Superset implying all permissions defined by the Warehouse Manager",
+          "name": "Warehouse Super Administrator"
+        }
+      },
       "title": "Warehouse Manager"
     }
   };
@@ -12459,7 +12609,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+7e9f2ca1"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+182f92f4"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
