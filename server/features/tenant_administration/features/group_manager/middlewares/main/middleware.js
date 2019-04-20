@@ -707,7 +707,7 @@ class Main extends PlantWorksBaseMiddleware {
 			if(!feature) throw new Error(`Invalid Permission`);
 
 			jsonDeserializedData['tenant_id'] = ctxt.state.tenant.tenant_id;
-			jsonDeserializedData['module_id'] = feature['module_id'];
+			jsonDeserializedData['feature_id'] = feature['module_id'];
 
 			const savedRecord = await this.$TenantGroupPermissionModel
 				.forge()
