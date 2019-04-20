@@ -452,7 +452,24 @@ class Main extends PlantWorksBaseMiddleware {
 			const user = ctxt.request.body;
 			const jsonDeserializedData = await this.$jsonApiDeserializer.deserializeAsync(user);
 
+			const uuid = require('uuid/v4');
 			const upash = require('upash');
+
+			if(!jsonDeserializedData['password']) { // eslint-disable-line curly
+				try {
+					const RandomOrg = require('random-org');
+					const random = new RandomOrg(this.$config.randomServer);
+
+					const randomPasswordResponse = await random.generateStrings(this.$config.passwordFormat);
+					jsonDeserializedData['password'] = randomPasswordResponse.random.data.pop();
+				}
+				catch(err) {
+					console.error(err.message);
+					jsonDeserializedData['password'] = uuid().toString().replace(/-/g, '');
+				}
+			}
+
+			const clearTextPassword = jsonDeserializedData['password'];
 			const hashedPassword = await upash.hash(jsonDeserializedData['password']);
 
 			jsonDeserializedData['user_id'] = jsonDeserializedData.id;
@@ -465,6 +482,16 @@ class Main extends PlantWorksBaseMiddleware {
 					'method': 'insert',
 					'patch': false
 				});
+
+
+			const messageOptions = JSON.parse(JSON.stringify(this.$config.resetPasswordMail));
+			messageOptions['to'] = jsonDeserializedData['email'];
+			messageOptions['text'] = `Your new password on Plant.Works is ${clearTextPassword}`;
+
+			const mailerSrvc = this.$dependencies.MailerService;
+			const sendMailResult = await mailerSrvc.sendMail(messageOptions);
+
+			if(plantworksEnv === 'development' || plantworksEnv === 'test') console.log(`Message Options: ${JSON.stringify(messageOptions, null, '\t')}\nSend Mail Result: ${JSON.stringify(sendMailResult, null, '\t')}`);
 
 			return {
 				'data': {

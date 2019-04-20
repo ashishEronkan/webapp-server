@@ -701,14 +701,7 @@ class Main extends PlantWorksBaseMiddleware {
 				jsonDeserializedData[`${relationshipName}_id`] = tenantGroupPermission.data.relationships[relationshipName].data.id;
 			});
 
-			let feature = await this.$dependencies.DatabaseService.knex.raw(`SELECT module_id FROM feature_permissions WHERE feature_permission_id = ?`, [jsonDeserializedData.feature_permission_id]);
-			feature = feature.rows.pop();
-
-			if(!feature) throw new Error(`Invalid Permission`);
-
 			jsonDeserializedData['tenant_id'] = ctxt.state.tenant.tenant_id;
-			jsonDeserializedData['feature_id'] = feature['module_id'];
-
 			const savedRecord = await this.$TenantGroupPermissionModel
 				.forge()
 				.save(jsonDeserializedData, {

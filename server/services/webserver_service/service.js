@@ -468,6 +468,8 @@ class WebserverService extends PlantWorksBaseService {
 	 * @summary  Pushes the data from the request/response cycle to the Audit Service for publication.
 	 */
 	async _auditLog(ctxt, next) {
+		let _auditLogError = true;
+
 		try {
 			const convertHRTime = require('convert-hrtime');
 			const moment = require('moment');
@@ -518,7 +520,11 @@ class WebserverService extends PlantWorksBaseService {
 			};
 
 			const startTime = process.hrtime();
-			if(next) await next();
+			if(next) {
+				_auditLogError = false;
+				await next();
+				_auditLogError = true;
+			}
 			const duration = process.hrtime(startTime);
 
 			logMsgMeta.duration = convertHRTime(duration).milliseconds;
@@ -547,9 +553,19 @@ class WebserverService extends PlantWorksBaseService {
 		catch(err) {
 			let error = err;
 
-			// eslint-disable-next-line curly
-			if(error && !(error instanceof PlantWorksSrvcError)) {
+			if(!error) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_auditLog: Unknown Error`);
+				throw error;
+			}
+
+			if(_auditLogError) { // eslint-disable-line curly
 				error = new PlantWorksSrvcError(`${this.name}::_auditLog`, error);
+				throw error;
+			}
+
+			if(!(error instanceof PlantWorksBaseError)) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_auditLog::Web Request Error: `, err);
+				throw error;
 			}
 
 			throw error;
