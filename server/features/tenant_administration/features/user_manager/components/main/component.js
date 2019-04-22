@@ -49,6 +49,7 @@ class Main extends PlantWorksBaseComponent {
 			this.$router.get('/tenant-users/:tenantUserId', this.$parent._rbac('user-manager-read'), this._getTenantUser.bind(this));
 			this.$router.post('/tenant-users', this.$parent._rbac('user-manager-update'), this._createTenantUser.bind(this));
 			this.$router.patch('/tenant-users/:tenantUserId', this.$parent._rbac('user-manager-update'), this._updateTenantUser.bind(this));
+			this.$router.delete('/tenant-users/:tenantUserId', this.$parent._rbac('user-manager-update'), this._deleteTenantUser.bind(this));
 
 			this.$router.get('/get-image/:tenantUserId', this.$parent._rbac('user-manager-read'), this._getTenantUserImage.bind(this));
 			this.$router.post('/upload-image/:tenantUserId', this.$parent._rbac('user-manager-update'), this._updateTenantUserImage.bind(this));
@@ -56,6 +57,7 @@ class Main extends PlantWorksBaseComponent {
 			this.$router.get('/users/:userId', this.$parent._rbac('user-manager-read'), this._getUser.bind(this));
 			this.$router.post('/users', this.$parent._rbac('user-manager-update'), this._createUser.bind(this));
 			this.$router.patch('/users/:userId', this.$parent._rbac('user-manager-update'), this._updateUser.bind(this));
+			this.$router.delete('/users/:userId', this.$parent._rbac('user-manager-update'), this._deleteUser.bind(this));
 
 			await super._addRoutes();
 			return null;
@@ -154,6 +156,19 @@ class Main extends PlantWorksBaseComponent {
 		}
 		catch(err) {
 			throw new PlantWorksComponentError(`Error updating tenant user`, err);
+		}
+	}
+
+	async _deleteTenantUser(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			await apiSrvc.execute('Main::deleteTenantUser', ctxt);
+
+			ctxt.status = 204;
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error deleting tenant user`, err);
 		}
 	}
 
@@ -281,6 +296,19 @@ class Main extends PlantWorksBaseComponent {
 		}
 		catch(err) {
 			throw new PlantWorksComponentError(`Error updating user`, err);
+		}
+	}
+
+	async _deleteUser(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			await apiSrvc.execute('Main::deleteUser', ctxt);
+
+			ctxt.status = 204;
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error deleting user`, err);
 		}
 	}
 	// #endregion

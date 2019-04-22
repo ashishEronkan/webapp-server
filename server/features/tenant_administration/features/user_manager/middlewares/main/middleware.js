@@ -160,11 +160,13 @@ class Main extends PlantWorksBaseMiddleware {
 			await ApiService.add(`${this.name}::getTenantUser`, this._getTenantUser.bind(this));
 			await ApiService.add(`${this.name}::createTenantUser`, this._createTenantUser.bind(this));
 			await ApiService.add(`${this.name}::updateTenantUser`, this._updateTenantUser.bind(this));
+			await ApiService.add(`${this.name}::deleteTenantUser`, this._deleteTenantUser.bind(this));
 
 			await ApiService.add(`${this.name}::getUserFromTenantUser`, this._getUserFromTenantUser.bind(this));
 			await ApiService.add(`${this.name}::getUser`, this._getUser.bind(this));
 			await ApiService.add(`${this.name}::createUser`, this._createUser.bind(this));
 			await ApiService.add(`${this.name}::updateUser`, this._updateUser.bind(this));
+			await ApiService.add(`${this.name}::deleteUser`, this._deleteUser.bind(this));
 
 			await super._registerApis();
 			return null;
@@ -178,11 +180,13 @@ class Main extends PlantWorksBaseMiddleware {
 		try {
 			const ApiService = this.$dependencies.ApiService;
 
+			await ApiService.remove(`${this.name}::deleteUser`, this._deleteUser.bind(this));
 			await ApiService.remove(`${this.name}::updateUser`, this._updateUser.bind(this));
 			await ApiService.remove(`${this.name}::createUser`, this._createUser.bind(this));
 			await ApiService.remove(`${this.name}::getUser`, this._getUser.bind(this));
 			await ApiService.remove(`${this.name}::getUserFromTenantUser`, this._getUser.bind(this));
 
+			await ApiService.remove(`${this.name}::deleteTenantUser`, this._deleteTenantUser.bind(this));
 			await ApiService.remove(`${this.name}::updateTenantUser`, this._updateTenantUser.bind(this));
 			await ApiService.remove(`${this.name}::createTenantUser`, this._createTenantUser.bind(this));
 			await ApiService.remove(`${this.name}::getTenantUser`, this._getTenantUser.bind(this));
@@ -388,6 +392,28 @@ class Main extends PlantWorksBaseMiddleware {
 		}
 	}
 
+	async _deleteTenantUser(ctxt) {
+		try {
+			const TenantUserRecord = new this.$TenantUserModel({
+				'tenant_user_id': ctxt.params.tenantUserId
+			});
+
+			const tenantUserData = await TenantUserRecord
+			.query(function(qb) {
+				qb.where({ 'tenant_id': ctxt.state.tenant.tenant_id });
+			})
+			.fetch();
+
+			if(!tenantUserData) throw new Error(`Invalid record id`);
+
+			await tenantUserData.destroy();
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_deleteUser`, err);
+		}
+	}
+
 	async _getUserFromTenantUser(ctxt) {
 		try {
 			const TenantUserRecord = new this.$TenantUserModel({
@@ -539,6 +565,24 @@ class Main extends PlantWorksBaseMiddleware {
 		}
 		catch(err) {
 			throw new PlantWorksMiddlewareError(`${this.name}::_updateUser`, err);
+		}
+	}
+
+	async _deleteUser(ctxt) {
+		try {
+			const user = await new this.$UserModel({
+				'user_id': ctxt.params['userId']
+			})
+			.fetch();
+
+			if(!user) throw new Error('Unknown User');
+
+			/* TODO: Add business logic checking to ensure that the User belongs to this Tenant, and belongs only to this tenant */
+			await user.destroy();
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_deleteUser`, err);
 		}
 	}
 	// #endregion
