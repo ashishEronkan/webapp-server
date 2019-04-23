@@ -45,6 +45,31 @@ exports.seed = async function(knex) {
 		await knex.raw(`UPDATE tenants_users SET default_application = ? WHERE user_id = (SELECT user_id FROM users WHERE email = 'root@plant.works')`, [dashboardFeatureId]);
 	}
 
+	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'Settings']);
+	if(!componentId.rows.length) {
+		componentId = await knex('modules').insert({
+			'parent_module_id': parentId,
+			'module_type': 'feature',
+			'deploy': 'default',
+			'name': 'Settings',
+			'metadata': {
+				'author': 'Plant.Works',
+				'version': '2.4.3',
+				'website': 'https://plant.works',
+				'demo': 'https://plant.works',
+				'documentation': 'https://plant.works'
+			}
+		})
+		.returning('module_id');
+
+		componentId = componentId[0];
+
+		await knex('feature_permissions').insert({
+			'module_id': componentId,
+			'name': 'settings-access'
+		});
+	}
+
 	componentId = await knex.raw(`SELECT module_id FROM fn_get_module_descendants(?) WHERE name = ? AND module_type = 'feature'`, [parentId, 'ServerAdministration']);
 	if(!componentId.rows.length) {
 		await knex('modules').insert({

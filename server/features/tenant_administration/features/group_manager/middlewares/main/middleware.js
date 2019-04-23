@@ -764,7 +764,10 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 		}
 		catch(err) {
-			throw new PlantWorksMiddlewareError(`${this.name}::_cloneTenantUser`, err);
+			const logSrvc = this.$dependencies.LoggerService;
+			const error = new PlantWorksMiddlewareError(`${this.name}::_cloneTenantUser`, err);
+
+			logSrvc.error(error.toString());
 		}
 	}
 	// #endregion

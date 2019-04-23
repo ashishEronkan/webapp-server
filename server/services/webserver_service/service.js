@@ -587,15 +587,23 @@ class WebserverService extends PlantWorksBaseService {
 	 * @summary  Call the Sharding Service to decide whether to handle the request, or to forward it someplace else.
 	 */
 	async _handleOrProxytoCluster(ctxt, next) {
+		let _handleOrProxytoClusterError = true;
+
 		try {
 			const hashring = this.$dependencies.ShardingService;
 			if(!hashring || !hashring.lookup) {
+				_handleOrProxytoClusterError = false;
 				await next();
+				_handleOrProxytoClusterError = true;
+
 				return;
 			}
 
 			if(hashring.allocatedToMe(ctxt.state.tenant.tenant_id)) {
+				_handleOrProxytoClusterError = false;
 				await next();
+				_handleOrProxytoClusterError = true;
+
 				return;
 			}
 
@@ -622,9 +630,19 @@ class WebserverService extends PlantWorksBaseService {
 		catch(err) {
 			let error = err;
 
-			// eslint-disable-next-line curly
-			if(error && !(error instanceof PlantWorksSrvcError)) {
+			if(!error) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_handleOrProxytoCluster: Unknown Error`);
+				throw error;
+			}
+
+			if(_handleOrProxytoClusterError) { // eslint-disable-line curly
 				error = new PlantWorksSrvcError(`${this.name}::_handleOrProxytoCluster`, error);
+				throw error;
+			}
+
+			if(!(error instanceof PlantWorksBaseError)) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_handleOrProxytoCluster::Web Request Error: `, err);
+				throw error;
 			}
 
 			throw error;

@@ -13,13 +13,13 @@ const PlantWorksBaseFeature = require('plantworks-base-feature').PlantWorksBaseF
 // const PlantWorksFeatureError = require('plantworks-feature-error').PlantWorksFeatureError;
 
 /**
- * @class   TenantAdministration
+ * @class   Settings
  * @extends {PlantWorksBaseFeature}
- * @classdesc The Plant.Works Web Application Server TenantAdministration feature - manages tenant settings.
+ * @classdesc The Plant.Works Web Application Server Settings feature - single-point access for all feature settings the Tenant/User combination has access to.
  *
  *
  */
-class TenantAdministration extends PlantWorksBaseFeature {
+class Settings extends PlantWorksBaseFeature {
 	// #region Constructor
 	constructor(parent, loader) {
 		super(parent, loader);
@@ -32,26 +32,26 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	 * @function
 	 * @override
 	 * @instance
-	 * @memberof TenantAdministration
+	 * @memberof Settings
 	 * @name     getDashboardDisplayDetails
 	 *
 	 * @param    {Object} ctxt - Koa context.
 	 *
 	 * @returns  {Object} Dashboard display stuff for this Feature.
 	 *
-	 * @summary  Everyone logged-in gets access.
+	 * @summary  Everyone with the setting-access permission gets to see this icon.
 	 */
-	async getDashboardDisplayDetails(ctxt) {
+	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
 		try {
-			const rbacChecker = this._rbac('user-manager-read OR group-manager-read');
+			const rbacChecker = this._rbac('settings-access');
 			await rbacChecker(ctxt);
 
 			const defaultDisplay = await super.getDashboardDisplayDetails(ctxt);
 
-			defaultDisplay['attributes']['name'] = 'Pug';
-			defaultDisplay['attributes']['route'] = 'pug';
+			defaultDisplay['attributes']['name'] = 'Settings';
+			defaultDisplay['attributes']['route'] = 'settings';
 			defaultDisplay['attributes']['icon_type'] = 'md';
-			defaultDisplay['attributes']['icon_path'] = 'group';
+			defaultDisplay['attributes']['icon_path'] = 'settings';
 
 			return defaultDisplay;
 		}
@@ -71,4 +71,4 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	// #endregion
 }
 
-exports.feature = TenantAdministration;
+exports.feature = Settings;
