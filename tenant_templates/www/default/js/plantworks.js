@@ -1139,7 +1139,7 @@
     }
   });
 });
-;define("plantworks/components/dashboard/main-component", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+;define("plantworks/components/dashboard/main-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -1156,10 +1156,16 @@
       this.set('permissions', 'registered');
     },
 
+    'onWillInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.get('_setupDashboardCategories').perform();
+    }).on('willInsertElement').keepLatest(),
     'onModelChanged': Ember.observer('model', 'model.@each.dashboardCategory', function () {
+      this.get('_setupDashboardCategories').perform();
+    }),
+    '_setupDashboardCategories': (0, _emberConcurrency.task)(function* () {
       if (!this.get('model')) {
         if (this.get('dashboardCategories')) {
-          this.get('dashboardCategories').clear();
+          yield this.get('dashboardCategories').clear();
           return;
         }
 
@@ -1176,7 +1182,7 @@
       this.set('dashboardCategories', Ember.ArrayProxy.create({
         'content': Ember.A([...dashCats])
       }));
-    })
+    }).keepLatest()
   });
 
   _exports.default = _default;
@@ -6267,6 +6273,25 @@
 
   _exports.default = _default;
 });
+;define("plantworks/controllers/settings", ["exports", "plantworks/framework/base-controller"], function (_exports, _baseController) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'settings-access');
+    }
+
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/formats", ["exports"], function (_exports) {
   "use strict";
 
@@ -10547,6 +10572,7 @@
       this.route('group-manager');
       this.route('user-manager');
     });
+    this.route('settings');
   });
   var _default = Router;
   _exports.default = _default;
@@ -10629,10 +10655,10 @@
         return;
       }
 
-      this.get('refreshDashboardFeatures').perform();
+      this.get('_refreshDashboardFeatures').perform();
     },
 
-    'refreshDashboardFeatures': (0, _emberConcurrency.task)(function* () {
+    '_refreshDashboardFeatures': (0, _emberConcurrency.task)(function* () {
       let featureData = this.get('store').peekAll('dashboard/feature');
       if (!featureData.get('length')) featureData = yield this.get('store').findAll('dashboard/feature');
       this.get('controller').set('model', featureData);
@@ -10926,6 +10952,50 @@
     'refreshTenantUserModel': (0, _emberConcurrency.task)(function* () {
       let tenantUserData = yield this.get('store').findAll('tenant-administration/user-manager/tenant-user');
       this.get('controller').set('model', tenantUserData);
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/routes/settings", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      return this.get('_refreshTenantFeatureSettings').perform();
+    },
+
+    onUserDataUpdated() {
+      const isActive = this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksUserId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('_refreshTenantFeatureSettings').perform();
+    },
+
+    '_refreshTenantFeatureSettings': (0, _emberConcurrency.task)(function* () {
+      yield (0, _emberConcurrency.timeout)(250);
     }).keepLatest()
   });
 
@@ -12137,6 +12207,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks/templates/settings", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "LoTWZKif",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings_feature.title\"],null]],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/settings.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/themes/bootstrap3", ["exports", "ember-models-table/themes/bootstrap3"], function (_exports, _bootstrap) {
   "use strict";
 
@@ -12668,6 +12756,16 @@
       "registering_account": "Creating your account...",
       "resetting_password_message": "Resetting password..."
     },
+    "settings_feature": {
+      "description": "Settings for all Features subscribed to by a Tenant",
+      "permission": {
+        "settings_access": {
+          "description": "Access to modify settings for the account",
+          "name": "Settings Access"
+        }
+      },
+      "title": "Settings"
+    },
     "sku_manager_feature": {
       "description": "SKU Manager Feature",
       "permission": {
@@ -12908,7 +13006,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+8b5bca44"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+58e8d0b3"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
