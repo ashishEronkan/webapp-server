@@ -42,7 +42,8 @@ class Main extends PlantWorksBaseComponent {
 	async _addRoutes() {
 		try {
 			this.$router.get('/searchUsers', this.$parent._rbac('user-manager-read'), this._searchUsers.bind(this));
-			this.$router.post('/resetPassword', this.$parent._rbac('user-manager-read'), this._resetUserPassword.bind(this));
+			this.$router.post('/resetPassword', this.$parent._rbac('user-manager-update'), this._resetUserPassword.bind(this));
+			this.$router.post('/cloneAccount', this.$parent._rbac('user-manager-update'), this._cloneAccount.bind(this));
 
 			this.$router.get('/tenant-users', this.$parent._rbac('user-manager-read'), this._getTenantUsers.bind(this));
 
@@ -111,6 +112,19 @@ class Main extends PlantWorksBaseComponent {
 		}
 		catch(err) {
 			throw new PlantWorksComponentError(`Error retrieving tenant users`, err);
+		}
+	}
+
+	async _cloneAccount(ctxt) {
+		try {
+			const apiSrvc = this.$dependencies.ApiService;
+			await apiSrvc.execute('Main::cloneAccount', ctxt);
+
+			ctxt.status = 204;
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksComponentError(`Error cloning user account`, err);
 		}
 	}
 

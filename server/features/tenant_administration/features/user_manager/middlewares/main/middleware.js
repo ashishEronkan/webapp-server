@@ -155,6 +155,7 @@ class Main extends PlantWorksBaseMiddleware {
 
 			await ApiService.add(`${this.name}::searchUsers`, this._searchUsers.bind(this));
 			await ApiService.add(`${this.name}::resetUserPassword`, this._resetUserPassword.bind(this));
+			await ApiService.add(`${this.name}::cloneAccount`, this._cloneAccount.bind(this));
 			await ApiService.add(`${this.name}::getAllTenantUsers`, this._getAllTenantUsers.bind(this));
 
 			await ApiService.add(`${this.name}::getTenantUser`, this._getTenantUser.bind(this));
@@ -192,6 +193,7 @@ class Main extends PlantWorksBaseMiddleware {
 			await ApiService.remove(`${this.name}::getTenantUser`, this._getTenantUser.bind(this));
 
 			await ApiService.remove(`${this.name}::getAllTenantUsers`, this._getAllTenantUsers.bind(this));
+			await ApiService.remove(`${this.name}::cloneAccount`, this._cloneAccount.bind(this));
 			await ApiService.remove(`${this.name}::resetUserPassword`, this._resetUserPassword.bind(this));
 			await ApiService.remove(`${this.name}::searchUsers`, this._searchUsers.bind(this));
 
@@ -252,6 +254,25 @@ class Main extends PlantWorksBaseMiddleware {
 
 		if(plantworksEnv === 'development' || plantworksEnv === 'test') console.log(`Message Options: ${JSON.stringify(messageOptions, null, '\t')}\nSend Mail Result: ${JSON.stringify(sendMailResult, null, '\t')}`);
 		return { 'status': true };
+	}
+
+	async _cloneAccount(ctxt) {
+		try {
+			const eventParams = {
+				'tenantId': ctxt.state.tenant['tenant_id'],
+				'originalUserId': ctxt.request.body.originalUserId,
+				'clonedUserId': ctxt.request.body.clonedUserId
+			};
+
+			let serverModule = this.$parent;
+			while(serverModule.$parent) serverModule = serverModule.$parent;
+
+			serverModule.emit('clone-tenant-user', eventParams);
+			return null;
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_getAllTenantUsers`, err);
+		}
 	}
 
 	async _getAllTenantUsers(ctxt) {

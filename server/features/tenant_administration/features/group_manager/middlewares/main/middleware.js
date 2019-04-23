@@ -251,6 +251,10 @@ class Main extends PlantWorksBaseMiddleware {
 				})
 			});
 
+			let serverModule = this.$parent;
+			while(serverModule.$parent) serverModule = serverModule.$parent;
+
+			serverModule.on('clone-tenant-user', this._cloneTenantUser.bind(this));
 			return null;
 		}
 		catch(err) {
@@ -272,6 +276,11 @@ class Main extends PlantWorksBaseMiddleware {
 	 */
 	async _teardown() {
 		try {
+			let serverModule = this.$parent;
+			while(serverModule.$parent) serverModule = serverModule.$parent;
+
+			serverModule.off('clone-tenant-user', this._cloneTenantUser.bind(this));
+
 			delete this.$FeatureModel;
 			delete this.$FeaturePermissionModel;
 			delete this.$UserModel;
@@ -736,6 +745,26 @@ class Main extends PlantWorksBaseMiddleware {
 		}
 		catch(err) {
 			throw new PlantWorksMiddlewareError(`${this.name}::_deleteTenantGroupPermission`, err);
+		}
+	}
+	// #endregion
+
+	// #region Private Methods
+	_cloneTenantUser(eventData) {
+		try {
+			const dbSrvc = this.$dependencies.DatabaseService;
+
+			const tenantId = eventData.tenantId;
+			const originalUserId = eventData.originalUserId;
+			const clonedUserId = eventData.clonedUserId;
+
+			dbSrvc.knex.raw(`INSERT INTO tenants_users_groups (tenant_id, user_id, tenant_group_id) SELECT ?, ?, tenant_group_id FROM tenants_users_groups WHERE tenant_id = ? AND user_id = ?`, [tenantId, clonedUserId, tenantId, originalUserId])
+			.catch((err) => {
+				console.error(err);
+			});
+		}
+		catch(err) {
+			throw new PlantWorksMiddlewareError(`${this.name}::_cloneTenantUser`, err);
 		}
 	}
 	// #endregion
