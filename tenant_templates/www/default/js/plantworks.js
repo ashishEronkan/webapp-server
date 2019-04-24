@@ -5761,6 +5761,133 @@
 
   _exports.default = _default;
 });
+;define("plantworks/components/settings/tree-component", ["exports", "plantworks/framework/base-component", "jquery", "ember-concurrency"], function (_exports, _baseComponent, _jquery, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'settings-access');
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    didInsertElement() {
+      this._super(...arguments);
+
+      this._createTree();
+    },
+
+    willDestroyElement() {
+      this.invokeAction('controller-action', 'setSelectedNode', null);
+      (0, _jquery.default)('div#settings-tree-container').jstree('destroy', true);
+
+      this._super(...arguments);
+    },
+
+    onUserDataUpdated() {
+      if (!this.get('currentUser').isLoggedIn()) {
+        this.invokeAction('controller-action', 'setSelectedNode', null);
+        (0, _jquery.default)('div#settings-tree-container').jstree('destroy', true);
+        return;
+      }
+
+      this._createTree();
+    },
+
+    _createTree() {
+      if (!this.get('model')) return;
+      const treeNodes = this.get('model').map(settingsNode => {
+        return {
+          'id': settingsNode.get('id'),
+          'parent': '#',
+          'text': settingsNode.get('i18n_name'),
+          'li_attr': {
+            'title': settingsNode.get('i18n_desc')
+          }
+        };
+      });
+      const moduTree = (0, _jquery.default)('div#settings-tree-container').jstree({
+        'core': {
+          'check_callback': function (operation) {
+            return operation !== 'move_node';
+          },
+          'multiple': false,
+          'themes': {
+            'name': 'default',
+            'icons': false,
+            'dots': false,
+            'responsive': true
+          },
+          'data': treeNodes
+        },
+        'plugins': ['unique']
+      });
+      moduTree.on('ready.jstree', () => {
+        const rootNodeId = (0, _jquery.default)('div#settings-tree-container > ul > li:first-child').attr('id');
+        (0, _jquery.default)('div#settings-tree-container').jstree('open_node', rootNodeId);
+        (0, _jquery.default)('div#settings-tree-container').jstree('activate_node', rootNodeId, false, false);
+      });
+      moduTree.on('activate_node.jstree', (event, data) => {
+        this.get('onActivateNode').perform(data.node);
+      });
+    },
+
+    'onModelChanged': Ember.observer('model.[]', function () {
+      this.onUserDataUpdated();
+    }),
+    'onActivateNode': (0, _emberConcurrency.task)(function* (treeNode) {
+      const settingsNode = this.get('store').peekRecord('settings/node', treeNode.id);
+      if (settingsNode) return;
+      yield this.get('store').findRecord('settings/node', treeNode.id);
+    }).keepLatest().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'onActivateNodeSucceeded': Ember.on('onActivateNode:succeeded', function (taskInstance) {
+      const treeNode = taskInstance.args[0];
+      let settingsNode = this.get('selectedNode');
+      if (settingsNode && settingsNode.get('id') === treeNode.id) return;
+      (0, _jquery.default)('div#settings-tree-container').jstree('open_node', treeNode.id);
+      settingsNode = this.get('store').peekRecord('settings/node', treeNode.id);
+      this.invokeAction('controller-action', 'setSelectedNode', settingsNode);
+    }),
+    'onActivateNodeErrored': Ember.on('onActivateNode:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'onSelectedNodeChanged': Ember.observer('selectedNode', function () {
+      if (!this.get('selectedNode')) return;
+      if ((0, _jquery.default)('div#settings-tree-container').jstree('get_selected')[0] === this.get('selectedNode.id')) return;
+      const treeNode = (0, _jquery.default)('div#settings-tree-container').jstree('get_node', this.get('selectedNode.id'));
+
+      if (treeNode) {
+        (0, _jquery.default)('div#settings-tree-container').jstree('activate_node', this.get('selectedNode.id'), false, false);
+        (0, _jquery.default)('div#settings-tree-container').jstree('open_node', this.get('selectedNode.id'));
+        return;
+      }
+
+      const parentNode = (0, _jquery.default)('div#settings-tree-container').jstree('get_node', this.get('selectedNode.parent.id'));
+      (0, _jquery.default)('div#settings-tree-container').one('refresh_node.jstree', () => {
+        (0, _jquery.default)('div#settings-tree-container').jstree('activate_node', this.get('selectedNode.id'), false, false);
+        (0, _jquery.default)('div#settings-tree-container').jstree('open_node', this.get('selectedNode.id'));
+      });
+      (0, _jquery.default)('div#settings-tree-container').jstree('refresh_node', parentNode);
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/components/transition-group", ["exports", "ember-css-transitions/components/transition-group"], function (_exports, _transitionGroup) {
   "use strict";
 
@@ -6282,12 +6409,57 @@
   _exports.default = void 0;
 
   var _default = _baseController.default.extend({
+    'selectedNode': null,
+
     init() {
       this._super(...arguments);
 
       this.set('permissions', 'settings-access');
-    }
+    },
 
+    setSelectedNode(nodeModel) {
+      if (!nodeModel) {
+        this.set('selectedNode', null);
+        return;
+      }
+
+      if (nodeModel.get('id') === this.get('selectedNode.id')) return;
+      this.set('selectedNode', nodeModel);
+    },
+
+    'onSelectedNodeChanged': Ember.observer('selectedNode', function () {
+      if (!this.get('selectedNode')) return;
+      this.get('router').transitionTo(this.get('selectedNode.settingsRoute'));
+    })
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/controllers/settings/account-basics", ["exports", "plantworks/framework/base-controller", "plantworks/config/environment"], function (_exports, _baseController, _environment) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseController.default.extend({
+    'editable': false,
+    'protocol': '',
+    'domain': '',
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'tenant-administration-read');
+      this.set('protocol', "".concat(window.location.protocol, "//"));
+      this.set('domain', "".concat(_environment.default.plantworks.domain, ":").concat(window.location.port));
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('tenant-administration-update');
+      this.set('editable', updatePerm);
+    })
   });
 
   _exports.default = _default;
@@ -10098,11 +10270,14 @@
     'route': _emberData.default.attr('string'),
     'iconType': _emberData.default.attr('string'),
     'iconPath': _emberData.default.attr('string'),
-    'i18n_name_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".title");
+    'i18n_name': Ember.computed('i18n_tag', function () {
+      return this.intl.t("".concat(this.get('i18n_tag'), ".title"));
     }),
-    'i18n_description_tag': Ember.computed('name', 'moduleType', function () {
-      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase(), ".description");
+    'i18n_desc': Ember.computed('i18n_tag', function () {
+      return this.intl.t("".concat(this.get('i18n_tag'), ".description"));
+    }),
+    'i18n_tag': Ember.computed('name', 'moduleType', function () {
+      return "".concat(this.get('name').replace(/ /g, '_').toLowerCase(), "_").concat(this.get('moduleType').replace(/ /g, '_').toLowerCase());
     })
   });
 
@@ -10248,6 +10423,36 @@
 
       return parentChain.length ? parentChain.join('.') : null;
     }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/models/settings/node", ["exports", "plantworks/framework/base-model", "ember-data"], function (_exports, _baseModel, _emberData) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseModel.default.extend({
+    'name': _emberData.default.attr('string'),
+    'nodeType': _emberData.default.attr('string', {
+      'defaultValue': 'leaf'
+    }),
+    'route': _emberData.default.attr('string'),
+    'settingsRoute': Ember.computed('route', function () {
+      return "settings.".concat(this.get('route'));
+    }),
+    'i18n_name': Ember.computed('i18n_tag', function () {
+      return this.intl.t("settings.".concat(this.get('i18n_tag'), ".title"));
+    }),
+    'i18n_desc': Ember.computed('i18n_tag', function () {
+      return this.intl.t("settings.".concat(this.get('i18n_tag'), ".description"));
+    }),
+    'i18n_tag': Ember.computed('name', function () {
+      return this.get('name').replace(/ /g, '_').toLowerCase();
+    })
   });
 
   _exports.default = _default;
@@ -10572,7 +10777,9 @@
       this.route('group-manager');
       this.route('user-manager');
     });
-    this.route('settings');
+    this.route('settings', function () {
+      this.route('account-basics');
+    });
   });
   var _default = Router;
   _exports.default = _default;
@@ -10659,8 +10866,7 @@
     },
 
     '_refreshDashboardFeatures': (0, _emberConcurrency.task)(function* () {
-      let featureData = this.get('store').peekAll('dashboard/feature');
-      if (!featureData.get('length')) featureData = yield this.get('store').findAll('dashboard/feature');
+      let featureData = yield this.get('store').findAll('dashboard/feature');
       this.get('controller').set('model', featureData);
     }).keepLatest()
   });
@@ -10979,10 +11185,22 @@
     },
 
     model() {
-      return this.get('_refreshTenantFeatureSettings').perform();
+      if (!window.plantworksUserId) {
+        this.get('store').unloadAll('settings/node');
+        return;
+      }
+
+      const featureData = this.get('store').peekAll('settings/node');
+      if (featureData.get('length')) return featureData;
+      return this.get('store').findAll('settings/node');
     },
 
     onUserDataUpdated() {
+      if (!window.plantworksUserId) {
+        this.get('store').unloadAll('settings/node');
+        return;
+      }
+
       const isActive = this.get('router').get('currentRouteName') && this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
       if (!isActive) return;
 
@@ -10995,7 +11213,67 @@
     },
 
     '_refreshTenantFeatureSettings': (0, _emberConcurrency.task)(function* () {
-      yield (0, _emberConcurrency.timeout)(250);
+      let tenantFeatureData = yield this.get('store').findAll('settings/node');
+      this.get('controller').set('model', tenantFeatureData);
+    }).keepLatest()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/routes/settings/account-basics", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseRoute.default.extend({
+    init() {
+      this._super(...arguments);
+
+      this.get('currentUser').on('userDataUpdated', this, 'onUserDataUpdated');
+    },
+
+    destroy() {
+      this.get('currentUser').off('userDataUpdated', this, 'onUserDataUpdated');
+
+      this._super(...arguments);
+    },
+
+    model() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/tenant');
+        this.get('store').unloadAll('tenant-administration/tenant-location');
+        return;
+      }
+
+      const tenantData = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (tenantData) return tenantData;
+      return this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+    },
+
+    onUserDataUpdated() {
+      if (!window.plantworksTenantId) {
+        this.get('store').unloadAll('tenant-administration/tenant');
+        this.get('store').unloadAll('tenant-administration/tenant-location');
+      }
+
+      const isActive = this.get('router').get('currentRouteName').includes(this.get('fullRouteName'));
+      if (!isActive) return;
+
+      if (!window.plantworksUserId) {
+        this.transitionTo('index');
+        return;
+      }
+
+      this.get('refreshTenantModel').perform();
+    },
+
+    'refreshTenantModel': (0, _emberConcurrency.task)(function* () {
+      let tenantData = this.get('store').peekRecord('tenant-administration/tenant', window.plantworksTenantId);
+      if (!tenantData) tenantData = yield this.get('store').findRecord('tenant-administration/tenant', window.plantworksTenantId);
+      this.get('controller').set('model', tenantData);
     }).keepLatest()
   });
 
@@ -11709,8 +11987,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "aWGhOWkZ",
-    "block": "{\"symbols\":[\"dashCategory\",\"card\",\"feature\",\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[29,\"and\",[[25,[\"hasPermission\"]],[25,[\"model\",\"length\"]]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80 flex-gt-lg-70\"],[9],[0,\"\\n\"],[4,\"each\",[[25,[\"dashboardCategories\"]]],null,{\"statements\":[[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"dashboardCategory\",[24,1,[]],[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L7:C7) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L9:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"apps-box\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[29,\"concat\",[\"dashboard_feature.main_component.\",[24,1,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L15:C7) \"],null]],[[\"class\"],[\"layout-row layout-align-space-around-center layout-wrap py-4\"]],{\"statements\":[[4,\"each\",[[25,[\"model\"]]],null,{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"dashboardCategory\"]],[24,1,[]]],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex flex-gt-xs-50 flex-gt-sm-33 flex-gt-md-25 flex-gt-lg-20\"]],{\"statements\":[[4,\"link-to\",[[24,3,[\"route\"]]],[[\"title\"],[[29,\"t\",[[24,3,[\"i18n_description_tag\"]]],null]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L20:C10) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"fa\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"md\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"mdi\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"img\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,3,[\"iconPath\"]]],[12,\"alt\",[29,\"t\",[[24,3,[\"i18n_name_tag\"]]],null]],[11,\"style\",\"min-height:4rem; height:4rem; max-height:4rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"custom\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"iconPath\"]],true],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-2\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[24,3,[\"i18n_name_tag\"]]],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "nArJv1L9",
+    "block": "{\"symbols\":[\"dashCategory\",\"card\",\"feature\",\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[29,\"and\",[[25,[\"hasPermission\"]],[25,[\"model\",\"length\"]]],null]],null,{\"statements\":[[7,\"div\"],[11,\"class\",\"layout-row layout-align-center-start py-4\"],[9],[0,\"\\n\\t\"],[7,\"div\"],[11,\"class\",\"layout-column layout-align-start-stretch flex flex-gt-md-80 flex-gt-lg-70\"],[9],[0,\"\\n\"],[4,\"each\",[[25,[\"dashboardCategories\"]]],null,{\"statements\":[[4,\"if\",[[29,\"get\",[[29,\"filter-by\",[\"dashboardCategory\",[24,1,[]],[25,[\"model\"]]],null],\"length\"],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L7:C7) \"],null]],[[\"class\"],[\"bg-plantworks-component white-text\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L8:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L9:C9) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[\"apps-box\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[[29,\"concat\",[\"dashboard_feature.main_component.\",[24,1,[]]],null]],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[6]},null]],\"parameters\":[5]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L15:C7) \"],null]],[[\"class\"],[\"layout-row layout-align-start-center layout-wrap py-4\"]],{\"statements\":[[4,\"each\",[[25,[\"model\"]]],null,{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"dashboardCategory\"]],[24,1,[]]],null]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"flex flex-gt-xs-50 flex-gt-sm-33 flex-gt-md-25 flex-gt-lg-20\"]],{\"statements\":[[4,\"link-to\",[[24,3,[\"route\"]]],[[\"title\"],[[24,3,[\"i18n_desc\"]]]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/dashboard/main-component.hbs' @ L20:C10) \"],null]],[[\"class\"],[\"text-center layout-column layout-align-center-center\"]],{\"statements\":[[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"fa\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[\"4x\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"md\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"mdi\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"mdi-icon\",[[24,3,[\"iconPath\"]]],[[\"size\"],[64]]],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"img\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[12,\"src\",[24,3,[\"iconPath\"]]],[12,\"alt\",[24,3,[\"i18n_name\"]]],[11,\"style\",\"min-height:4rem; height:4rem; max-height:4rem;\"],[9],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"eq\",[[24,3,[\"iconType\"]],\"custom\"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"iconPath\"]],true],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"mt-2\"],[11,\"style\",\"font-weight:900;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,3,[\"i18n_name\"]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[]},null]],\"parameters\":[2]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null],[0,\"\\t\"],[10],[0,\"\\n\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/dashboard/main-component.hbs"
     }
@@ -12081,6 +12359,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks/templates/components/settings/tree-component", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "KtwqPi/+",
+    "block": "{\"symbols\":[\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 mr-1 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/tree-component.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 pt-1\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"id\",\"settings-tree-container\"],[11,\"class\",\"p-2\"],[9],[0,\"\\n\\t\\t\\t \\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/settings/tree-component.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/templates/dashboard", ["exports"], function (_exports) {
   "use strict";
 
@@ -12216,10 +12512,28 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "LoTWZKif",
-    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings_feature.title\"],null]],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "yCnJTHlU",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings_feature.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-subheader\",null,null,{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-center flex\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"settings\"],[[\"class\"],[\"mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"settings_feature.title\"],null],false],[0,\"\\n\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"bg-white layout-row layout-align-start-stretch layout-wrap\"],[9],[0,\"\\n\\t\\t\"],[1,[29,\"component\",[\"settings/tree-component\"],[[\"class\",\"model\",\"selectedNode\",\"controller-action\"],[\"flex-100 flex-gt-sm-25 flex-gt-lg-20 layout-row layout-align-start-stretch\",[25,[\"model\"]],[25,[\"selectedNode\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\\t\\t\"],[1,[29,\"liquid-outlet\",null,[[\"class\"],[\"flex\"]]],false],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/settings.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/settings/account-basics", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "/kc8+MEw",
+    "block": "{\"symbols\":[\"card\",\"header\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings.basics.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/settings/account-basics.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/settings/account-basics.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-start-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"account_circle\"],[[\"class\"],[\"m-0 mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"span\"],[9],[1,[29,\"t\",[\"settings.basics.title\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/settings/account-basics.hbs' @ L10:C5) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center layout-wrap\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",\"flex-100 flex-gt-md-45\",[29,\"t\",[\"settings.basics.label_tenant_name\"],null],[25,[\"model\",\"name\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"name\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-45 layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"label\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",[29,\"t\",[\"settings.basics.label_tenant_domain\"],null],[25,[\"protocol\"]],null,\"true\",\"true\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",\"flex\",[25,[\"model\",\"subDomain\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"subDomain\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],\"true\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",[25,[\"domain\"]],null,\"true\",\"true\"]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/settings/account-basics.hbs' @ L18:C5) \"],null]],[[\"class\"],[\"layout-row layout-align-end-center layout-wrap\"]],{\"statements\":[[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"onClick\",\"disabled\"],[true,true,[29,\"perform\",[[25,[\"save\"]]],null],[29,\"or\",[[25,[\"form\",\"isInvalid\"]],[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"hasDirtyAttributes\"]]],null]],null]]],{\"statements\":[[4,\"liquid-if\",[[25,[\"save\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[4,\"paper-button\",null,[[\"warn\",\"raised\",\"onClick\",\"disabled\"],[true,true,[29,\"perform\",[[25,[\"cancel\"]]],null],[29,\"or\",[[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"hasDirtyAttributes\"]]],null]],null]]],{\"statements\":[[4,\"liquid-if\",[[25,[\"cancel\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/settings/account-basics.hbs"
     }
   });
 
@@ -12756,6 +13070,14 @@
       "registering_account": "Creating your account...",
       "resetting_password_message": "Resetting password..."
     },
+    "settings": {
+      "basics": {
+        "description": "Organization name, sub-domain, office location, etc.",
+        "label_tenant_domain": "Sub-domain",
+        "label_tenant_name": "Organization Name",
+        "title": "Account Basics"
+      }
+    },
     "settings_feature": {
       "description": "Settings for all Features subscribed to by a Tenant",
       "permission": {
@@ -13006,7 +13328,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+58e8d0b3"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+b1b0e314"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
