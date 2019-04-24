@@ -39,7 +39,7 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	 *
 	 * @returns  {Object} Dashboard display stuff for this Feature.
 	 *
-	 * @summary  Everyone logged-in gets access.
+	 * @summary  Access for PUG or User managers, only.
 	 */
 	async getDashboardDisplayDetails(ctxt) {
 		try {
@@ -52,8 +52,45 @@ class TenantAdministration extends PlantWorksBaseFeature {
 			defaultDisplay['attributes']['route'] = 'pug';
 			defaultDisplay['attributes']['icon_type'] = 'md';
 			defaultDisplay['attributes']['icon_path'] = 'group';
+			defaultDisplay['attributes']['display_order'] = 'first';
 
 			return defaultDisplay;
+		}
+		catch(err) {
+			return null;
+		}
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof TenantAdministration
+	 * @name     getSettingsDisplayDetails
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 *
+	 * @returns  {Object} Settings display stuff for this Feature.
+	 *
+	 * @summary  Access for Tenant Administrators, only.
+	 */
+	async getSettingsDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		try {
+			const rbacChecker = this._rbac('tenant-administration-read');
+			await rbacChecker(ctxt);
+
+			const settingsDisplay = await super.getSettingsDisplayDetails(ctxt);
+			if(!settingsDisplay) return null;
+
+			const basicsDisplay = JSON.parse(JSON.stringify(settingsDisplay));
+
+			basicsDisplay['attributes']['name'] = 'Basics';
+			basicsDisplay['attributes']['route'] = 'account-basics';
+			basicsDisplay['attributes']['icon_type'] = 'md';
+			basicsDisplay['attributes']['icon_path'] = 'account_circle';
+			basicsDisplay['attributes']['display_order'] = 'first';
+
+			return [basicsDisplay];
 		}
 		catch(err) {
 			return null;

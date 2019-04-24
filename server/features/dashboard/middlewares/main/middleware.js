@@ -73,32 +73,32 @@ class Main extends PlantWorksBaseMiddleware {
 				const dashboardDisplayDetails = await featureModule.getDashboardDisplayDetails(ctxt);
 				if(!dashboardDisplayDetails) continue;
 
-				validFeatures.push(dashboardDisplayDetails);
+				if(!Array.isArray(dashboardDisplayDetails))
+					validFeatures.push(dashboardDisplayDetails);
+				else
+					dashboardDisplayDetails.forEach((singleDetail) => { validFeatures.push(singleDetail); });
 			}
 
 			validFeatures.sort((left, right) => {
-				if(left.name < right.name) return -1;
-				if(left.name > right.name) return 1;
+				if((left.attributes['display_order'] === 'first') && (right.attributes['display_order'] !== 'first'))
+					return -1;
+
+				if((left.attributes['display_order'] === 'last') && (right.attributes['display_order'] !== 'last'))
+					return 1;
+
+				if(((left.attributes['display_order'] === 'first') || (left.attributes['display_order'] === 'last')) && (left.attributes['display_order'] === right.attributes['display_order'])) {
+					if(left.attributes['name'] < right.attributes['name']) return -1;
+					if(left.attributes['name'] > right.attributes['name']) return 1;
+
+					return 0;
+				}
+
+				if(!isNaN(left.attributes['display_order']) && !isNaN(right.attributes['display_order'])) { // eslint-disable-line curly
+					return (Number(left.attributes['display_order']) - Number(right.attributes['display_order']));
+				}
 
 				return 0;
 			});
-
-			// if(ctxt.state.user.tenantAttributes['default_route'] !== 'dashboard') { // eslint-disable-line curly
-			// 	validFeatures.unshift({
-			// 		'id': 'home',
-			// 		'type': 'dashboard/feature',
-
-			// 		'attributes': {
-			// 			'name': 'home',
-			// 			'type': 'feature',
-			// 			'route': (ctxt.state.user.tenantAttributes['default_route'] && ctxt.state.user.tenantAttributes['default_route'].trim() !== '') ? ctxt.state.user.tenantAttributes['default_route'] : 'application',
-			// 			'description': 'Home',
-
-			// 			'icon_type': 'fa', // eslint-disable-line Other choices are md, mdi, img, custom
-			// 			'icon_path': 'home'
-			// 		}
-			// 	});
-			// }
 
 			return { 'data': validFeatures };
 		}

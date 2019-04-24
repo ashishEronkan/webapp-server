@@ -41,7 +41,7 @@ class Main extends PlantWorksBaseComponent {
 	 */
 	async _addRoutes() {
 		try {
-			this.$router.get('/featureSettings', this.$parent._rbac('settings-access'), this._getTenantFeatureSettings.bind(this));
+			this.$router.get('/nodes', this.$parent._rbac('settings-access'), this._getTenantFeatureSettings.bind(this));
 			await super._addRoutes();
 
 			return null;

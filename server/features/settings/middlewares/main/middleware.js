@@ -61,7 +61,46 @@ class Main extends PlantWorksBaseMiddleware {
 	// #region API
 	async _getTenantFeatureSettings(ctxt) {
 		try {
-			return { 'data': [] };
+			let serverModule = this.$parent;
+			while(serverModule.$parent) serverModule = serverModule.$parent;
+
+			const serverFeatureNames = Object.keys(serverModule.$features || {});
+			const validFeatures = [];
+
+			for(let idx = 0; idx < serverFeatureNames.length; idx++) {
+				const featureModule = serverModule.$features[(serverFeatureNames[idx])];
+
+				const settingsDisplayDetails = await featureModule.getSettingsDisplayDetails(ctxt);
+				if(!settingsDisplayDetails) continue;
+
+				if(!Array.isArray(settingsDisplayDetails))
+					validFeatures.push(settingsDisplayDetails);
+				else
+					settingsDisplayDetails.forEach((singleDetail) => { validFeatures.push(singleDetail); });
+			}
+
+			validFeatures.sort((left, right) => {
+				if((left.attributes['display_order'] === 'first') && (right.attributes['display_order'] !== 'first'))
+					return -1;
+
+				if((left.attributes['display_order'] === 'last') && (right.attributes['display_order'] !== 'last'))
+					return 1;
+
+				if(((left.attributes['display_order'] === 'first') || (left.attributes['display_order'] === 'last')) && (left.attributes['display_order'] === right.attributes['display_order'])) {
+					if(left.attributes['name'] < right.attributes['name']) return -1;
+					if(left.attributes['name'] > right.attributes['name']) return 1;
+
+					return 0;
+				}
+
+				if(!isNaN(left.attributes['display_order']) && !isNaN(right.attributes['display_order'])) { // eslint-disable-line curly
+					return (Number(left.attributes['display_order']) - Number(right.attributes['display_order']));
+				}
+
+				return 0;
+			});
+
+			return { 'data': validFeatures };
 		}
 		catch(err) {
 			throw new PlantWorksMiddlewareError(`${this.name}::_getTenantFeatureSettings`, err);

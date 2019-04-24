@@ -44,6 +44,23 @@ class SkuManager extends PlantWorksBaseFeature {
 	async getDashboardDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
 		return null;
 	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof SkuManager
+	 * @name     getSettingsDisplayDetails
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 *
+	 * @returns  {Object} Settings display stuff for this Feature.
+	 *
+	 * @summary  No display in the settings itself.
+	 */
+	async getSettingsDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
+	}
 	// #endregion
 
 	// #region Properties

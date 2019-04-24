@@ -148,7 +148,7 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 		const inflectedFeatureName = inflection.transform(this.name, ['foreign_key', 'dasherize']).replace('-id', '');
 
 		return {
-			'id': id,
+			'id': `${id}-dashboard`,
 			'type': 'dashboard/feature',
 
 			'attributes': {
@@ -156,12 +156,54 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 				'module_type': 'feature',
 				'dashboard_category': 'administration',
 				'route': inflectedFeatureName,
+				'display_order': 'last',
 
 				// eslint-disable-next-line no-inline-comments
 				'icon_type': 'fa', // Other choices are paper, mdi, img, custom
 				'icon_path': 'laptop-code'
 			}
 		};
+	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof PlantWorksBaseFeature
+	 * @name     getSettingsDisplayDetails
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 *
+	 * @returns  {Object} Settings display stuff for this Feature.
+	 *
+	 * @summary  Derived classes should return details, or null - depending on whether the user has the required permission(s).
+	 */
+	async getSettingsDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		try {
+			const rbacChecker = this._rbac('settings-access');
+			await rbacChecker(ctxt);
+
+			const inflection = require('inflection');
+
+			const id = await this.$dependencies.ConfigurationService.getModuleID(this);
+			const inflectedFeatureName = inflection.transform(this.name, ['foreign_key', 'dasherize']).replace('-id', '');
+
+			return {
+				'id': `${id}-settings`,
+				'type': 'settings/node',
+
+				'attributes': {
+					'name': inflection.transform(this.name, ['tableize', 'singularize', 'titleize']),
+					'module_type': 'feature',
+					'node_type': 'leaf',
+					'route': inflectedFeatureName,
+					'display_order': 'last'
+				}
+			};
+		}
+		catch(err) {
+			return null;
+		}
 	}
 
 	/**

@@ -50,6 +50,23 @@ class ServerAdministration extends PlantWorksBaseFeature {
 		// TODO: Return the correct stuff once implemented
 		return null;
 	}
+
+	/**
+	 * @async
+	 * @function
+	 * @instance
+	 * @memberof ServerAdministration
+	 * @name     getSettingsDisplayDetails
+	 *
+	 * @param    {Object} ctxt - Koa context.
+	 *
+	 * @returns  {Object} Settings display stuff for this Feature.
+	 *
+	 * @summary  No display in the settings itself.
+	 */
+	async getSettingsDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+		return null;
+	}
 	// #endregion
 
 	// #region Properties
