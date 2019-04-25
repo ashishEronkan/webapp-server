@@ -1139,6 +1139,333 @@
     }
   });
 });
+;define("plantworks/components/common/location-editor", ["exports", "plantworks/framework/base-component", "plantworks/config/environment", "ember-concurrency"], function (_exports, _baseComponent, _environment, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    '_map': undefined,
+    '_markers': undefined,
+    'approxLocation': '',
+    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      const notification = this.get('notification');
+      this.$('md-card').css('box-shadow', 'none');
+
+      try {
+        this.set('_markers', []);
+
+        if (window.google && window.google.maps) {
+          yield (0, _emberConcurrency.timeout)(500);
+          const mapCanvas = window.document.getElementById("common-location-editor-map-container-".concat(this.get('state.model.id'))),
+                mapOptions = {
+            'zoom': 16,
+            'mapTypeId': window.google.maps.MapTypeId.ROADMAP
+          };
+          this.set('_map', new window.google.maps.Map(mapCanvas, mapOptions));
+          this.get('_map').addListener('click', position => {
+            this.get('_onClickMap').perform(position);
+          });
+          yield this.get('_resetGoogleMap').perform();
+        }
+      } catch (err) {
+        notification.display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop().on('didInsertElement'),
+    'onWillDestroyElement': (0, _emberConcurrency.task)(function* () {
+      if (!this.get('_map')) return;
+      yield this.get('_resetGoogleMap').perform();
+      window.google.maps.event.clearInstanceListeners(this.get('_map'));
+      this.set('_map', undefined);
+    }).drop().on('willDestroyElement'),
+    'onApproxLocationChanged': Ember.observer('approxLocation', function () {
+      if (!this.get('state.model.isNew')) return;
+      if (this.get('state.model.name') === this.get('approxLocation')) return;
+      this.set('state.model.name', this.get('approxLocation').split(',')[0].trim());
+      this.get('_markGoogleMap').perform();
+    }),
+    '_onClickMap': (0, _emberConcurrency.task)(function* (position) {
+      this._clearMapMarkers();
+
+      this.get('_map').setCenter({
+        'lat': position.latLng.lat(),
+        'lng': position.latLng.lng()
+      });
+
+      this._setMapMarker({
+        'lat': position.latLng.lat(),
+        'lng': position.latLng.lng()
+      });
+
+      yield this.get('_geoCodeMarker').perform({
+        'lat': position.latLng.lat(),
+        'lng': position.latLng.lng()
+      });
+    }).keepLatest(),
+    '_resetGoogleMap': (0, _emberConcurrency.task)(function* () {
+      this._clearMapMarkers();
+
+      if (!this.get('state.model')) return;
+      if (!this.get('_map')) return;
+      this.get('_map').setZoom(16);
+
+      if (this.get('state.model.isNew') && this.get('state.model.latitude') === 0) {
+        this.set('approxLocation', this.get('state.model.name'));
+        yield this.get('_markGoogleMap').perform();
+        return;
+      }
+
+      this.get('_map').setCenter({
+        'lat': this.get('state.model.latitude') || 0,
+        'lng': this.get('state.model.longitude') || 0
+      });
+
+      this._setMapMarker({
+        'lat': this.get('state.model.latitude') || 0,
+        'lng': this.get('state.model.longitude') || 0
+      });
+    }).drop(),
+    '_markGoogleMap': (0, _emberConcurrency.task)(function* () {
+      yield (0, _emberConcurrency.timeout)(3000);
+
+      this._clearMapMarkers();
+
+      if (!this.get('_map')) return;
+      if (!this.get('approxLocation') || this.get('approxLocation').trim() === '') this.set('approxLocation', 'Charminar, Hyderabad, India');
+      const addressData = yield this.get('ajax').request("https://maps.googleapis.com/maps/api/geocode/json?address=".concat(this.get('approxLocation').replace(/ /g, '+'), "&key=").concat(_environment.default['ember-google-maps']['key']), {
+        'method': 'GET',
+        'xhrFields': {
+          'withCredentials': false
+        },
+        'dataType': 'json'
+      });
+      this.get('_map').setZoom(16);
+      this.get('_map').setCenter(addressData.results[0].geometry.location);
+      addressData.results.forEach(result => {
+        this._setMapMarker(result.geometry.location);
+      });
+
+      if (addressData.results.length) {
+        yield this.get('_geoCodeMarker').perform(addressData.results[0].geometry.location);
+      }
+    }).restartable(),
+
+    _clearMapMarkers() {
+      this.get('_markers').forEach(marker => {
+        marker.setMap(null);
+        if (window.google && window.google.maps) window.google.maps.event.clearInstanceListeners(marker);
+      });
+      this.get('_markers').clear();
+    },
+
+    _setMapMarker(location) {
+      if (!this.get('_map')) return;
+      const marker = new window.google.maps.Marker({
+        'position': location,
+        'map': this.get('_map')
+      });
+      marker.addListener('click', function (mark) {
+        this.get('_map').setZoom(16);
+        this.get('_map').setCenter(mark.getPosition());
+        this.get('_geoCodeMarker').perform(mark.getPosition());
+      }.bind(this, marker));
+      this.get('_markers').addObject(marker);
+    },
+
+    '_geoCodeMarker': (0, _emberConcurrency.task)(function* (location) {
+      if (!(window.google && window.google.maps)) return;
+      const timezone = yield this.get('ajax').request("https://maps.googleapis.com/maps/api/timezone/json?location=".concat(location.lat, ",").concat(location.lng, "&timestamp=").concat(Math.floor(new Date().valueOf() / 1000), "&key=").concat(_environment.default['ember-google-maps']['key']), {
+        'method': 'GET',
+        'xhrFields': {
+          'withCredentials': false
+        },
+        'dataType': 'json'
+      });
+      this.set('state.model.latitude', location.lat);
+      this.set('state.model.longitude', location.lng);
+      this.set('state.model.timezoneId', timezone.timeZoneId);
+      this.set('state.model.timezoneName', timezone.timeZoneName);
+      const geoCoder = new window.google.maps.Geocoder();
+      geoCoder.geocode({
+        'location': location
+      }, (results, status) => {
+        if (status !== window.google.maps.GeocoderStatus.OK) return;
+        const geoCodedAddr = [];
+        results.forEach(result => {
+          geoCodedAddr.push(...result.address_components);
+        });
+        if (!geoCodedAddr.length) return;
+        const area = [],
+              city = [],
+              country = [],
+              line1 = [],
+              line2 = [],
+              line3 = [],
+              postBox = [],
+              postalCode = [],
+              state = [],
+              streetAddress = [];
+        geoCodedAddr.forEach(addrComponent => {
+          if (addrComponent.types.indexOf('street_address') >= 0) {
+            if (!streetAddress.length) streetAddress.push(addrComponent.long_name);
+            return;
+          }
+
+          if (addrComponent.types.indexOf('post_box') >= 0) {
+            if (!postBox.length) postBox.push(addrComponent.long_name);
+            return;
+          }
+
+          if (addrComponent.types.indexOf('room') >= 0) {
+            if (!line1[0]) line1[0] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('floor') >= 0) {
+            if (!line1[1]) line1[1] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('subpremise') >= 0) {
+            if (!line1[2]) line1[2] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('premise') >= 0) {
+            if (!line1[3]) line1[3] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('street_number') >= 0) {
+            if (!line2[0]) line2[0] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('route') >= 0) {
+            if (!line2[1]) line2[1] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('neighborhood') >= 0) {
+            if (!line3.indexOf(addrComponent.long_name) < 0) line3.push(addrComponent.long_name);
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality') >= 0) {
+            if (!area[5]) area[5] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality_level_1') >= 0) {
+            if (!area[4]) area[4] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality_level_2') >= 0) {
+            if (!area[3]) area[3] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality_level_3') >= 0) {
+            if (!area[2]) area[2] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality_level_4') >= 0) {
+            if (!area[1]) area[1] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('sublocality_level_5') >= 0) {
+            if (!area[0]) area[0] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('locality') >= 0) {
+            if (city.indexOf(addrComponent.long_name) < 0) city.push(addrComponent.long_name);
+            return;
+          }
+
+          if (addrComponent.types.indexOf('administrative_area_level_1') >= 0) {
+            if (!state[4]) state[4] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('administrative_area_level_2') >= 0) {
+            if (!state[3]) state[3] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('administrative_area_level_3') >= 0) {
+            if (!state[2]) state[2] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('administrative_area_level_4') >= 0) {
+            if (!state[1]) state[1] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('administrative_area_level_5') >= 0) {
+            if (!state[0]) state[0] = addrComponent.long_name;
+            return;
+          }
+
+          if (addrComponent.types.indexOf('country') >= 0) {
+            if (country.indexOf(addrComponent.long_name) < 0) country.push(addrComponent.long_name);
+            return;
+          }
+
+          if (addrComponent.types.indexOf('postal_code') >= 0) {
+            if (postalCode.indexOf(addrComponent.long_name) < 0) postalCode.push(addrComponent.long_name);
+            return;
+          }
+        });
+        this.set('state.model.line1', line1.filter(lineSegment => {
+          return !!lineSegment;
+        }).join(', ').trim());
+        if (line2.length) this.set('state.model.line2', line2.filter(lineSegment => {
+          return !!lineSegment;
+        }).join(', ').trim());else if (streetAddress.length) this.set('state.model.line2', streetAddress.filter(lineSegment => {
+          return !!lineSegment;
+        }).join(', ').trim());else if (postBox.length) this.set('state.model.line2', postBox.filter(lineSegment => {
+          return !!lineSegment;
+        }).join(', ').trim());
+        this.set('state.model.line3', line3.filter(lineSegment => {
+          return !!lineSegment;
+        }).join(', ').trim());
+        this.set('state.model.area', area.filter(areaSegment => {
+          return !!areaSegment;
+        }).join(', ').trim());
+        this.set('state.model.city', city.filter(citySegment => {
+          return !!citySegment;
+        }).join(', ').trim());
+        this.set('state.model.state', state.filter(stateSegment => {
+          return !!stateSegment;
+        }).join(', ').trim());
+        this.set('state.model.country', country.filter(countrySegment => {
+          return !!countrySegment;
+        }).join(', ').trim());
+        this.set('state.model.postalCode', postalCode.filter(codeSegment => {
+          return !!codeSegment;
+        }).join(', ').trim());
+
+        if (this.get('state.model.line1') === '' && this.get('state.model.line2') !== '') {
+          this.set('state.model.line1', this.get('state.model.line2'));
+          this.set('state.model.line2', '');
+        }
+      });
+    }).restartable()
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/components/dashboard/main-component", ["exports", "plantworks/framework/base-component", "ember-concurrency"], function (_exports, _baseComponent, _emberConcurrency) {
   "use strict";
 
@@ -5761,6 +6088,263 @@
 
   _exports.default = _default;
 });
+;define("plantworks/components/settings/account/basic-details", ["exports", "plantworks/framework/base-component", "plantworks/config/environment", "ember-concurrency"], function (_exports, _baseComponent, _environment, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'classNames': ['w-100'],
+    // eslint-disable-line ember/avoid-leaking-state-in-ember-objects
+    'editable': false,
+    'protocol': '',
+    'domain': '',
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'tenant-administration-read');
+      const domainFields = [_environment.default.plantworks.domain];
+      if (window.location.protocol === 'http:' && window.location.port !== 80 || window.location.protocol === 'https:' && window.location.port !== 443) domainFields.push(":".concat(window.location.port));
+      this.set('protocol', "".concat(window.location.protocol, "//"));
+      this.set('domain', domainFields.join(''));
+    },
+
+    onHasPermissionChange: Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('tenant-administration-update');
+      this.set('editable', updatePerm);
+    }),
+    save: (0, _emberConcurrency.task)(function* () {
+      yield this.get('model').save();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    saveSucceeded: Ember.on('save:succeeded', function () {
+      this.get('notification').display({
+        'type': 'success',
+        'message': this.intl.t('settings_feature.account.basics.succesful_save')
+      });
+    }),
+    saveErrored: Ember.on('save:errored', function (taskInstance, err) {
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    cancel: (0, _emberConcurrency.task)(function* () {
+      yield this.get('model').rollback();
+    }).drop()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/settings/account/location-details", ["exports", "plantworks/framework/base-component", "ember-resize/mixins/resize-aware", "plantworks/config/environment", "ember-concurrency"], function (_exports, _baseComponent, _resizeAware, _environment, _emberConcurrency) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend(_resizeAware.default, {
+    'classNames': ['w-100', 'layout-row', 'layout-align-center-stretch'],
+    // eslint-disable-line ember/avoid-leaking-state-in-ember-objects
+    'editable': false,
+    'resizeWidthSensitive': true,
+    'resizeHeightSensitive': true,
+    'staticUrl': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('permissions', 'tenant-administration-read');
+    },
+
+    'onHasPermissionChange': Ember.observer('hasPermission', function () {
+      const updatePerm = this.get('currentUser').hasPermission('tenant-administration-update');
+      this.set('editable', updatePerm);
+    }),
+    'onDidInsertElement': (0, _emberConcurrency.task)(function* () {
+      yield this.get('displayLocation').perform();
+    }).drop().on('didInsertElement'),
+    'onLocationsChange': Ember.observer('model.tenantLocations', 'model.tenantLocations.@each.{latitude,longitude}', function () {
+      this.get('displayLocation').perform();
+    }),
+
+    debouncedDidResize(width, height) {
+      if (!width || !height) return;
+      this.get('displayLocation').perform();
+    },
+
+    'addLocation': (0, _emberConcurrency.task)(function* () {
+      try {
+        const self = this;
+        const primaryTenantLocation = this.get('store').createRecord('tenant-administration/tenant-location', {
+          'tenant': this.get('model')
+        });
+        const modalData = {
+          'title': this.intl.t('settings_feature.account.locations.label_add_location'),
+          'dialogClass': 'flex-75',
+          'componentName': 'common/location-editor',
+          'componentState': {
+            'model': primaryTenantLocation
+          },
+          'confirmButton': {
+            'text': this.intl.t('modal.default_add_text'),
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('saveLocation').perform(primaryTenantLocation);
+            }
+          },
+          'cancelButton': {
+            'text': this.intl.t('modal.default_cancel_text'),
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              self.get('_confirmedDeleteLocation').perform(primaryTenantLocation);
+            }
+          }
+        };
+        this.get('model.tenantLocations').addObject(primaryTenantLocation);
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'editLocation': (0, _emberConcurrency.task)(function* (tenantLocation) {
+      try {
+        const self = this;
+        const modalData = {
+          'title': this.intl.t('settings_feature.account.locations.label_add_location'),
+          'dialogClass': 'flex-75',
+          'componentName': 'common/location-editor',
+          'componentState': {
+            'model': tenantLocation
+          },
+          'confirmButton': {
+            'text': this.intl.t('modal.default_save_text'),
+            'icon': 'check',
+            'primary': true,
+            'raised': true,
+            'callback': () => {
+              self.get('saveLocation').perform(tenantLocation);
+            }
+          },
+          'cancelButton': {
+            'text': this.intl.t('modal.default_cancel_text'),
+            'icon': 'cancel',
+            'warn': true,
+            'raised': true,
+            'callback': () => {
+              if (tenantLocation.get('isNew')) {
+                tenantLocation.destroyRecord();
+                return;
+              }
+
+              if (tenantLocation.rollback) {
+                tenantLocation.rollback();
+                return;
+              }
+
+              if (tenantLocation.content.rollback) tenantLocation.content.rollback();
+            }
+          }
+        };
+        yield this.invokeAction('controller-action', 'displayModal', modalData);
+      } catch (err) {
+        this.get('notification').display({
+          'type': 'error',
+          'error': err
+        });
+      }
+    }).drop(),
+    'displayLocation': (0, _emberConcurrency.task)(function* () {
+      yield (0, _emberConcurrency.timeout)(1500);
+      const staticLocationDisplayDiv = document.getElementById('settings-account-locations-static-location-display');
+      if (!staticLocationDisplayDiv) return;
+      const mapWidth = staticLocationDisplayDiv.clientWidth;
+      const mapHeight = staticLocationDisplayDiv.clientHeight;
+      const mapParameters = {
+        'lat': 0,
+        'lng': 0,
+        'key': _environment.default['ember-google-maps']['key']
+      };
+      const locations = yield this.get('model.tenantLocations');
+      locations.forEach(location => {
+        mapParameters.lat = location.get('latitude');
+        mapParameters.lng = location.get('longitude');
+        location.set('staticUrl', "//maps.googleapis.com/maps/api/staticmap?center=".concat(mapParameters.lat, ",").concat(mapParameters.lng, "&size=").concat(mapWidth, "x").concat(mapHeight, "&maptype=roadmap&markers=color:blue%7Clabel:S%7C").concat(mapParameters.lat, ",").concat(mapParameters.lng, "&key=").concat(mapParameters.key));
+      });
+    }).keepLatest(),
+    'saveLocation': (0, _emberConcurrency.task)(function* (tenantLocation) {
+      if (tenantLocation.save) yield tenantLocation.save();
+      if (tenantLocation.content && tenantLocation.content.save) yield tenantLocation.content.save();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    'saveLocationSucceeded': Ember.on('saveLocation:succeeded', function (taskInstance) {
+      const tenantLocation = taskInstance.args[0];
+      if (tenantLocation && tenantLocation.reload) tenantLocation.reload();
+      if (tenantLocation.content && tenantLocation.content.reload) tenantLocation.content.reload();
+    }),
+    'saveLocationErrored': Ember.on('saveLocation:errored', function (taskInstance, err) {
+      const tenantLocation = taskInstance.args[0];
+      if (tenantLocation.rollback) tenantLocation.rollback();
+      if (tenantLocation.content && tenantLocation.content.rollback) tenantLocation.content.rollback();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    }),
+    'deleteLocation': (0, _emberConcurrency.task)(function* (tenantLocation) {
+      const modalData = {
+        'title': this.intl.t('settings_feature.account.locations.label_delete_location'),
+        'content': this.intl.t('settings_feature.account.locations.question_delete_location'),
+        'confirmButton': {
+          'text': this.intl.t('modal.default_delete_text'),
+          'icon': 'delete',
+          'warn': true,
+          'raised': true,
+          'callback': () => {
+            this.get('_confirmedDeleteLocation').perform(tenantLocation);
+          }
+        },
+        'cancelButton': {
+          'text': this.intl.t('modal.default_cancel_text'),
+          'icon': 'close',
+          'primary': true,
+          'raised': true
+        }
+      };
+      yield this.invokeAction('controller-action', 'displayModal', modalData);
+    }).drop(),
+    '_confirmedDeleteLocation': (0, _emberConcurrency.task)(function* (tenantLocation) {
+      if (tenantLocation.content) {
+        yield tenantLocation.content.destroyRecord();
+      } else {
+        yield tenantLocation.destroyRecord();
+      }
+
+      yield this.get('model').reload();
+    }).drop().evented().retryable(window.PlantWorksApp.get('backoffPolicy')),
+    '_confirmedDeleteLocationErrored': Ember.on('_confirmedDeleteLocation:errored', function (taskInstance, err) {
+      this.get('model').rollback();
+      const tenantLocation = taskInstance.args[0];
+      if (tenantLocation.content) tenantLocation.content.rollback();else tenantLocation.rollback();
+      this.get('notification').display({
+        'type': 'error',
+        'error': err
+      });
+    })
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/components/settings/tree-component", ["exports", "plantworks/framework/base-component", "jquery", "ember-concurrency"], function (_exports, _baseComponent, _jquery, _emberConcurrency) {
   "use strict";
 
@@ -6435,7 +7019,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/controllers/settings/account-basics", ["exports", "plantworks/framework/base-controller", "plantworks/config/environment"], function (_exports, _baseController, _environment) {
+;define("plantworks/controllers/settings/account/basics", ["exports", "plantworks/framework/base-controller"], function (_exports, _baseController) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -6444,22 +7028,12 @@
   _exports.default = void 0;
 
   var _default = _baseController.default.extend({
-    'editable': false,
-    'protocol': '',
-    'domain': '',
-
     init() {
       this._super(...arguments);
 
       this.set('permissions', 'tenant-administration-read');
-      this.set('protocol', "".concat(window.location.protocol, "//"));
-      this.set('domain', "".concat(_environment.default.plantworks.domain, ":").concat(window.location.port));
-    },
+    }
 
-    'onHasPermissionChange': Ember.observer('hasPermission', function () {
-      const updatePerm = this.get('currentUser').hasPermission('tenant-administration-update');
-      this.set('editable', updatePerm);
-    })
   });
 
   _exports.default = _default;
@@ -10436,7 +11010,6 @@
   _exports.default = void 0;
 
   var _default = _baseModel.default.extend({
-    'name': _emberData.default.attr('string'),
     'nodeType': _emberData.default.attr('string', {
       'defaultValue': 'leaf'
     }),
@@ -10445,13 +11018,13 @@
       return "settings.".concat(this.get('route'));
     }),
     'i18n_name': Ember.computed('i18n_tag', function () {
-      return this.intl.t("settings.".concat(this.get('i18n_tag'), ".title"));
+      return this.intl.t("".concat(this.get('i18n_tag'), ".title"));
     }),
     'i18n_desc': Ember.computed('i18n_tag', function () {
-      return this.intl.t("settings.".concat(this.get('i18n_tag'), ".description"));
+      return this.intl.t("".concat(this.get('i18n_tag'), ".description"));
     }),
     'i18n_tag': Ember.computed('name', function () {
-      return this.get('name').replace(/ /g, '_').toLowerCase();
+      return "settings_feature.".concat(this.get('route').replace(/ /g, '_').toLowerCase());
     })
   });
 
@@ -10635,7 +11208,7 @@
     }),
     'tenant': _emberData.default.belongsTo('tenant-administration/tenant', {
       'async': true,
-      'inverse': 'tenantLocation'
+      'inverse': 'tenantLocations'
     }),
     'i18n_timezone_id': Ember.computed('timezoneId', function () {
       return this.intl.t("timezone.id.".concat(this.get('timezoneId')));
@@ -10778,7 +11351,9 @@
       this.route('user-manager');
     });
     this.route('settings', function () {
-      this.route('account-basics');
+      this.route('account', function () {
+        this.route('basics');
+      });
     });
   });
   var _default = Router;
@@ -11220,7 +11795,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/routes/settings/account-basics", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
+;define("plantworks/routes/settings/account/basics", ["exports", "plantworks/framework/base-route", "ember-concurrency"], function (_exports, _baseRoute, _emberConcurrency) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -11978,6 +12553,24 @@
 
   _exports.default = _default;
 });
+;define("plantworks/templates/components/common/location-editor", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "JEZUjs8a",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/common/location-editor.hbs' @ L3:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/common/location-editor.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/common/location-editor.hbs' @ L5:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[25,[\"state\",\"model\",\"name\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/common/location-editor.hbs' @ L10:C4) \"],null]],null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-stretch\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-65 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex\",[29,\"t\",[\"settings_feature.account.locations.label_approximate_location\"],null],[25,[\"approxLocation\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"approxLocation\"]]],null]],null]]]],false],[0,\"\\n\"],[4,\"paper-button\",null,[[\"accent\",\"raised\",\"onClick\",\"bubbles\"],[true,false,[29,\"perform\",[[25,[\"searchApproximateLocation\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"search\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[12,\"id\",[30,[\"common-location-editor-map-container-\",[25,[\"state\",\"model\",\"id\"]]]]],[9],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-30 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_name\"],null],[25,[\"state\",\"model\",\"name\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_line1\"],null],[25,[\"state\",\"model\",\"line1\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line1\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_line2\"],null],[25,[\"state\",\"model\",\"line2\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line2\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_line3\"],null],[25,[\"state\",\"model\",\"line3\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line3\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_area\"],null],[25,[\"state\",\"model\",\"area\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"area\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_city\"],null],[25,[\"state\",\"model\",\"city\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"city\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_state\"],null],[25,[\"state\",\"model\",\"state\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"state\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_country\"],null],[25,[\"state\",\"model\",\"country\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"country\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_postcode\"],null],[25,[\"state\",\"model\",\"postalCode\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"postalCode\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-90 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"settings_feature.account.locations.label_latitude\"],null],[25,[\"state\",\"model\",\"latitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"latitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"settings_feature.account.locations.label_longitude\"],null],[25,[\"state\",\"model\",\"longitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"longitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"settings_feature.account.locations.label_timezone\"],null],[25,[\"state\",\"model\",\"timezoneName\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"timezoneName\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/common/location-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/templates/components/dashboard/main-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -12359,6 +12952,42 @@
 
   _exports.default = _default;
 });
+;define("plantworks/templates/components/settings/account/basic-details", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "z/rQGx4S",
+    "block": "{\"symbols\":[\"card\",\"header\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/settings/account/basic-details.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/settings/account/basic-details.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"account_circle\"],[[\"class\"],[\"m-0 mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[1,[29,\"t\",[\"settings_feature.account.basics.title\"],null],false],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"if\",[[29,\"and\",[[25,[\"editable\"]],[25,[\"model\",\"isDirty\"]]],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"accent\",\"raised\",\"onClick\",\"disabled\",\"bubbles\"],[\"my-0 py-0\",true,true,[29,\"perform\",[[25,[\"save\"]]],null],[29,\"or\",[[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"isDirty\"]]],null]],null],false]],{\"statements\":[[4,\"if\",[[25,[\"save\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[7,\"span\"],[9],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[4,\"paper-button\",null,[[\"class\",\"warn\",\"raised\",\"onClick\",\"disabled\",\"bubbles\"],[\"my-0 py-0\",true,true,[29,\"perform\",[[25,[\"cancel\"]]],null],[29,\"or\",[[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"isDirty\"]]],null]],null],false]],{\"statements\":[[4,\"if\",[[25,[\"cancel\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],null],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[7,\"span\"],[9],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex text-right\"],[9],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"onClick\",\"primary\",\"raised\",\"disabled\",\"bubbles\"],[\"m-0 py-0\",null,true,false,true,false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[7,\"span\"],[9],[0,\" \"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/account/basic-details.hbs' @ L37:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center layout-wrap\"]],{\"statements\":[[0,\"\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",\"flex-100 flex-gt-md-45\",[29,\"t\",[\"settings_feature.account.basics.label_tenant_name\"],null],[25,[\"model\",\"name\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"name\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],true]]],false],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-45 layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"span\"],[11,\"class\",\"mb-1\"],[9],[1,[23,\"protocol\"],false],[10],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"label\",\"class\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",[29,\"t\",[\"settings_feature.account.basics.label_tenant_domain\"],null],\"flex\",[25,[\"model\",\"subDomain\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"subDomain\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],\"true\"]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"span\"],[11,\"class\",\"mb-1\"],[9],[1,[23,\"domain\"],false],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/settings/account/basic-details.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/settings/account/location-details", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "dj8E0c4t",
+    "block": "{\"symbols\":[\"card\",\"tenantLocation\",\"card\",\"header\",\"text\",\"header\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,6,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"location_city\"],[[\"class\"],[\"m-0 mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"h5\"],[11,\"class\",\"m-0 p-0\"],[9],[1,[29,\"t\",[\"settings_feature.account.locations.title\"],null],false],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[6]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L11:C4) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center layout-wrap\"]],{\"statements\":[[4,\"if\",[[29,\"get\",[[25,[\"model\",\"tenantLocations\"]],\"length\"],null]],null,{\"statements\":[[4,\"each\",[[25,[\"model\",\"tenantLocations\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L15:C8) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,4,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L16:C9) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,5,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L17:C10) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"name\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[5]},null],[4,\"if\",[[29,\"and\",[[25,[\"editable\"]],[29,\"not\",[[24,2,[\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"mini\",\"onClick\",\"bubbles\"],[true,true,true,[29,\"perform\",[[25,[\"editLocation\"]],[24,2,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"paper-button\",null,[[\"warn\",\"raised\",\"mini\",\"onClick\",\"bubbles\"],[true,true,true,[29,\"perform\",[[25,[\"deleteLocation\"]],[24,2,[]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[4]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/account/location-details.hbs' @ L31:C8) \"],null]],[[\"class\"],[\"flex pt-0 layout-row layout-align-center-stretch layout-wrap\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"id\",\"settings-account-locations-static-location-display\"],[11,\"class\",\"p-0 text-center flex-100 flex-gt-md-70\"],[11,\"style\",\"min-height:14rem;\"],[9],[0,\"\\n\"],[4,\"if\",[[24,2,[\"staticUrl\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[7,\"img\"],[11,\"border\",\"0\"],[12,\"src\",[24,2,[\"staticUrl\"]]],[12,\"alt\",[24,2,[\"name\"]]],[9],[10],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"settings_feature.account.locations.label_fetching_map\"],null],false],[0,\"\\n\"]],\"parameters\":[]}],[0,\"\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-30 pl-4\"],[11,\"style\",\"font-style:italic;\"],[9],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"line1\"]],false],[0,\",\"],[7,\"br\"],[9],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"if\",[[29,\"not-eq\",[[24,2,[\"line2\"]],\"\"],null]],null,{\"statements\":[[1,[24,2,[\"line2\"]],false],[0,\",\"],[7,\"br\"],[9],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"if\",[[29,\"not-eq\",[[24,2,[\"line3\"]],\"\"],null]],null,{\"statements\":[[1,[24,2,[\"line3\"]],false],[0,\",\"],[7,\"br\"],[9],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[4,\"if\",[[29,\"not-eq\",[[24,2,[\"area\"]],\"\"],null]],null,{\"statements\":[[1,[24,2,[\"area\"]],false],[0,\",\"],[7,\"br\"],[9],[10]],\"parameters\":[]},null],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"city\"]],false],[0,\",\"],[7,\"br\"],[9],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"state\"]],false],[0,\",\"],[7,\"br\"],[9],[10],[0,\"\\n\\t\\t\\t\\t\\t\\t\\t\"],[1,[24,2,[\"country\"]],false],[0,\" \"],[1,[24,2,[\"postalCode\"]],false],[0,\"\\n\\t\\t\\t\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"onClick\",\"bubbles\"],[\"flex\",[29,\"perform\",[[25,[\"addLocation\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[\"map-marked\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[7,\"span\"],[9],[1,[29,\"t\",[\"settings_feature.account.locations.label_add_location\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\\t\"],[4,\"g-map\",null,[[\"lat\",\"lng\"],[\"0\",\"0\"]],{\"statements\":[],\"parameters\":[]},null],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/settings/account/location-details.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
 ;define("plantworks/templates/components/settings/tree-component", ["exports"], function (_exports) {
   "use strict";
 
@@ -12521,7 +13150,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/templates/settings/account-basics", ["exports"], function (_exports) {
+;define("plantworks/templates/settings/account/basics", ["exports"], function (_exports) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -12530,10 +13159,10 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "/kc8+MEw",
-    "block": "{\"symbols\":[\"card\",\"header\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings.basics.title\"],null]],null],false],[0,\"\\n\"],[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/settings/account-basics.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/settings/account-basics.hbs' @ L5:C6) \"],null]],[[\"class\"],[\"layout-row layout-align-start-center\"]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"account_circle\"],[[\"class\"],[\"m-0 mr-2\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[7,\"span\"],[9],[1,[29,\"t\",[\"settings.basics.title\"],null],false],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/settings/account-basics.hbs' @ L10:C5) \"],null]],[[\"class\"],[\"layout-row layout-align-space-between-center layout-wrap\"]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",\"flex-100 flex-gt-md-45\",[29,\"t\",[\"settings.basics.label_tenant_name\"],null],[25,[\"model\",\"name\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"name\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],true]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-100 flex-gt-md-45 layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"label\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",[29,\"t\",[\"settings.basics.label_tenant_domain\"],null],[25,[\"protocol\"]],null,\"true\",\"true\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",\"flex\",[25,[\"model\",\"subDomain\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"model\",\"subDomain\"]]],null]],null],[29,\"not\",[[25,[\"editable\"]]],null],\"true\"]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"value\",\"onChange\",\"readonly\",\"required\"],[\"text\",[25,[\"domain\"]],null,\"true\",\"true\"]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"actions\"]],\"expected `card.actions` to be a contextual component but found a string. Did you mean `(component card.actions)`? ('plantworks/templates/settings/account-basics.hbs' @ L18:C5) \"],null]],[[\"class\"],[\"layout-row layout-align-end-center layout-wrap\"]],{\"statements\":[[4,\"if\",[[25,[\"editable\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"raised\",\"onClick\",\"disabled\"],[true,true,[29,\"perform\",[[25,[\"save\"]]],null],[29,\"or\",[[25,[\"form\",\"isInvalid\"]],[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"hasDirtyAttributes\"]]],null]],null]]],{\"statements\":[[4,\"liquid-if\",[[25,[\"save\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_save_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null],[4,\"paper-button\",null,[[\"warn\",\"raised\",\"onClick\",\"disabled\"],[true,true,[29,\"perform\",[[25,[\"cancel\"]]],null],[29,\"or\",[[25,[\"save\",\"isRunning\"]],[25,[\"cancel\",\"isRunning\"]],[29,\"not\",[[25,[\"model\",\"hasDirtyAttributes\"]]],null]],null]]],{\"statements\":[[4,\"liquid-if\",[[25,[\"cancel\",\"isRunning\"]]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"cancel\"],[[\"class\"],[\"mr-1\"]]],false],[0,\"\\n\\t\\t\\t\\t\\t\"],[1,[29,\"t\",[\"modal.default_cancel_text\"],null],false],[0,\"\\n\"]],\"parameters\":[]}]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "FjF0uD8x",
+    "block": "{\"symbols\":[],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[0,\"\\t\"],[1,[29,\"page-title\",[[29,\"t\",[\"settings_feature.account.basics.title\"],null]],null],false],[0,\"\\n\\t\"],[1,[29,\"component\",[\"settings/account/basic-details\"],[[\"model\",\"controller-action\"],[[25,[\"model\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\\t\"],[1,[29,\"component\",[\"settings/account/location-details\"],[[\"model\",\"controller-action\"],[[25,[\"model\"]],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
-      "moduleName": "plantworks/templates/settings/account-basics.hbs"
+      "moduleName": "plantworks/templates/settings/account/basics.hbs"
     }
   });
 
@@ -13070,15 +13699,36 @@
       "registering_account": "Creating your account...",
       "resetting_password_message": "Resetting password..."
     },
-    "settings": {
-      "basics": {
-        "description": "Organization name, sub-domain, office location, etc.",
-        "label_tenant_domain": "Sub-domain",
-        "label_tenant_name": "Organization Name",
-        "title": "Account Basics"
-      }
-    },
     "settings_feature": {
+      "account": {
+        "basics": {
+          "description": "Organization name, sub-domain, office location, etc.",
+          "label_tenant_domain": "Sub-domain",
+          "label_tenant_name": "Organization Name",
+          "succesful_save": "Account saved succesfully",
+          "title": "Account Basics"
+        },
+        "locations": {
+          "label_add_location": "Add Location",
+          "label_approximate_location": "Approximate Location...",
+          "label_area": "Area",
+          "label_city": "City",
+          "label_country": "Country",
+          "label_delete_location": "Delete Location",
+          "label_fetching_map": "Fetching map...",
+          "label_latitude": "Latitude",
+          "label_line1": "Line #1",
+          "label_line2": "Line #2",
+          "label_line3": "Line #3",
+          "label_longitude": "Longitude",
+          "label_name": "Name",
+          "label_postcode": "Postal / ZIP Code",
+          "label_state": "State",
+          "label_timezone": "Timezone",
+          "question_delete_location": "Are you sure you want to delete this location?",
+          "title": "Locations"
+        }
+      },
       "description": "Settings for all Features subscribed to by a Tenant",
       "permission": {
         "settings_access": {
@@ -13328,7 +13978,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.34","src":"https://maps.googleapis.com/maps/api/js?v=3.34&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+b1b0e314"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.35","src":"https://maps.googleapis.com/maps/api/js?v=3.35&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+27817b52"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
