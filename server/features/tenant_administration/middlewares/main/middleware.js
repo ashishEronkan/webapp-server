@@ -166,7 +166,7 @@ class Main extends PlantWorksBaseMiddleware {
 
 			tenantData = this.$jsonApiMapper.map(tenantData, 'tenant-administration/tenant', {
 				'typeForModel': {
-					'tenantLocation': 'tenant-administration/tenant_location'
+					'tenantLocations': 'tenant-administration/tenant-location'
 				},
 
 				'enableLinks': false
@@ -254,7 +254,7 @@ class Main extends PlantWorksBaseMiddleware {
 				'withRelated': ctxt.query.include ? ctxt.query.include.split(',').map((inclRsrc) => { return inclRsrc.trim(); }) : ['tenant']
 			});
 
-			tenantLocationData = this.$jsonApiMapper.map(tenantLocationData, 'tenant-administration/tenant_location', {
+			tenantLocationData = this.$jsonApiMapper.map(tenantLocationData, 'tenant-administration/tenant-location', {
 				'typeForModel': {
 					'tenant': 'tenant-administration/tenant'
 				},

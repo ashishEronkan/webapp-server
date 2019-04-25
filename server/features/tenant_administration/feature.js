@@ -84,8 +84,7 @@ class TenantAdministration extends PlantWorksBaseFeature {
 
 			const basicsDisplay = JSON.parse(JSON.stringify(settingsDisplay));
 
-			basicsDisplay['attributes']['name'] = 'Basics';
-			basicsDisplay['attributes']['route'] = 'account-basics';
+			basicsDisplay['attributes']['route'] = 'account.basics';
 			basicsDisplay['attributes']['icon_type'] = 'md';
 			basicsDisplay['attributes']['icon_path'] = 'account_circle';
 			basicsDisplay['attributes']['display_order'] = 'first';

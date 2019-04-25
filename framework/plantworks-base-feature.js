@@ -193,7 +193,6 @@ class PlantWorksBaseFeature extends PlantWorksBaseModule {
 				'type': 'settings/node',
 
 				'attributes': {
-					'name': inflection.transform(this.name, ['tableize', 'singularize', 'titleize']),
 					'module_type': 'feature',
 					'node_type': 'leaf',
 					'route': inflectedFeatureName,
