@@ -52,14 +52,14 @@
 		"amqplib": "*",
 		"app-module-path": "*",
 		"ascoltatori": "*",
-		"aws-sdk": "^2.445.0",
+		"aws-sdk": "^2.447.0",
 		"axios": "*",
 		"bluebird": "^3.5.4",
 		"bookshelf": "^0.14.2",
 		"bookshelf-jsonapi-params": "*",
 		"boolean-parser": "*",
 		"cassandra-driver": "^4.1.0",
-		"chokidar": "^2.1.5",
+		"chokidar": "^3.0.0",
 		"clean-stack": "^2.1.0",
 		"convert-hrtime": "^3.0.0",
 		"death": "*",
@@ -123,7 +123,7 @@
 		"upash": "*",
 		"uuid": "*",
 		"winston": "^3.2.1",
-		"ws": "^6.2.1"
+		"ws": "^7.0.0"
 	},
 	"devDependencies": {
 		"autocannon": "^3.2.1",
