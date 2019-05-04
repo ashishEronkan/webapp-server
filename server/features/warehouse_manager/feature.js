@@ -42,10 +42,15 @@ class WarehouseManager extends PlantWorksBaseFeature {
 	 * @summary  Everyone logged-in gets access.
 	 */
 	async getDashboardDisplayDetails(ctxt) {
-		// const rbacChecker = this._rbac('warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
-		// await rbacChecker(ctxt);
+		try {
+			const rbacChecker = this._rbac('warehouse-manager-configuration-read OR warehouse-manager-generate-advice-read OR warehouse-manager-receiving-read OR warehouse-manager-shipping-read');
+			await rbacChecker(ctxt);
 
-		return null;
+			return null;
+		}
+		catch(err) {
+			return null;
+		}
 	}
 
 	/**

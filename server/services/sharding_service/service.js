@@ -48,22 +48,24 @@ class ShardingService extends PlantWorksBaseService {
 			await super._setup();
 
 			const Promise = require('bluebird');
-			const hashRing = require('swim-hashring');
+			// const hashRing = require('swim-hashring');
 
 			return new Promise((resolve, reject) => {
 				try {
 					const config = JSON.parse(JSON.stringify(this.$config));
 					config.name = process.title;
 
-					this.$hashring = hashRing(config);
-					this.$hashring.once('error', (err) => {
-						reject(new PlantWorksSrvcError(`${this.name}::_setup::hashring error`, err));
-					});
+					// this.$hashring = hashRing(config);
+					// this.$hashring.once('error', (err) => {
+					// 	reject(new PlantWorksSrvcError(`${this.name}::_setup::hashring error`, err));
+					// });
 
-					this.$hashring.on('up', () => {
-						this.$hashring.on('error', this.onShardError.bind(this));
-						resolve();
-					});
+					// this.$hashring.on('up', () => {
+					// 	this.$hashring.on('error', this.onShardError.bind(this));
+					// 	resolve();
+					// });
+
+					resolve();
 				}
 				catch(err) {
 					reject(new PlantWorksSrvcError(`${this.name}::_setup::inner error`, err));
