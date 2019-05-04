@@ -6,7 +6,7 @@ exports.config = {
 	"version": "2.4.3",
 	"poweredBy": "Plant.Works Portal",
 	"connectionTimeout": 120,
-	"logLevel": "silly",
+	"logLevel": "debug",
 	"honeyPot": {
 		"apiKey": "YOUR_API_KEY"
 	},
@@ -35,6 +35,7 @@ exports.config = {
 			"Th1s!sThePlantWorksWebAppFramew0rk"
 		],
 		"config": {
+			"autoCommit": true,
 			"key": "plantworks!webapp!server",
 			"maxAge": 86400000,
 			"overwrite": true,

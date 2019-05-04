@@ -5,7 +5,10 @@ exports.config = {
 			"remote": 1
 		}
 	},
-	"contactPoints": ['127.0.0.1', 'localhost'],
-	"localDataCenter": "DC1",
+	"contactPoints": [
+		"127.0.0.1",
+		"localhost"
+	],
+	"localDataCenter": "VISH",
 	"keyspace": "plantworks"
 };
