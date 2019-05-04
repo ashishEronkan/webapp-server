@@ -118,8 +118,6 @@
 		"redis": "*",
 		"server-destroy": "*",
 		"spdy": "*",
-		"swim-hashring": "*",
-		"umzug": "*",
 		"upash": "*",
 		"uuid": "*",
 		"winston": "^3.2.1",
