@@ -379,6 +379,8 @@ class WebserverService extends PlantWorksBaseService {
 	 * @summary  Sets up the tenant context on each request so we know which node in the cluster to route it to.
 	 */
 	async _setTenant(ctxt, next) {
+		let _setTenantError = true;
+
 		try {
 			const cacheSrvc = this.$dependencies.CacheService,
 				dbSrvc = this.$dependencies.DatabaseService.knex;
@@ -439,14 +441,26 @@ class WebserverService extends PlantWorksBaseService {
 			ctxt.state.tenant = tenant;
 			ctxt.request.headers['tenant'] = JSON.stringify(tenant);
 
+			_setTenantError = false;
 			await next();
+			_setTenantError = true;
 		}
 		catch(err) {
 			let error = err;
 
-			// eslint-disable-next-line curly
-			if(error && !(error instanceof PlantWorksSrvcError)) {
+			if(!error) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_setTenant: Unknown Error`);
+				throw error;
+			}
+
+			if(_setTenantError) { // eslint-disable-line curly
 				error = new PlantWorksSrvcError(`${this.name}::_setTenant`, error);
+				throw error;
+			}
+
+			if(!(error instanceof PlantWorksBaseError)) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::_setTenant::Web Request Error: `, err);
+				throw error;
 			}
 
 			throw error;

@@ -241,6 +241,14 @@ class Main extends PlantWorksBaseMiddleware {
 			});
 
 			moduleData.data.relationships.features = JSON.parse(JSON.stringify(moduleData.data.relationships.modules));
+			delete moduleData.data.relationships.modules;
+
+			if(moduleData.data.relationships.tenant_features.data.length) { // eslint-disable-line curly
+				moduleData.data.relationships['tenant_feature'] = { 'data': null };
+				moduleData.data.relationships['tenant_feature']['data'] = moduleData.data.relationships.tenant_features.data.pop();
+			}
+
+			delete moduleData.data.relationships.tenant_features;
 			return moduleData;
 		}
 		catch(err) {

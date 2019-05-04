@@ -74,7 +74,9 @@ class TenantAdministration extends PlantWorksBaseFeature {
 	 *
 	 * @summary  Access for Tenant Administrators, only.
 	 */
-	async getSettingsDisplayDetails(ctxt) { // eslint-disable-line no-unused-vars
+	async getSettingsDisplayDetails(ctxt) {
+		const settingsItems = [];
+
 		try {
 			const rbacChecker = this._rbac('tenant-administration-read');
 			await rbacChecker(ctxt);
@@ -84,16 +86,40 @@ class TenantAdministration extends PlantWorksBaseFeature {
 
 			const basicsDisplay = JSON.parse(JSON.stringify(settingsDisplay));
 
+			basicsDisplay['id'] += '-1';
 			basicsDisplay['attributes']['route'] = 'account.basics';
 			basicsDisplay['attributes']['icon_type'] = 'md';
 			basicsDisplay['attributes']['icon_path'] = 'account_circle';
 			basicsDisplay['attributes']['display_order'] = 'first';
 
-			return [basicsDisplay];
+			settingsItems.push(basicsDisplay);
 		}
 		catch(err) {
-			return null;
+			// Do nothing;
 		}
+
+		try {
+			const rbacChecker = this._rbac('feature-manager-read');
+			await rbacChecker(ctxt);
+
+			const settingsDisplay = await super.getSettingsDisplayDetails(ctxt);
+			if(!settingsDisplay) return null;
+
+			const featuresDisplay = JSON.parse(JSON.stringify(settingsDisplay));
+
+			featuresDisplay['id'] += '-2';
+			featuresDisplay['attributes']['route'] = 'account.features';
+			featuresDisplay['attributes']['icon_type'] = 'mdi';
+			featuresDisplay['attributes']['icon_path'] = 'alpha-f';
+			featuresDisplay['attributes']['display_order'] = '0';
+
+			settingsItems.push(featuresDisplay);
+		}
+		catch(err) {
+			// Do nothing;
+		}
+
+		return settingsItems;
 	}
 	// #endregion
 

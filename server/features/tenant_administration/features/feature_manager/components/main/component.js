@@ -89,7 +89,7 @@ class Main extends PlantWorksBaseComponent {
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error retrieving tenant feature`, err);
+			throw new PlantWorksComponentError(`Error retrieving all tenant feature`, err);
 		}
 	}
 
@@ -119,7 +119,7 @@ class Main extends PlantWorksBaseComponent {
 			return null;
 		}
 		catch(err) {
-			throw new PlantWorksComponentError(`Error retrieving tenant feature`, err);
+			throw new PlantWorksComponentError(`Error adding tenant feature`, err);
 		}
 	}
 

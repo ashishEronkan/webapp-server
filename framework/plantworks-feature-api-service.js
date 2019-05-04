@@ -12,6 +12,8 @@
  * @ignore
  */
 const PlantWorksBaseService = require('plantworks-base-service').PlantWorksBaseService;
+
+const PlantWorksBaseError = require('plantworks-base-error').PlantWorksBaseError;
 const PlantWorksSrvcError = require('plantworks-service-error').PlantWorksServiceError;
 
 /**
@@ -150,6 +152,8 @@ class FeatureApiService extends PlantWorksBaseService {
 	 * @summary  Executes all the apis registered as handlers for the pattern.
 	 */
 	async execute(pattern, data) {
+		let _featureApiSrvcError = true;
+
 		try {
 			const patrunPattern = pattern.split('::').reduce((obj, value) => {
 				obj[value] = value;
@@ -170,13 +174,18 @@ class FeatureApiService extends PlantWorksBaseService {
 					if(!parentModule) throw new PlantWorksSrvcError(`No API Service found to execute request`);
 				}
 
+				_featureApiSrvcError = false;
 				const parentResults = await parentApiService.execute(pattern, data);
+				_featureApiSrvcError = true;
+
 				return parentResults;
 			}
 
-			const results = [];
+			_featureApiSrvcError = false;
 
+			const results = [];
 			let errors = null;
+
 			for(const api of apis) { // eslint-disable-line curly
 				try {
 					const result = await api(...data);
@@ -196,7 +205,24 @@ class FeatureApiService extends PlantWorksBaseService {
 				throw errors;
 		}
 		catch(err) {
-			throw new PlantWorksSrvcError(`${this.name}::execute error`, err);
+			let error = err;
+
+			if(!error) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::execute: Unknown Error`);
+				throw error;
+			}
+
+			if(_featureApiSrvcError) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::execute`, error);
+				throw error;
+			}
+
+			if(!(error instanceof PlantWorksBaseError)) { // eslint-disable-line curly
+				error = new PlantWorksSrvcError(`${this.name}::execute::Error: `, err);
+				throw error;
+			}
+
+			throw error;
 		}
 	}
 
