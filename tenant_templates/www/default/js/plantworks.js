@@ -1187,8 +1187,7 @@
     'onApproxLocationChanged': Ember.observer('approxLocation', function () {
       if (!this.get('state.model.isNew')) return;
       if (this.get('state.model.name') === this.get('approxLocation')) return;
-      this.set('state.model.name', this.get('approxLocation').split(',')[0].trim());
-      this.get('_markGoogleMap').perform();
+      this.set('state.model.name', this.get('approxLocation').split(',')[0].trim()); // this.get('_markGoogleMap').perform();
     }),
     '_onClickMap': (0, _emberConcurrency.task)(function* (position) {
       this._clearMapMarkers();
@@ -1217,7 +1216,7 @@
 
       if (this.get('state.model.isNew') && this.get('state.model.latitude') === 0) {
         this.set('approxLocation', this.get('state.model.name'));
-        yield this.get('_markGoogleMap').perform();
+        yield this.get('markGoogleMap').perform();
         return;
       }
 
@@ -1231,7 +1230,7 @@
         'lng': this.get('state.model.longitude') || 0
       });
     }).drop(),
-    '_markGoogleMap': (0, _emberConcurrency.task)(function* () {
+    'markGoogleMap': (0, _emberConcurrency.task)(function* () {
       yield (0, _emberConcurrency.timeout)(3000);
 
       this._clearMapMarkers();
@@ -1462,6 +1461,239 @@
         }
       });
     }).restartable()
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/common/pworks-table-actions", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    view(record) {
+      if (this.get('callbacks.viewAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.viewAction'), record);
+        return true;
+      }
+
+      if (this.get('callbacks.viewTask')) {
+        this.get('callbacks.viewTask').perform(record);
+        return true;
+      }
+
+      return false;
+    },
+
+    edit(record) {
+      if (this.get('inlineEditEnabled')) {
+        this.get('editRow')();
+        return true;
+      }
+
+      if (this.get('callbacks.editAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.editAction'), record);
+        return true;
+      }
+
+      if (this.get('callbacks.editTask')) {
+        this.get('callbacks.editTask').perform(record);
+        return true;
+      }
+
+      return false;
+    },
+
+    save(record) {
+      if (this.get('inlineEditEnabled')) {
+        this.get('saveRow')();
+      }
+
+      if (this.get('callbacks.saveAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.saveAction'), record);
+        return true;
+      }
+
+      if (this.get('callbacks.saveTask')) {
+        this.get('callbacks.saveTask').perform(record);
+        return true;
+      }
+
+      return false;
+    },
+
+    cancel(record) {
+      if (this.get('inlineEditEnabled')) {
+        this.get('cancelEditRow')();
+      }
+
+      if (this.get('callbacks.cancelAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.cancelAction'), record);
+        return true;
+      }
+
+      if (this.get('callbacks.cancelTask')) {
+        this.get('callbacks.cancelTask').perform(record);
+        return true;
+      }
+
+      return false;
+    },
+
+    delete(record) {
+      if (this.get('callbacks.deleteAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.deleteAction'), record);
+        return true;
+      }
+
+      if (this.get('callbacks.deleteTask')) {
+        this.get('callbacks.deleteTask').perform(record);
+        return true;
+      }
+
+      return false;
+    },
+
+    actions: {
+      collapseRow(index, record) {
+        this.get('collapseRow')(index, record);
+      },
+
+      expandRow(index, record) {
+        this.get('expandRow')(index, record);
+      }
+
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/common/pworks-table-select-all-rows-checkbox", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    actions: {
+      toggleAllSelection() {
+        this.get('toggleAllSelection')();
+      }
+
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/common/pworks-table-select-row-checkbox", ["exports", "plantworks/framework/base-component"], function (_exports, _baseComponent) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    actions: {
+      clickOnRow(index, record, event) {
+        this.get('clickOnRow')(index, record);
+        event.stopPropagation();
+      }
+
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/components/common/pworks-table", ["exports", "plantworks/framework/base-component", "ember-models-table/addon/themes/bootstrap4"], function (_exports, _baseComponent, _bootstrap) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = _baseComponent.default.extend({
+    'themeInstance': null,
+    '_messages': null,
+
+    init() {
+      this._super(...arguments);
+
+      this.set('_messages', {
+        'searchLabel': this.intl.t('general.label_filter'),
+        'tableSummary': this.intl.t('pworks_table.label_summary')
+      });
+    },
+
+    willInsertElement() {
+      this._super(...arguments);
+
+      const mergedMessages = Object.assign({}, this.get('_messages'), this.get('messages') || {});
+      this.set('themeInstance', _bootstrap.default.default.create({
+        'table': 'm-0 p-0 table table-hover table-condensed',
+        'globalFilterWrapper': 'float-right pr-2 mb-2',
+        'messages': mergedMessages
+      }));
+      if (!this.get('editEnabled') && !this.get('inlineEditEnabled')) return;
+      const modelTableActionsAdded = this.get('columns').filter(columnDef => {
+        return columnDef.component === 'plantworksModelTableActions';
+      }).length;
+      if (modelTableActionsAdded) return;
+      this.get('columns').push({
+        'title': '',
+        'component': 'plantworksModelTableActions',
+        'mayBeHidden': false,
+        'editable': false
+      });
+    },
+
+    didInsertElement() {
+      this._super(...arguments);
+
+      if (!this.get('createEnabled')) return;
+      if (!(this.get('callbacks.addAction') || this.get('callbacks.addTask'))) return;
+      const createButton = window.$('<button type="button" class="md-default-theme md-button md-primary md-raised"></button>');
+      createButton.html("\n<md-icon md-font-icon=\"add\" aria-label=\"add\" class=\"m-0 paper-icon md-font material-icons md-default-theme\">add</md-icon>\n<span>Add</span>\n<div class=\"md-ripple-container\" style=\"\"></div>\n");
+      createButton.on('click', () => {
+        if (this.get('callbacks.addAction')) {
+          this.invokeAction('controller-action', this.get('callbacks.addAction'));
+          return;
+        }
+
+        if (this.get('callbacks.addTask')) {
+          this.get('callbacks.addTask').perform();
+        }
+      });
+      const lastHeaderColumn = window.$(this.$('table thead tr:first-child th:last-child')[0]);
+      lastHeaderColumn.addClass('text-right');
+      lastHeaderColumn.html(createButton);
+    },
+
+    willDestroyElement() {
+      const createButton = window.$(this.$('table thead tr:first-child th:last-child button.md-button.md-primary')[0]);
+      createButton.off('click');
+
+      this._super(...arguments);
+    },
+
+    displayDataChanged(displayChangedData) {
+      if (this.get('callbacks.displayDataChangedAction')) {
+        this.invokeAction('controller-action', this.get('callbacks.displayDataChangedAction'), displayChangedData);
+        return true;
+      }
+
+      if (this.get('callbacks.displayDataChangedTask')) {
+        this.get('callbacks.displayDataChangedTask').perform(displayChangedData);
+        return true;
+      }
+    }
+
   });
 
   _exports.default = _default;
@@ -12888,10 +13120,82 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "6a/GkrxB",
-    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/common/location-editor.hbs' @ L3:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/common/location-editor.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/common/location-editor.hbs' @ L5:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[25,[\"state\",\"model\",\"name\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/common/location-editor.hbs' @ L10:C4) \"],null]],null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-stretch\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-65 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex\",[29,\"t\",[\"settings_feature.account.locations.label_approximate_location\"],null],[25,[\"approxLocation\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"approxLocation\"]]],null]],null]]]],false],[0,\"\\n\"],[4,\"paper-button\",null,[[\"accent\",\"raised\",\"onClick\",\"bubbles\"],[true,false,[29,\"perform\",[[25,[\"searchApproximateLocation\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"search\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[12,\"id\",[30,[\"common-location-editor-map-container-\",[25,[\"state\",\"model\",\"id\"]]]]],[9],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-30 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_name\"],null],[25,[\"state\",\"model\",\"name\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line1\"],null],[25,[\"state\",\"model\",\"line1\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line1\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line2\"],null],[25,[\"state\",\"model\",\"line2\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line2\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line3\"],null],[25,[\"state\",\"model\",\"line3\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line3\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_area\"],null],[25,[\"state\",\"model\",\"area\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"area\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_city\"],null],[25,[\"state\",\"model\",\"city\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"city\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_state\"],null],[25,[\"state\",\"model\",\"state\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"state\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_country\"],null],[25,[\"state\",\"model\",\"country\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"country\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_postcode\"],null],[25,[\"state\",\"model\",\"postalCode\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"postalCode\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-90 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_latitude\"],null],[25,[\"state\",\"model\",\"latitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"latitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_longitude\"],null],[25,[\"state\",\"model\",\"longitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"longitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_timezone\"],null],[25,[\"state\",\"model\",\"timezoneName\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"timezoneName\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "dg+Kgsj1",
+    "block": "{\"symbols\":[\"card\",\"header\",\"text\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"header\"]],\"expected `card.header` to be a contextual component but found a string. Did you mean `(component card.header)`? ('plantworks/templates/components/common/location-editor.hbs' @ L3:C4) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,2,[\"text\"]],\"expected `header.text` to be a contextual component but found a string. Did you mean `(component header.text)`? ('plantworks/templates/components/common/location-editor.hbs' @ L4:C5) \"],null]],null,{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,3,[\"title\"]],\"expected `text.title` to be a contextual component but found a string. Did you mean `(component text.title)`? ('plantworks/templates/components/common/location-editor.hbs' @ L5:C6) \"],null]],null,{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[25,[\"state\",\"model\",\"name\"]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[3]},null]],\"parameters\":[2]},null],[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/common/location-editor.hbs' @ L10:C4) \"],null]],null,{\"statements\":[[0,\"\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-space-between-stretch\"],[9],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-65 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"layout-row layout-align-start-center\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"onChange\"],[\"text\",\"flex\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_approximate_location\"],null],[25,[\"approxLocation\"]],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"approxLocation\"]]],null]],null]]]],false],[0,\"\\n\"],[4,\"paper-button\",null,[[\"class\",\"accent\",\"mini\",\"raised\",\"onClick\",\"bubbles\"],[\"ml-0 pl-0\",true,true,false,[29,\"perform\",[[25,[\"markGoogleMap\"]]],null],false]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"search\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null],[0,\"\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex layout-row layout-align-start-stretch\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex\"],[12,\"id\",[30,[\"common-location-editor-map-container-\",[25,[\"state\",\"model\",\"id\"]]]]],[9],[10],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-30 layout-column layout-align-center-stretch\"],[9],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_name\"],null],[25,[\"state\",\"model\",\"name\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"name\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line1\"],null],[25,[\"state\",\"model\",\"line1\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line1\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line2\"],null],[25,[\"state\",\"model\",\"line2\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line2\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_line3\"],null],[25,[\"state\",\"model\",\"line3\"]],[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"line3\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_area\"],null],[25,[\"state\",\"model\",\"area\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"area\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_city\"],null],[25,[\"state\",\"model\",\"city\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"city\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_state\"],null],[25,[\"state\",\"model\",\"state\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"state\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_country\"],null],[25,[\"state\",\"model\",\"country\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"country\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"required\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_postcode\"],null],[25,[\"state\",\"model\",\"postalCode\"]],true,[29,\"not\",[[25,[\"state\",\"model\",\"latitude\"]]],null],[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"postalCode\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[7,\"div\"],[11,\"class\",\"flex-90 layout-row layout-align-space-between\"],[9],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_latitude\"],null],[25,[\"state\",\"model\",\"latitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"latitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-45\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_longitude\"],null],[25,[\"state\",\"model\",\"longitude\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"longitude\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\\t\"],[10],[0,\"\\n\\t\\t\\t\"],[1,[29,\"paper-input\",null,[[\"type\",\"class\",\"label\",\"value\",\"disabled\",\"onChange\"],[\"text\",\"flex-90\",[29,\"t\",[\"plant_works_webapp_server_server.settings_feature.account.locations.label_timezone\"],null],[25,[\"state\",\"model\",\"timezoneName\"]],true,[29,\"action\",[[24,0,[]],[29,\"mut\",[[25,[\"state\",\"model\",\"timezoneName\"]]],null]],null]]]],false],[0,\"\\n\\t\\t\"],[10],[0,\"\\n\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/common/location-editor.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/common/pworks-table-actions", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "6g2rgsnw",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"div\"],[11,\"class\",\"w-100 text-right\"],[9],[0,\"\\n\"],[4,\"if\",[[29,\"or\",[[25,[\"record\",\"isLoading\"]],[25,[\"record\",\"isReloading\"]],[25,[\"record\",\"isSaving\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"warn\",\"iconButton\",\"onClick\"],[\"m-0\",true,true,null]],{\"statements\":[[0,\"\\t\\t\"],[1,[29,\"paper-icon\",[\"rotate-left\"],[[\"reverseSpin\"],[true]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[29,\"and\",[[29,\"or\",[[25,[\"callbacks\",\"viewAction\"]],[25,[\"callbacks\",\"viewTask\"]]],null],[29,\"not\",[[25,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"iconButton\",\"onClick\"],[true,[29,\"action\",[[24,0,[]],\"controller-action\",\"view\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"remove-red-eye\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"inlineEditEnabled\"]]],null,{\"statements\":[[4,\"unless\",[[25,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"edit\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"edit\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"or\",[[25,[\"record\",\"isNew\"]],[25,[\"record\",\"hasDirtyAttributes\"]],[25,[\"record\",\"isDirty\"]],[25,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[29,\"or\",[[25,[\"callbacks\",\"saveAction\"]],[25,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"save\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[25,[\"isEditRow\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"cancel\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"and\",[[29,\"or\",[[25,[\"callbacks\",\"deleteAction\"]],[25,[\"callbacks\",\"deleteTask\"]]],null],[29,\"not\",[[25,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"delete\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[29,\"not\",[[29,\"not\",[[25,[\"expandedRowComponent\"]]],null]],null]],null,{\"statements\":[[4,\"if\",[[25,[\"isExpanded\"]]],null,{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[25,[\"themeInstance\",\"collapseRow\"]],true,true,[29,\"action\",[[24,0,[]],\"collapseRow\",[25,[\"index\"]],[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[\"angle-double-up\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},{\"statements\":[[4,\"paper-button\",null,[[\"class\",\"accent\",\"iconButton\",\"onClick\"],[[25,[\"themeInstance\",\"expandRow\"]],true,true,[29,\"action\",[[24,0,[]],\"expandRow\",[25,[\"index\"]],[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"fa-icon\",[\"angle-double-down\"],[[\"size\"],[\"lg\"]]],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]},{\"statements\":[[4,\"if\",[[29,\"and\",[[29,\"or\",[[25,[\"callbacks\",\"editAction\"]],[25,[\"callbacks\",\"editTask\"]]],null],[29,\"not\",[[29,\"get\",[[25,[\"record\"]],[29,\"or\",[[25,[\"callbacks\",\"editCheckField\"]],\"isEditing\"],null]],null]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"accent\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"edit\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"open-in-new\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}],[0,\"\\n\"],[4,\"if\",[[29,\"or\",[[25,[\"record\",\"isNew\"]],[25,[\"record\",\"hasDirtyAttributes\"]],[25,[\"record\",\"isDirty\"]],[25,[\"record\",\"content\",\"isDirty\"]]],null]],null,{\"statements\":[[4,\"if\",[[29,\"or\",[[25,[\"callbacks\",\"saveAction\"]],[25,[\"callbacks\",\"saveTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"primary\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"save\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"save\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null],[4,\"if\",[[29,\"or\",[[25,[\"callbacks\",\"cancelAction\"]],[25,[\"callbacks\",\"cancelTask\"]]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"cancel\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"close\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]},null],[0,\"\\n\"],[4,\"if\",[[29,\"and\",[[29,\"or\",[[25,[\"callbacks\",\"deleteAction\"]],[25,[\"callbacks\",\"deleteTask\"]]],null],[29,\"not\",[[25,[\"record\",\"isNew\"]]],null]],null]],null,{\"statements\":[[4,\"paper-button\",null,[[\"warn\",\"iconButton\",\"onClick\"],[true,true,[29,\"action\",[[24,0,[]],\"controller-action\",\"delete\",[25,[\"record\"]]],null]]],{\"statements\":[[0,\"\\t\\t\\t\\t\"],[1,[29,\"paper-icon\",[\"delete\"],null],false],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[]},null]],\"parameters\":[]}]],\"parameters\":[]}],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/common/pworks-table-actions.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/common/pworks-table-select-all-rows-checkbox", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "2ifAEGOl",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"span\"],[12,\"class\",[29,\"if\",[[29,\"is-equal\",[[25,[\"selectedItems\",\"length\"]],[25,[\"data\",\"length\"]]],null],[25,[\"themeInstance\",\"select-all-rows\"]],[25,[\"themeInstance\",\"deselect-all-rows\"]]],null]],[9],[3,\"action\",[[24,0,[]],\"toggleAllSelection\"]],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/common/pworks-table-select-all-rows-checkbox.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/common/pworks-table-select-row-checkbox", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "CYZ4RQrZ",
+    "block": "{\"symbols\":[],\"statements\":[[7,\"span\"],[12,\"class\",[29,\"if\",[[25,[\"isSelected\"]],[25,[\"themeInstance\",\"select-row\"]],[25,[\"themeInstance\",\"deselect-row\"]]],null]],[12,\"onclick\",[29,\"action\",[[24,0,[]],\"clickOnRow\",[25,[\"index\"]],[25,[\"record\"]]],null]],[9],[10],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/common/pworks-table-select-row-checkbox.hbs"
+    }
+  });
+
+  _exports.default = _default;
+});
+;define("plantworks/templates/components/common/pworks-table", ["exports"], function (_exports) {
+  "use strict";
+
+  Object.defineProperty(_exports, "__esModule", {
+    value: true
+  });
+  _exports.default = void 0;
+
+  var _default = Ember.HTMLBars.template({
+    "id": "xJT2hYL7",
+    "block": "{\"symbols\":[],\"statements\":[[1,[29,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\",\"controller-action\"],[[25,[\"data\"]],[25,[\"columns\"]],[29,\"assign\",[[25,[\"columnComponents\"]],[29,\"hash\",null,[[\"plantworksModelTableActions\"],[[29,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\",\"controller-action\"],[[25,[\"callbacks\"]],[25,[\"expandedRowComponent\"]],[25,[\"inlineEditEnabled\"]],\"controller-action\"]]]]]]],null],[25,[\"themeInstance\"]],[25,[\"expandedItems\"]],[25,[\"expandedRowComponent\"]],[25,[\"multipleExpand\"]],[25,[\"selectedItems\"]],[25,[\"multipleSelect\"]],true,true,true,true,true,false,true,false,[29,\"action\",[[24,0,[]],\"controller-action\",\"displayDataChanged\"],null],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "meta": {
+      "moduleName": "plantworks/templates/components/common/pworks-table.hbs"
     }
   });
 
@@ -13922,8 +14226,10 @@
       "label_custom": "Custom",
       "label_default": "Default",
       "label_description": "Description",
+      "label_filter": "Filter",
       "label_name": "Name",
       "label_new": "New",
+      "label_search": "Search",
       "label_subscribed": "Subscribed",
       "label_unsubscribed": "Unsubscribed",
       "label_user": "User"
@@ -14284,6 +14590,9 @@
         },
         "title": "Warehouse Manager"
       }
+    },
+    "pworks_table": {
+      "label_summary": "Showing %@ - %@ of %@"
     },
     "timezone": {
       "id": {
