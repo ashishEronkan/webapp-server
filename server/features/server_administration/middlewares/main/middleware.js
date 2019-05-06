@@ -221,9 +221,15 @@ class Main extends PlantWorksBaseMiddleware {
 				'module_id': ctxt.params.feature_id
 			});
 
-			let moduleData = await ModuleRecord.fetch({
-				'withRelated': ['parent', 'permissions', 'modules', 'tenant_features']
-			});
+			let moduleData = await ModuleRecord
+				.query(function(qb) {
+					if(ctxt.state.tenant['sub_domain'] !== 'www') qb.where('deploy', '<>', 'admin');
+				})
+				.fetch({
+					'withRelated': [
+						'parent', 'permissions', 'modules', 'tenant_features'
+					]
+				});
 
 			moduleData = this.$jsonApiMapper.map(moduleData, 'server_administration/features', {
 				'typeForModel': {
