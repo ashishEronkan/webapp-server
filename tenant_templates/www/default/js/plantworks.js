@@ -1610,7 +1610,7 @@
 
   _exports.default = _default;
 });
-;define("plantworks/components/common/pworks-table", ["exports", "plantworks/framework/base-component", "ember-models-table/addon/themes/bootstrap4"], function (_exports, _baseComponent, _bootstrap) {
+;define("plantworks/components/common/pworks-table", ["exports", "plantworks/framework/base-component", "plantworks/themes/bootstrap4"], function (_exports, _baseComponent, _bootstrap) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -1635,7 +1635,7 @@
       this._super(...arguments);
 
       const mergedMessages = Object.assign({}, this.get('_messages'), this.get('messages') || {});
-      this.set('themeInstance', _bootstrap.default.default.create({
+      this.set('themeInstance', _bootstrap.default.create({
         'table': 'm-0 p-0 table table-hover table-condensed',
         'globalFilterWrapper': 'float-right pr-2 mb-2',
         'messages': mergedMessages
@@ -13192,8 +13192,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "xJT2hYL7",
-    "block": "{\"symbols\":[],\"statements\":[[1,[29,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\",\"controller-action\"],[[25,[\"data\"]],[25,[\"columns\"]],[29,\"assign\",[[25,[\"columnComponents\"]],[29,\"hash\",null,[[\"plantworksModelTableActions\"],[[29,\"component\",[\"plantworks-model-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\",\"controller-action\"],[[25,[\"callbacks\"]],[25,[\"expandedRowComponent\"]],[25,[\"inlineEditEnabled\"]],\"controller-action\"]]]]]]],null],[25,[\"themeInstance\"]],[25,[\"expandedItems\"]],[25,[\"expandedRowComponent\"]],[25,[\"multipleExpand\"]],[25,[\"selectedItems\"]],[25,[\"multipleSelect\"]],true,true,true,true,true,false,true,false,[29,\"action\",[[24,0,[]],\"controller-action\",\"displayDataChanged\"],null],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
+    "id": "VWEwUjFb",
+    "block": "{\"symbols\":[],\"statements\":[[1,[29,\"models-table\",null,[[\"data\",\"columns\",\"columnComponents\",\"themeInstance\",\"expandedItems\",\"expandedRowComponent\",\"multipleExpand\",\"selectedItems\",\"multipleSelect\",\"filteringIgnoreCase\",\"multipleColumnsSorting\",\"showComponentFooter\",\"showGlobalFilter\",\"showPageSize\",\"useFilteringByColumns\",\"useNumericPagination\",\"showColumnsDropdown\",\"displayDataChangedAction\",\"controller-action\"],[[25,[\"data\"]],[25,[\"columns\"]],[29,\"assign\",[[25,[\"columnComponents\"]],[29,\"hash\",null,[[\"plantworksModelTableActions\"],[[29,\"component\",[\"common/pworks-table-actions\"],[[\"callbacks\",\"expandedRowComponent\",\"inlineEditEnabled\",\"controller-action\"],[[25,[\"callbacks\"]],[25,[\"expandedRowComponent\"]],[25,[\"inlineEditEnabled\"]],\"controller-action\"]]]]]]],null],[25,[\"themeInstance\"]],[25,[\"expandedItems\"]],[25,[\"expandedRowComponent\"]],[25,[\"multipleExpand\"]],[25,[\"selectedItems\"]],[25,[\"multipleSelect\"]],true,true,true,true,true,false,true,false,[29,\"action\",[[24,0,[]],\"controller-action\",\"displayDataChanged\"],null],[29,\"action\",[[24,0,[]],\"controller-action\"],null]]]],false],[0,\"\\n\"]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/common/pworks-table.hbs"
     }
@@ -14592,6 +14592,7 @@
       }
     },
     "pworks_table": {
+      "label_nodata": "Nothing to show",
       "label_summary": "Showing %@ - %@ of %@"
     },
     "timezone": {
@@ -14694,7 +14695,7 @@
 ;define('plantworks/config/environment', [], function() {
   
           var exports = {
-            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.35","src":"https://maps.googleapis.com/maps/api/js?v=3.35&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+bfc1148e"},"exportApplicationGlobal":true}
+            'default': {"modulePrefix":"plantworks","environment":"development","rootURL":"/","locationType":"auto","changeTracker":{"trackHasMany":true,"auto":true,"enableIsDirty":true},"contentSecurityPolicy":{"font-src":"'self' fonts.gstatic.com","style-src":"'self' fonts.googleapis.com"},"ember-google-maps":{"key":"AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA","language":"en","region":"IN","protocol":"https","version":"3.35","src":"https://maps.googleapis.com/maps/api/js?v=3.35&region=IN&language=en&key=AIzaSyDof1Dp2E9O1x5oe78cOm0nDbYcnrWiPgA"},"ember-paper":{"insertFontLinks":false},"fontawesome":{"icons":{"free-solid-svg-icons":"all"}},"googleFonts":["Noto+Sans:400,400i,700,700i","Noto+Serif:400,400i,700,700i&subset=devanagari","Keania+One"],"moment":{"allowEmpty":true,"includeTimezone":"all","includeLocales":true,"localeOutputPath":"/moment-locales"},"pageTitle":{"prepend":false,"replace":false,"separator":" > "},"resizeServiceDefaults":{"debounceTimeout":100,"heightSensitive":true,"widthSensitive":true,"injectionFactories":["component"]},"plantworks":{"domain":".plant.works","startYear":2016},"EmberENV":{"FEATURES":{},"EXTEND_PROTOTYPES":{},"_JQUERY_INTEGRATION":true},"APP":{"LOG_RESOLVER":true,"LOG_ACTIVE_GENERATION":true,"LOG_TRANSITIONS":true,"LOG_TRANSITIONS_INTERNAL":true,"LOG_VIEW_LOOKUPS":true,"autoboot":false,"name":"webapp-frontend","version":"2.4.3+710471ed"},"exportApplicationGlobal":true}
           };
           Object.defineProperty(exports, '__esModule', {value: true});
           return exports;
