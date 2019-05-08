@@ -280,8 +280,7 @@ class Main extends PlantWorksBaseMiddleware {
 			let tenantUserData = await this.$TenantUserModel
 			.query(function(qb) {
 				qb
-				.where({ 'tenant_id': ctxt.state.tenant.tenant_id })
-				.andWhere('user_id', '<>', 'ffffffff-ffff-4fff-ffff-ffffffffffff');
+				.where({ 'tenant_id': ctxt.state.tenant.tenant_id });
 			})
 			.fetchAll({
 				'withRelated': (ctxt.query.include && ctxt.query.include.length) ? ctxt.query.include.split(',').map((related) => { return related.trim(); }) : ['tenant', 'user', 'user.contacts']
