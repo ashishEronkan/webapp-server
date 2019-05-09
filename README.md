@@ -2,10 +2,7 @@
 The Plant.Works Web Application Server - the browser front-end for the Plant.Works platform.
 
 ## **Setting up the Plant.Works WebApp Server development environment**
-This section of the document described how to setup the webapp server codebase development environment, with the assumption that the development machine
-is Ubuntu 18.04 LTS or later.
-
-For non Debian-based Linux distros, or OS X / Windows machines, please refer to the appropriate manuals directly.
+This section of the document described how to setup the webapp server codebase development environment, with the assumption that the development machine is Ubuntu 18.04 LTS or later. For non Debian-based Linux distros, or OS X / Windows machines, please refer to the appropriate manuals directly.
 
 ### **Pre-requisites**
 The pre-requisites for runing the webapp server codebase are:
@@ -31,7 +28,7 @@ On Debian-based Linux distros, follow these instructions:
 **Add the PostgreSQL APT Repository**
 
 ```
-sudo apt-get install wget ca-certificates
+sudo apt install wget ca-certificates
 wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 
 sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
@@ -41,9 +38,7 @@ sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`
 
 ```
 sudo apt update
-sudo apt upgrade
-
-sudo apt-get install postgresql postgresql-contrib libpq-dev pgadmin3
+sudo apt install postgresql postgresql-contrib libpq-dev pgadmin3
 ```
 
 **Test if the installation went through fine**
@@ -127,10 +122,8 @@ $ sudo apt-add-repository ppa:chris-lea/redis-server
 2. Install the Redis server and client utilities
 
 ```
-$ sudo apt-get update
-$ sudo apt-get upgrade
-
-$ sudo apt-get install redis-server
+$ sudo apt update
+$ sudo apt install redis-server
 ```
 
 **Test if the installation went through fine:**
@@ -173,10 +166,8 @@ deb-src https://deb.nodesource.com/node_12.x bionic main
 3. Install node.js
 
 ```
-$ sudo apt-get update
-$ sudo apt-get upgrade
-
-$ sudo apt-get install nodejs
+$ sudo apt update
+$ sudo apt install nodejs
 ```
 
 **Test if the installation went through fine:**
@@ -203,17 +194,40 @@ $ sudo npm i -g eslint jsdoc eslint-plugin-jsdoc knex
 If all of the above steps have been executed successfully, the Ubuntu machine is ready for developing on the Plant.Works Web Application Server...
 
 ## **Getting the IDE**
-There is no "official" preference for using a particular IDE within the Engineering Team. The more common ones (in alphabetical order) are:
+The "official" IDE for using a particular IDE within the Engineering Team is: [VScode](https://code.visualstudio.com/)
+
+Depending on personal preference, the following may also be used:
 1. [Atom](https://atom.io/)
 2. [Emacs](https://www.gnu.org/software/emacs/)
-3. [VScode](https://code.visualstudio.com/)
 
 Whichever IDE / Code Editor you choose, do ensure that the following *mandatory* plugins are available and installed:
-1. [Editor Config](http://editorconfig.org/)
-2. [JSBeautify](https://www.npmjs.com/package/js-beautify)
-3. [ESLint](http://eslint.org/)
+1. [Editor Config](https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig)
+2. [JSBeautify](https://marketplace.visualstudio.com/items?itemName=HookyQR.beautify)
+3. [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
 
-## **Starting working with the code**
+For VSCode, it is recommended that you install the following additional extensions:
+1. [Complete JSDoc Tags](https://marketplace.visualstudio.com/items?itemName=HookyQR.JSDocTagComplete)
+2. [Debugger for Chrome](https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome)
+3. [Debugger for Firefox](https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-firefox-debug)
+4. [GitLens](https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens)
+5. [LiveShare](https://marketplace.visualstudio.com/items?itemName=MS-vsliveshare.vsliveshare-pack)
+
+For VSCode, the following extensions are marked "nice-to-have", and may be installed depending on personal preferences:
+1. [Cassandra Workbench](https://marketplace.visualstudio.com/items?itemName=kdcro101.vscode-cassandra)
+2. [PostgreSQL](https://marketplace.visualstudio.com/items?itemName=ms-ossdata.vscode-postgresql)
+3. [Redis Console](https://marketplace.visualstudio.com/items?itemName=kdcro101.vscode-redis)
+4. [Material Theme](https://marketplace.visualstudio.com/items?itemName=Equinusocio.vsc-material-theme)
+5. [Material Icon Theme](https://marketplace.visualstudio.com/items?itemName=PKief.material-icon-theme)
+
+It is also recommended that you install / use the Fira Code font for development. Instructions on installing the font can be
+found at: [Linux Instructions](https://github.com/tonsky/FiraCode/wiki/Linux-instructions#installing-with-a-package-manager)
+
+Instructions on integrating this font into VS Code can be found here: [VS Code Instructions](https://github.com/tonsky/FiraCode/wiki/VS-Code-Instructions)
+
+
+## **Starting with the codebase**
+This section of the document described how to start working with the codebase, running the server, running the test suite, generating documentation, profiling for performance, etc.
+
 ### **Installing the required NPM modules**
 Before you can run the Server for the first time, you will need to install the dependencies required for the codebase. To do this, execute the following steps in the *Terminal*:
 
@@ -224,7 +238,8 @@ $ npm install
 
 
 ### **Setting up the database schema**
-Once the required npm modules have been installed, you will need to setup the basic database schema, and seed it with some data. To do this, execute the following steps in the *Terminal*:
+Once the required npm modules have been installed, you will need to setup the basic database schema, and seed it with some data. This assumes that you have installed the PostgreSQL Server, created a plantowrks database, etc. as detailed earlier. Once those
+steps have been executed correctly, execute the following steps in the *Terminal*:
 
 ```
 $ cd ~/source/webapp-server/knex_migrations
@@ -261,7 +276,7 @@ PlantWorksWebAppServer started in: 21800.37ms
 To **shutdown** the Server instance gracefully, simply type **Ctrl+C** in the Terminal, and wait for a couple of seconds. IF the Server shutdown correctly, you should be taken back to the command prompt.
 
 
-## **Running the build process**
+## **Executing the build process**
 Running the tests bundled with the codebase, and generating documentation, is similar to runing the server itself. To run the test cases, type the following in the *Terminal*:
 
 ```
