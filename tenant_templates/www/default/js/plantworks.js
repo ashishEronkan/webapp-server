@@ -160,6 +160,24 @@
           }
         }
       },
+      "year-short": {
+        "displayName": "yr.",
+        "relative": {
+          "0": "this yr.",
+          "1": "next yr.",
+          "-1": "last yr."
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} yr.",
+            "other": "in {0} yr."
+          },
+          "past": {
+            "one": "{0} yr. ago",
+            "other": "{0} yr. ago"
+          }
+        }
+      },
       "month": {
         "displayName": "month",
         "relative": {
@@ -175,6 +193,24 @@
           "past": {
             "one": "{0} month ago",
             "other": "{0} months ago"
+          }
+        }
+      },
+      "month-short": {
+        "displayName": "mo.",
+        "relative": {
+          "0": "this mo.",
+          "1": "next mo.",
+          "-1": "last mo."
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} mo.",
+            "other": "in {0} mo."
+          },
+          "past": {
+            "one": "{0} mo. ago",
+            "other": "{0} mo. ago"
           }
         }
       },
@@ -196,8 +232,29 @@
           }
         }
       },
+      "day-short": {
+        "displayName": "day",
+        "relative": {
+          "0": "today",
+          "1": "tomorrow",
+          "-1": "yesterday"
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} day",
+            "other": "in {0} days"
+          },
+          "past": {
+            "one": "{0} day ago",
+            "other": "{0} days ago"
+          }
+        }
+      },
       "hour": {
         "displayName": "hour",
+        "relative": {
+          "0": "this hour"
+        },
         "relativeTime": {
           "future": {
             "one": "in {0} hour",
@@ -209,8 +266,27 @@
           }
         }
       },
+      "hour-short": {
+        "displayName": "hr.",
+        "relative": {
+          "0": "this hour"
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} hr.",
+            "other": "in {0} hr."
+          },
+          "past": {
+            "one": "{0} hr. ago",
+            "other": "{0} hr. ago"
+          }
+        }
+      },
       "minute": {
         "displayName": "minute",
+        "relative": {
+          "0": "this minute"
+        },
         "relativeTime": {
           "future": {
             "one": "in {0} minute",
@@ -219,6 +295,22 @@
           "past": {
             "one": "{0} minute ago",
             "other": "{0} minutes ago"
+          }
+        }
+      },
+      "minute-short": {
+        "displayName": "min.",
+        "relative": {
+          "0": "this minute"
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} min.",
+            "other": "in {0} min."
+          },
+          "past": {
+            "one": "{0} min. ago",
+            "other": "{0} min. ago"
           }
         }
       },
@@ -237,6 +329,100 @@
             "other": "{0} seconds ago"
           }
         }
+      },
+      "second-short": {
+        "displayName": "sec.",
+        "relative": {
+          "0": "now"
+        },
+        "relativeTime": {
+          "future": {
+            "one": "in {0} sec.",
+            "other": "in {0} sec."
+          },
+          "past": {
+            "one": "{0} sec. ago",
+            "other": "{0} sec. ago"
+          }
+        }
+      }
+    },
+    "numbers": {
+      "decimal": {
+        "long": [[1000, {
+          "one": ["0 thousand", 1],
+          "other": ["0 thousand", 1]
+        }], [10000, {
+          "one": ["00 thousand", 2],
+          "other": ["00 thousand", 2]
+        }], [100000, {
+          "one": ["000 thousand", 3],
+          "other": ["000 thousand", 3]
+        }], [1000000, {
+          "one": ["0 million", 1],
+          "other": ["0 million", 1]
+        }], [10000000, {
+          "one": ["00 million", 2],
+          "other": ["00 million", 2]
+        }], [100000000, {
+          "one": ["000 million", 3],
+          "other": ["000 million", 3]
+        }], [1000000000, {
+          "one": ["0 billion", 1],
+          "other": ["0 billion", 1]
+        }], [10000000000, {
+          "one": ["00 billion", 2],
+          "other": ["00 billion", 2]
+        }], [100000000000, {
+          "one": ["000 billion", 3],
+          "other": ["000 billion", 3]
+        }], [1000000000000, {
+          "one": ["0 trillion", 1],
+          "other": ["0 trillion", 1]
+        }], [10000000000000, {
+          "one": ["00 trillion", 2],
+          "other": ["00 trillion", 2]
+        }], [100000000000000, {
+          "one": ["000 trillion", 3],
+          "other": ["000 trillion", 3]
+        }]],
+        "short": [[1000, {
+          "one": ["0K", 1],
+          "other": ["0K", 1]
+        }], [10000, {
+          "one": ["00K", 2],
+          "other": ["00K", 2]
+        }], [100000, {
+          "one": ["000K", 3],
+          "other": ["000K", 3]
+        }], [1000000, {
+          "one": ["0M", 1],
+          "other": ["0M", 1]
+        }], [10000000, {
+          "one": ["00M", 2],
+          "other": ["00M", 2]
+        }], [100000000, {
+          "one": ["000M", 3],
+          "other": ["000M", 3]
+        }], [1000000000, {
+          "one": ["0B", 1],
+          "other": ["0B", 1]
+        }], [10000000000, {
+          "one": ["00B", 2],
+          "other": ["00B", 2]
+        }], [100000000000, {
+          "one": ["000B", 3],
+          "other": ["000B", 3]
+        }], [1000000000000, {
+          "one": ["0T", 1],
+          "other": ["0T", 1]
+        }], [10000000000000, {
+          "one": ["00T", 2],
+          "other": ["00T", 2]
+        }], [100000000000000, {
+          "one": ["000T", 3],
+          "other": ["000T", 3]
+        }]]
       }
     }
   }];
@@ -6657,6 +6843,8 @@
     },
 
     didInsertElement() {
+      const self = this;
+
       this._super(...arguments);
 
       const moduTree = this.$('div#settings-account-feature-manager-tree-container').jstree({
@@ -6681,6 +6869,31 @@
               return {
                 'id': node.id
               };
+            },
+            'success': function (nodeData) {
+              const treedData = {};
+              nodeData.forEach(singleNodeData => {
+                treedData[singleNodeData.id] = {
+                  'parent': singleNodeData.parent,
+                  'text': singleNodeData.text,
+                  'i18nText': ''
+                };
+              });
+              Object.keys(treedData).forEach(treedNodeId => {
+                let currentNode = treedData[treedNodeId];
+                let i18n_tag = ["".concat(Ember.String.underscore(currentNode.text).toLowerCase(), "_").concat(currentNode.parent === '#' ? 'server' : 'feature')];
+
+                while (currentNode.parent !== '#') {
+                  currentNode = treedData[currentNode.parent];
+                  i18n_tag.unshift("".concat(Ember.String.underscore(currentNode.text).toLowerCase(), "_").concat(currentNode.parent === '#' ? 'server' : 'feature'));
+                }
+
+                i18n_tag.push('title');
+                treedData[treedNodeId]['i18nText'] = self.intl.exists(i18n_tag.join('.')) ? self.intl.t(i18n_tag.join('.')) : treedData[treedNodeId]['text'];
+              });
+              nodeData.forEach(singleNodeData => {
+                singleNodeData['text'] = treedData[singleNodeData.id]['i18nText'];
+              });
             }
           }
         },
@@ -11986,7 +12199,8 @@
 
     redirect() {
       const userData = this.get('currentUser').getUser();
-      if (userData.defaultApplication === '' || userData.defaultApplication === 'index') return;
+      if (!userData) return;
+      if (!userData.defaultApplication || userData.defaultApplication === '' || userData.defaultApplication === 'index') return;
       this.transitionTo(userData.defaultApplication);
     },
 
@@ -13665,8 +13879,8 @@
   _exports.default = void 0;
 
   var _default = Ember.HTMLBars.template({
-    "id": "Tlvwzpi8",
-    "block": "{\"symbols\":[\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/account/features/tree-component.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 pt-1 layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"id\",\"settings-account-feature-manager-tree-container\"],[11,\"class\",\"p-2\"],[9],[0,\"\\n\\t\\t\\t \\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
+    "id": "4NbqqpKD",
+    "block": "{\"symbols\":[\"card\"],\"statements\":[[4,\"if\",[[25,[\"hasPermission\"]]],null,{\"statements\":[[4,\"paper-card\",null,[[\"class\"],[\"m-0 flex\"]],{\"statements\":[[4,\"component\",[[29,\"-assert-implicit-component-helper-argument\",[[24,1,[\"content\"]],\"expected `card.content` to be a contextual component but found a string. Did you mean `(component card.content)`? ('plantworks/templates/components/settings/account/features/tree-component.hbs' @ L3:C4) \"],null]],[[\"class\"],[\"p-0 pt-1 flex layout-column layout-align-start-stretch\"]],{\"statements\":[[0,\"\\t\\t\"],[7,\"div\"],[11,\"id\",\"settings-account-feature-manager-tree-container\"],[11,\"class\",\"p-2 flex\"],[9],[0,\"\\n\\t\\t\\t \\n\\t\\t\"],[10],[0,\"\\n\"]],\"parameters\":[]},null]],\"parameters\":[1]},null]],\"parameters\":[]},null]],\"hasEval\":false}",
     "meta": {
       "moduleName": "plantworks/templates/components/settings/account/features/tree-component.hbs"
     }

@@ -35598,6 +35598,22 @@ table.md-table th.md-column md-icon {
 .jstree-default-large > .jstree-container-ul .jstree-loading > .jstree-ocl {
   background: url("../img/throbber.gif") center center no-repeat; }
 
+.jstree-default a {
+  white-space: normal !important;
+  height: auto; }
+
+.jstree-anchor {
+  height: auto !important; }
+
+.jstree-default li > ins {
+  vertical-align: top; }
+
+.jstree-leaf {
+  height: auto; }
+
+.jstree-leaf a {
+  height: auto !important; }
+
 /*
   * Overriding ember-models-table bootstrap4 styles
   */
