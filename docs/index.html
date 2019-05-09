@@ -1578,6 +1578,228 @@
 			<section class="readme">
 				<article><h1>The Plant.Works Web Application Server</h1>
 					<p>The Plant.Works Web Application Server - the browser front-end for the Plant.Works platform.</p>
+					<h2><strong>Setting up the Plant.Works WebApp Server development environment</strong></h2>
+					<p>This section of the document described how to setup the webapp server codebase development environment, with the assumption that the development machine is Ubuntu 18.04 LTS or later. For non Debian-based Linux distros, or OS X / Windows machines, please refer to the appropriate manuals directly.</p>
+					<h3><strong>Pre-requisites</strong></h3>
+					<p>The pre-requisites for runing the webapp server codebase are:</p>
+					<ol>
+						<li>git version control system</li>
+						<li>build-essential (GCC toolchain)</li>
+						<li>PostgreSQL RDBMS V9.6+</li>
+						<li>Redis Server V5.0+</li>
+						<li>Apache Cassandra NoSQL V3.11+</li>
+						<li>node.js V12.0+</li>
+					</ol>
+					<h3><strong>Installing Git and build-essential</strong></h3>
+					<p>On Debian-based Linux distros, simply type in the following command:</p>
+					<pre class="prettyprint source"><code>sudo apt install git build-essential
+</code></pre>
+					<h3><strong>Installing PostgreSQL</strong></h3>
+					<p>On Debian-based Linux distros, follow these instructions:</p>
+					<p><strong>Add the PostgreSQL APT Repository</strong></p>
+					<pre class="prettyprint source"><code>sudo apt install wget ca-certificates
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+sudo sh -c 'echo &quot;deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main&quot; >> /etc/apt/sources.list.d/pgdg.list'
+</code></pre>
+					<p><strong>Install the PostgreSQL server, client, and toolset</strong></p>
+					<pre class="prettyprint source"><code>sudo apt update
+sudo apt install postgresql postgresql-contrib libpq-dev pgadmin3
+</code></pre>
+					<p><strong>Test if the installation went through fine</strong></p>
+					<ol>
+						<li>Login into the Server and set a password for the <em>postgres</em> user</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo -u postgres psql
+
+postgres=# \password
+
+postgres=# \q
+</code></pre>
+					<p><strong>Modify the configuration to allow logins from roles in the terminal</strong></p>
+					<ol>
+						<li>Edit the pg_hba.conf file to use md5 instead of &quot;peer&quot; for authentication</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo nano /etc/postgresql/9.6/main/pg_hba.conf
+</code></pre>
+					<p>Find this line in the file:</p>
+					<pre class="prettyprint source"><code># &quot;local&quot; is for Unix domain socket connections only
+local	all		all		peer
+</code></pre>
+					<p>And change it to:</p>
+					<pre class="prettyprint source"><code># &quot;local&quot; is for Unix domain socket connections only
+local	all		all		md5
+</code></pre>
+					<p>Save and Exit.</p>
+					<ol start="2">
+						<li>Restart the PostgreSQL Server</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo systemctl restart postgresql
+</code></pre>
+					<p><strong>Launch <em>pgAdmin3</em> and connect to the PostgreSQL server installed on your localhost. Then execute the following steps:</strong></p>
+					<ol>
+						<li>
+							<p>Create a database called <strong>plantworks</strong></p>
+						</li>
+						<li>
+							<p>Create a <em>Login Role</em> called <strong>plantworks</strong> with password as <strong>plantworks</strong> and <em>superuser</em> privileges</p>
+						</li>
+						<li>
+							<p>Close pgAdmin3</p>
+						</li>
+					</ol>
+					<p><strong>From the <em>Terminal</em>, test if the configuration is correct:</strong></p>
+					<p>Login into the PostgreSQL Server using the newly created user and password:</p>
+					<pre class="prettyprint source"><code>psql -U plantworks -W -d plantworks
+</code></pre>
+					<p>If you see the standard psql prompt, the configuration has been succesful:</p>
+					<pre class="prettyprint source"><code>psql (9.6.3)
+Type &quot;help&quot; for help.
+
+plantworks=#
+</code></pre>
+					<h3><strong>Installing Redis Server</strong></h3>
+					<p>On Debian-based Linux distros, follow these instructions:</p>
+					<p><strong>From the <em>Terminal</em>, execute the following steps to install Redis server:</strong></p>
+					<ol>
+						<li>Add the Redis server APT Repository</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo apt-add-repository ppa:chris-lea/redis-server
+</code></pre>
+					<ol start="2">
+						<li>Install the Redis server and client utilities</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo apt update
+$ sudo apt install redis-server
+</code></pre>
+					<p><strong>Test if the installation went through fine:</strong></p>
+					<p>Type in the following command in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ redis-cli ping
+</code></pre>
+					<p>If the Redis server was installed succesfully, you should see the following response:</p>
+					<pre class="prettyprint source"><code>PONG
+</code></pre>
+					<h3><strong>Installing Apache Cassandra</strong></h3>
+					<p>On Debian-based Linux distros, follow the instructions at: <a href="http://cassandra.apache.org/download/">Installation from Debian packages</a></p>
+					<h3><strong>Installing node.js &amp; npm</strong></h3>
+					<p>On Debian-based Linux distros, follow these instructions:</p>
+					<p><strong>From the <em>Terminal</em>, execute the following steps to install the latest version of node.js and npm:</strong></p>
+					<ol>
+						<li>Create a new sources.list file</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo nano /etc/apt/sources.list.d/nodesource.list
+</code></pre>
+					<ol start="2">
+						<li>Type in the following lines into the file:</li>
+					</ol>
+					<pre class="prettyprint source"><code>deb https://deb.nodesource.com/node_12.x bionic main
+deb-src https://deb.nodesource.com/node_12.x bionic main
+</code></pre>
+					<ol start="3">
+						<li>Install node.js</li>
+					</ol>
+					<pre class="prettyprint source"><code>$ sudo apt update
+$ sudo apt install nodejs
+</code></pre>
+					<p><strong>Test if the installation went through fine:</strong></p>
+					<p>Type in the following command in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ node -v
+</code></pre>
+					<p>If node.js was installed succesfully, you should see the following response:</p>
+					<pre class="prettyprint source"><code>v12.2.0 (or whatever the current version is)
+</code></pre>
+					<p><strong>Installing the mandatory NPM modules</strong></p>
+					<p>The Web Application Server codebase requires the availability of the following NPM modules at a global level:</p>
+					<pre class="prettyprint source"><code>$ sudo npm i -g eslint jsdoc eslint-plugin-jsdoc knex
+</code></pre>
+					<p>If all of the above steps have been executed successfully, the Ubuntu machine is ready for developing on the Plant.Works Web Application Server...</p>
+					<h2><strong>Getting the IDE</strong></h2>
+					<p>The &quot;official&quot; IDE for using a particular IDE within the Engineering Team is: <a href="https://code.visualstudio.com/">VScode</a></p>
+					<p>Depending on personal preference, the following may also be used:</p>
+					<ol>
+						<li><a href="https://atom.io/">Atom</a></li>
+						<li><a href="https://www.gnu.org/software/emacs/">Emacs</a></li>
+					</ol>
+					<p>Whichever IDE / Code Editor you choose, do ensure that the following <em>mandatory</em> plugins are available and installed:</p>
+					<ol>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=EditorConfig.EditorConfig">Editor Config</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=HookyQR.beautify">JSBeautify</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint">ESLint</a></li>
+					</ol>
+					<p>For VSCode, it is recommended that you install the following additional extensions:</p>
+					<ol>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=HookyQR.JSDocTagComplete">Complete JSDoc Tags</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=msjsdiag.debugger-for-chrome">Debugger for Chrome</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=hbenl.vscode-firefox-debug">Debugger for Firefox</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens">GitLens</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=MS-vsliveshare.vsliveshare-pack">LiveShare</a></li>
+					</ol>
+					<p>For VSCode, the following extensions are marked &quot;nice-to-have&quot;, and may be installed depending on personal preferences:</p>
+					<ol>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=kdcro101.vscode-cassandra">Cassandra Workbench</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=ms-ossdata.vscode-postgresql">PostgreSQL</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=kdcro101.vscode-redis">Redis Console</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=Equinusocio.vsc-material-theme">Material Theme</a></li>
+						<li><a href="https://marketplace.visualstudio.com/items?itemName=PKief.material-icon-theme">Material Icon Theme</a></li>
+					</ol>
+					<p>It is also recommended that you install / use the Fira Code font for development. Instructions on installing the font can be
+						found at: <a href="https://github.com/tonsky/FiraCode/wiki/Linux-instructions#installing-with-a-package-manager">Linux Instructions</a></p>
+					<p>Instructions on integrating this font into VS Code can be found here: <a href="https://github.com/tonsky/FiraCode/wiki/VS-Code-Instructions">VS Code Instructions</a></p>
+					<h2><strong>Starting with the codebase</strong></h2>
+					<p>This section of the document described how to start working with the codebase, running the server, running the test suite, generating documentation, profiling for performance, etc.</p>
+					<h3><strong>Installing the required NPM modules</strong></h3>
+					<p>Before you can run the Server for the first time, you will need to install the dependencies required for the codebase. To do this, execute the following steps in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ cd ~/source/webapp-server
+$ npm install
+</code></pre>
+					<h3><strong>Setting up the database schema</strong></h3>
+					<p>Once the required npm modules have been installed, you will need to setup the basic database schema, and seed it with some data. This assumes that you have installed the PostgreSQL Server, created a plantowrks database, etc. as detailed earlier. Once those
+						steps have been executed correctly, execute the following steps in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ cd ~/source/webapp-server/knex_migrations
+$ knex migrate:latest
+$ knex seed:run
+</code></pre>
+					<h2><strong>Running the Web Application Server</strong></h2>
+					<p>If ALL of the above steps have executed without errors, then the Web Application Server is ready to be run.</p>
+					<p><strong>Running the codebase</strong>
+						To start the server execution, type the following in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ cd ~/source/webapp-server
+$ npm start
+</code></pre>
+					<p>If the Server started successfully, you should see the following at the end of the start sequence:</p>
+					<pre class="prettyprint source"><code>PlantWorksWebAppServer started in: 21800.37ms
++----------+-----------+----------+---------------------------+------+
+|  (index) | Interface | Protocol | Address                   | Port |
++----------+-----------+----------+---------------------------+------+
+|     0    | lo        | IPv4     | 127.0.0.1                 | 9100 |
+|     1    | lo        | IPv6     | ::1                       | 9100 |
+|     2    | wlp1s0    | IPv4     | 192.179.4.130             | 9100 |
+|     3    | wlp1s0    | IPv6     | fe80::5af4:ff3b:634d:4707 | 9100 |
++----------+-----------+----------+---------------------------+------+
+</code></pre>
+					<p>To <strong>shutdown</strong> the Server instance gracefully, simply type <strong>Ctrl+C</strong> in the Terminal, and wait for a couple of seconds. IF the Server shutdown correctly, you should be taken back to the command prompt.</p>
+					<h2><strong>Executing the build process</strong></h2>
+					<p>Running the tests bundled with the codebase, and generating documentation, is similar to runing the server itself. To run the test cases, type the following in the <em>Terminal</em>:</p>
+					<pre class="prettyprint source"><code>$ cd ~/source/webapp-server
+$ npm run build
+</code></pre>
+					<p>If the Tests were run succesfully, you should see something similar to the following at the end of the test sequence:</p>
+					<pre class="prettyprint source"><code>  Application Class Test Cases
+    Instantiate
+      ✓ PlantWorksWebApp should be an instanceOf PlantWorksBaseModule
+
+  Configuration Service Test Cases
+    Instantiate
+      ✓ Should be an instanceOf PlantWorksBaseService
+      ✓ Loader should be an instanceOf PlantWorksModuleLoader
+    Lifecycle Hooks Test Cases
+      ✓ Load test (471ms)
+      ✓ Unload test
+
+
+  5 passing (491ms)
+</code></pre>
+					<p>If the documentation was generated successfully, you should be able to browse it by opening up the <strong>index.html</strong> in the <strong>/docs</strong> folder.</p>
 				</article>
 			</section>
 			<section>

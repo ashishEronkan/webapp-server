@@ -185,6 +185,7 @@ v12.2.0 (or whatever the current version is)
 ```
 
 **Installing the mandatory NPM modules**
+
 The Web Application Server codebase requires the availability of the following NPM modules at a global level:
 
 ```
