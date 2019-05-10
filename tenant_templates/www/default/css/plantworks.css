@@ -35458,6 +35458,9 @@ a.md-button.paper-link.md-raised.active[disabled] {
 .overflow-y-auto {
   overflow-y: auto !important; }
 
+.mw-0 {
+  min-width: 0px !important; }
+
 /* Bug-fixes :-( */
 b,
 strong {
