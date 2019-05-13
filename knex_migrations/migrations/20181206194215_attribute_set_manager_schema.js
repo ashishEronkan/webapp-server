@@ -8,7 +8,6 @@ exports.up = async function(knex) {
 			AttributeSetsTbl.uuid('tenant_id').notNullable().references('tenant_id').inTable('tenants').onDelete('CASCADE').onUpdate('CASCADE');
 			AttributeSetsTbl.uuid('attribute_set_id').notNullable().defaultTo(knex.raw('uuid_generate_v4()'));
 
-			AttributeSetsTbl.uuid('tenant_feature_id').notNullable().references('tenant_feature_id').inTable('tenants_features').onDelete('CASCADE').onUpdate('CASCADE');
 			AttributeSetsTbl.text('name').notNullable();
 			AttributeSetsTbl.text('description');
 
@@ -30,7 +29,6 @@ exports.up = async function(knex) {
 			AttributePropertiesTbl.text('name').notNullable();
 			AttributePropertiesTbl.text('internal_tag').notNullable();
 			AttributePropertiesTbl.text('units');
-			AttributePropertiesTbl.integer('persist_period').notNullable().defaultTo(0);
 
 			AttributePropertiesTbl.text('evaluation_expression');
 			AttributePropertiesTbl.text('description');

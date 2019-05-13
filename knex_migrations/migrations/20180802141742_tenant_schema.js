@@ -43,6 +43,7 @@ exports.up = async function(knex) {
 
 			tenantLocationTbl.primary(['tenant_id', 'tenant_location_id']);
 			tenantLocationTbl.unique(['tenant_id', 'name']);
+			tenantLocationTbl.unique(['tenant_location_id']);
 		});
 	}
 
@@ -63,7 +64,7 @@ exports.up = async function(knex) {
 			groupTbl.primary(['tenant_id', 'tenant_group_id']);
 			groupTbl.foreign(['tenant_id', 'parent_tenant_group_id']).references(['tenant_id', 'tenant_group_id']).inTable('tenant_groups').onDelete('CASCADE').onUpdate('CASCADE');
 
-			groupTbl.unique(['parent_tenant_group_id', 'name']);
+			groupTbl.unique(['tenant_id', 'parent_tenant_group_id', 'name']);
 		});
 	}
 
