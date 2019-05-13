@@ -239,14 +239,30 @@ $ npm install
 
 
 ### **Setting up the database schema**
-Once the required npm modules have been installed, you will need to setup the basic database schema, and seed it with some data. This assumes that you have installed the PostgreSQL Server, created a plantowrks database, etc. as detailed earlier. Once those
-steps have been executed correctly, execute the following steps in the *Terminal*:
+Once the required npm modules have been installed, you will need to setup the basic database schema, and seed it with some data. This assumes that you have installed the PostgreSQL Server, created a plantowrks database, etc. as detailed earlier. Once those steps have been executed correctly, execute the following steps in the *Terminal*:
 
 ```
 $ cd ~/source/webapp-server/knex_migrations
 $ knex migrate:latest
 $ knex seed:run
 ```
+
+
+### **Setting up the keyspace**
+The next step in the setup is to create a Cassandra *keyspace* for this server. This assumes that you have installed Apache Cassandra as detailed earlier. Once those steps have been executed correctly, execute the following steps in the *Terminal*:
+
+```
+$ cd ~/source/webapp-server/cql
+$ cqlsh -f ./plantworks-keyspace.cql
+```
+
+
+### **Copying the configuration**
+By default, the codebase ships only with the configurations required for running the server in *test* mode. To run it on your development setup,
+copy the **/config/test** folder to **/config/development**, and change the settings as necessary.
+
+Note that, if you've used the defaults specified in this document (Postgres, Redis, and Cassandra), you will not need to change anything - the default
+configurations should work as-is. If, however, you have changed the defaults, then the same should be reflected in the appropriate */config/development/server/services/<service_name>_service.js* file.
 
 
 ## **Running the Web Application Server**
