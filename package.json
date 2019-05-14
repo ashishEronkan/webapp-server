@@ -52,7 +52,7 @@
 		"amqplib": "*",
 		"app-module-path": "*",
 		"ascoltatori": "*",
-		"aws-sdk": "^2.453.0",
+		"aws-sdk": "^2.454.0",
 		"axios": "*",
 		"bluebird": "^3.5.4",
 		"bookshelf": "^0.14.2",
@@ -69,7 +69,7 @@
 		"device": "*",
 		"dotenv": "^8.0.0",
 		"ejs": "^2.6.1",
-		"ember-source": "^3.9.1",
+		"ember-source": "^3.10.0",
 		"farmhash": "*",
 		"i18n": "*",
 		"inflection": "*",
@@ -124,7 +124,7 @@
 		"ws": "^7.0.0"
 	},
 	"devDependencies": {
-		"autocannon": "^3.2.1",
+		"autocannon": "^3.2.2",
 		"chai": "*",
 		"chai-http": "^4.3.0",
 		"chai-json": "*",
